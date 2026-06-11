@@ -1,12 +1,19 @@
 import Stripe from 'stripe'
 import { subscriptionRepository } from '@/features/subscriptions/repositories/subscription.repository'
 import { logger } from '@/lib/logger'
-import { PLANS } from '@/constants'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+let stripeInstance: Stripe | null = null
+
+function getStripe(): Stripe {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY!)
+  }
+  return stripeInstance
+}
 
 export class SubscriptionService {
   async createCheckoutSession(userId: string, priceId: string, email: string) {
+    const stripe = getStripe()
     const session = await stripe.checkout.sessions.create({
       customer_email: email,
       mode: 'subscription',
@@ -23,6 +30,7 @@ export class SubscriptionService {
   }
 
   async createPortalSession(customerId: string) {
+    const stripe = getStripe()
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
@@ -32,6 +40,7 @@ export class SubscriptionService {
   }
 
   async handleWebhookEvent(event: Stripe.Event) {
+    const stripe = getStripe()
     logger.info('Processing Stripe webhook', { type: event.type })
 
     switch (event.type) {
@@ -40,14 +49,14 @@ export class SubscriptionService {
         const userId = session.metadata?.user_id
         if (!userId) break
 
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
+        const retrievedSub = await stripe.subscriptions.retrieve(session.subscription as string) as unknown as { id: string; status: string; current_period_end: number; customer: string; metadata: Record<string, string> }
         await subscriptionRepository.upsertSubscription({
           user_id: userId,
-          stripe_customer_id: session.customer as string,
-          stripe_subscription_id: subscription.id,
-          status: subscription.status,
+          stripe_customer_id: retrievedSub.customer,
+          stripe_subscription_id: retrievedSub.id,
+          status: retrievedSub.status,
           plan: 'pro',
-          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+          current_period_end: new Date(retrievedSub.current_period_end * 1000).toISOString(),
         })
         break
       }
@@ -58,13 +67,14 @@ export class SubscriptionService {
         const userId = subscription.metadata?.user_id
         if (!userId) break
 
+        const subData = subscription as unknown as { id: string; status: string; current_period_end: number; customer: string; metadata: Record<string, string> }
         await subscriptionRepository.upsertSubscription({
           user_id: userId,
-          stripe_customer_id: subscription.customer as string,
-          stripe_subscription_id: subscription.id,
+          stripe_customer_id: subData.customer,
+          stripe_subscription_id: subData.id,
           status: subscription.status,
           plan: 'pro',
-          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+          current_period_end: new Date(subData.current_period_end * 1000).toISOString(),
         })
         break
       }

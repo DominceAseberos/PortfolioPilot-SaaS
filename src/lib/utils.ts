@@ -18,13 +18,6 @@ export function formatScore(score: number | null | undefined) {
   return `${Math.round(score)}/100`
 }
 
-export function getScoreColor(score: number | null | undefined) {
-  if (score === null || score === undefined) return 'text-gray-400'
-  if (score >= 80) return 'text-green-500'
-  if (score >= 60) return 'text-yellow-500'
-  return 'text-red-500'
-}
-
 export function getScoreBarColor(score: number | null | undefined) {
   if (score === null || score === undefined) return 'bg-gray-400'
   if (score >= 80) return 'bg-green-500'

@@ -2,7 +2,14 @@ import { createClient } from '@/lib/supabase/client'
 import { logger } from '@/lib/logger'
 
 export class AuthService {
-  private supabase = createClient()
+  private _supabase: ReturnType<typeof createClient> | null = null
+
+  private get supabase() {
+    if (!this._supabase) {
+      this._supabase = createClient()
+    }
+    return this._supabase
+  }
 
   async signUp(email: string, password: string, fullName: string) {
     const { data, error } = await this.supabase.auth.signUp({

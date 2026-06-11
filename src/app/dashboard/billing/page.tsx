@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { ROUTES, PLANS } from '@/constants'
+import { ROUTES } from '@/constants'
 import { BillingPageClient } from '@/components/billing/BillingPageClient'
+
+export const dynamic = 'force-dynamic'
 
 export default async function BillingPage() {
   const supabase = await createClient()

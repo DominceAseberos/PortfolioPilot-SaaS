@@ -3,7 +3,9 @@ import { subscriptionService } from '@/features/subscriptions/services/subscript
 import { errorResponse } from '@/utils/api'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +16,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('Missing stripe-signature header', 400)
     }
 
+    const stripe = getStripe()
     const event = stripe.webhooks.constructEvent(
       body,
       signature,

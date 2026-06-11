@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     const result = await gitHubService.analyze(parsed.data.githubUsername)
     return successResponse(result, 'GitHub analysis complete')
-  } catch (error) {
+  } catch {
     return errorResponse('GitHub analysis failed', 500)
   }
 }

@@ -2,7 +2,7 @@ import type { PortfolioAnalysis } from '@/types'
 import { logger } from '@/lib/logger'
 
 export class PortfolioService {
-  async analyze(portfolioUrl: string, targetRole?: string): Promise<PortfolioAnalysis> {
+  async analyze(portfolioUrl: string): Promise<PortfolioAnalysis> {
     try {
       const response = await fetch(portfolioUrl, {
         signal: AbortSignal.timeout(10000),

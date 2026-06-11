@@ -1,4 +1,4 @@
-import { cn, getScoreColor } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 interface ScoreBadgeProps {
   score: number | null | undefined

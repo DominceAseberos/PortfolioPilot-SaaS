@@ -20,8 +20,9 @@ export class ReviewService {
     }
   ): Promise<Review> {
     const subscription = await subscriptionRepository.getUserSubscription(userId)
-    const plan = subscription?.plan || 'free'
-    const limit = PLANS[plan].reviewsPerMonth
+    const plan = (subscription?.plan as keyof typeof PLANS) || 'free'
+    const planConfig = PLANS[plan]
+    const limit = planConfig.reviewsPerMonth
 
     if (limit > 0) {
       const monthlyCount = await reviewRepository.getMonthlyReviewCount(userId)
@@ -30,36 +31,39 @@ export class ReviewService {
       }
     }
 
+    const calls: Promise<void>[] = []
     let portfolioResult: PortfolioAnalysis | null = null
     let githubResult: GitHubAnalysis | null = null
     let resumeResult: ResumeAnalysis | null = null
 
-    const analyses: Promise<void>[] = []
-
     if (data.portfolioUrl) {
-      analyses.push(
+      calls.push(
         portfolioService.analyze(data.portfolioUrl).then((r) => { portfolioResult = r })
       )
     }
 
     if (data.githubUsername) {
-      analyses.push(
+      calls.push(
         gitHubService.analyze(data.githubUsername).then((r) => { githubResult = r })
       )
     }
 
     if (data.resumeBuffer) {
-      analyses.push(
+      calls.push(
         resumeService.analyze(data.resumeBuffer, data.resumeFileName || 'resume.pdf').then((r) => { resumeResult = r })
       )
     }
 
-    await Promise.all(analyses)
+    await Promise.all(calls)
+
+    const pScore = (portfolioResult as PortfolioAnalysis | null)?.score ?? 0
+    const gScore = (githubResult as GitHubAnalysis | null)?.score ?? 0
+    const rScore = (resumeResult as ResumeAnalysis | null)?.score ?? 0
 
     const overallScore = Math.round(
-      ((portfolioResult?.score || 0) * SCORE_WEIGHTS.portfolio) +
-      ((githubResult?.score || 0) * SCORE_WEIGHTS.github) +
-      ((resumeResult?.score || 0) * SCORE_WEIGHTS.resume)
+      pScore * SCORE_WEIGHTS.portfolio +
+      gScore * SCORE_WEIGHTS.github +
+      rScore * SCORE_WEIGHTS.resume
     )
 
     const review = await reviewRepository.createReview({
@@ -68,25 +72,25 @@ export class ReviewService {
       github_username: data.githubUsername || null,
       resume_url: data.resumeFileName || null,
       overall_score: overallScore,
-      portfolio_score: portfolioResult?.score || null,
-      github_score: githubResult?.score || null,
-      resume_score: resumeResult?.score || null,
+      portfolio_score: pScore || null,
+      github_score: gScore || null,
+      resume_score: rScore || null,
     })
 
     const allStrengths = [
-      ...(portfolioResult?.strengths || []),
-      ...(githubResult?.strengths || []),
-      ...(resumeResult?.strengths || []),
+      ...((portfolioResult as PortfolioAnalysis | null)?.strengths || []),
+      ...((githubResult as GitHubAnalysis | null)?.strengths || []),
+      ...((resumeResult as ResumeAnalysis | null)?.strengths || []),
     ]
     const allWeaknesses = [
-      ...(portfolioResult?.weaknesses || []),
-      ...(githubResult?.weaknesses || []),
-      ...(resumeResult?.weaknesses || []),
+      ...((portfolioResult as PortfolioAnalysis | null)?.weaknesses || []),
+      ...((githubResult as GitHubAnalysis | null)?.weaknesses || []),
+      ...((resumeResult as ResumeAnalysis | null)?.weaknesses || []),
     ]
     const allRecommendations = [
-      ...(portfolioResult?.recommendations || []),
-      ...(githubResult?.recommendations || []),
-      ...(resumeResult?.recommendations || []),
+      ...((portfolioResult as PortfolioAnalysis | null)?.recommendations || []),
+      ...((githubResult as GitHubAnalysis | null)?.recommendations || []),
+      ...((resumeResult as ResumeAnalysis | null)?.recommendations || []),
     ]
 
     await reportRepository.createReport({

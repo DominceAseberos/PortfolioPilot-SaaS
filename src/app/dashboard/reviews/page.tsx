@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants'
 import { ReviewsPageClient } from '@/components/dashboard/ReviewsPageClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ReviewsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

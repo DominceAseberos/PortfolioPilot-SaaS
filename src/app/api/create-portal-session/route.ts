@@ -1,9 +1,8 @@
-import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { subscriptionService } from '@/features/subscriptions/services/subscription.service'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/utils/api'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
     )
 
     return successResponse({ url: session.url }, 'Portal session created')
-  } catch (error) {
+  } catch {
     return errorResponse('Failed to create portal session', 500)
   }
 }

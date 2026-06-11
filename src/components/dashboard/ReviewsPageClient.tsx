@@ -9,7 +9,6 @@ import { Badge } from '@/components/common/Badge'
 import { ScoreBadge } from '@/components/common/ScoreBadge'
 import { EmptyState } from '@/components/common/EmptyState'
 import { formatDate } from '@/lib/utils'
-import { ROUTES } from '@/constants'
 import { Loader2, Upload } from 'lucide-react'
 
 interface Review {

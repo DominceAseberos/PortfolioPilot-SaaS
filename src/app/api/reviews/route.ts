@@ -30,13 +30,12 @@ export async function POST(request: NextRequest) {
     })
 
     return successResponse(review, 'Review created successfully')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Review creation failed'
-    return errorResponse(message, 500)
+  } catch {
+    return errorResponse('Review creation failed', 500)
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -44,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     const reviews = await reviewService.getUserReviews(user.id)
     return successResponse(reviews, 'Reviews fetched successfully')
-  } catch (error) {
+  } catch {
     return errorResponse('Failed to fetch reviews', 500)
   }
 }

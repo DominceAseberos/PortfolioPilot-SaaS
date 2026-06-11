@@ -11,9 +11,9 @@ export async function POST(request: NextRequest) {
       return errorResponse('Validation failed', 400, parsed.error.issues.map(i => i.message))
     }
 
-    const result = await portfolioService.analyze(parsed.data.portfolioUrl, parsed.data.targetRole)
+    const result = await portfolioService.analyze(parsed.data.portfolioUrl)
     return successResponse(result, 'Portfolio analysis complete')
-  } catch (error) {
+  } catch {
     return errorResponse('Portfolio analysis failed', 500)
   }
 }

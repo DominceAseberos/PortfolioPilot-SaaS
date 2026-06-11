@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     )
 
     return successResponse({ url: session.url }, 'Checkout session created')
-  } catch (error) {
+  } catch {
     return errorResponse('Failed to create checkout session', 500)
   }
 }

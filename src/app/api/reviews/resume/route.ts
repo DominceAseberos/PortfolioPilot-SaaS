@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     const result = await resumeService.analyze(buffer, file.name)
     return successResponse(result, 'Resume analysis complete')
-  } catch (error) {
+  } catch {
     return errorResponse('Resume analysis failed', 500)
   }
 }
