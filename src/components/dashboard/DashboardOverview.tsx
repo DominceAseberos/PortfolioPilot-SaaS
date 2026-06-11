@@ -1,0 +1,193 @@
+'use client'
+
+import Link from 'next/link'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card'
+import { Badge } from '@/components/common/Badge'
+import { ScoreBadge, ScoreBar } from '@/components/common/ScoreBadge'
+import { EmptyState } from '@/components/common/EmptyState'
+import { Button } from '@/components/common/Button'
+import { ROUTES } from '@/constants'
+import { formatDate } from '@/lib/utils'
+import { BarChart3, TrendingUp, Award, Activity, Plus, FileText } from 'lucide-react'
+import type { User } from '@supabase/supabase-js'
+
+interface Review {
+  id: string
+  overall_score: number | null
+  portfolio_score: number | null
+  github_score: number | null
+  resume_score: number | null
+  created_at: string
+}
+
+interface Subscription {
+  plan: string
+  status: string
+}
+
+interface DashboardOverviewProps {
+  user: User
+  totalReviews: number
+  averageScore: number
+  bestScore: number
+  improvementPercentage: number
+  recentReviews: Review[]
+  subscription: Subscription | null
+}
+
+export function DashboardOverview({
+  user,
+  totalReviews,
+  averageScore,
+  bestScore,
+  improvementPercentage,
+  recentReviews,
+  subscription,
+}: DashboardOverviewProps) {
+  const plan = subscription?.plan || 'free'
+  const isPro = plan === 'pro'
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Welcome back{user.email ? `, ${user.email.split('@')[0]}` : ''}</h1>
+          <p className="text-muted-foreground text-sm">Here&apos;s your portfolio performance overview</p>
+        </div>
+        <Link href={ROUTES.reviews}>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            New Review
+          </Button>
+        </Link>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Reviews</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalReviews}</div>
+            <p className="text-muted-foreground text-xs">
+              {isPro ? 'Unlimited reviews' : `${Math.max(0, 1 - totalReviews)} review${totalReviews >= 1 ? 's' : ''} remaining this month`}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {averageScore > 0 ? `${Math.round(averageScore)}/100` : 'N/A'}
+            </div>
+            <ScoreBar score={averageScore} className="mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Best Score</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {bestScore > 0 ? `${Math.round(bestScore)}/100` : 'N/A'}
+            </div>
+            <ScoreBadge score={bestScore} size="sm" className="mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Improvement</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {improvementPercentage !== 0 ? `${improvementPercentage > 0 ? '+' : ''}${improvementPercentage}%` : 'N/A'}
+            </div>
+            <p className="text-muted-foreground text-xs">Compared to earlier reviews</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Subscription</CardTitle>
+          <Badge variant={isPro ? 'success' : 'secondary'}>
+            {isPro ? 'Pro' : 'Free'}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-sm">
+            {isPro
+              ? 'You have unlimited reviews and all Pro features.'
+              : 'Upgrade to Pro for unlimited reviews, detailed reports, and progress tracking.'}
+          </p>
+          {!isPro && (
+            <Link href={ROUTES.billing} className="mt-3 inline-block">
+              <Button variant="outline" size="sm">
+                Upgrade to Pro
+              </Button>
+            </Link>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Reviews</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentReviews.length === 0 ? (
+            <EmptyState
+              icon={<Activity className="h-12 w-12" />}
+              title="No reviews yet"
+              description="Create your first review to get recruiter-style feedback on your portfolio."
+              action={
+                <Link href={ROUTES.reviews}>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Review
+                  </Button>
+                </Link>
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {recentReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">
+                      Review from {formatDate(review.created_at)}
+                    </p>
+                    <div className="mt-1 flex gap-2">
+                      {review.portfolio_score !== null && (
+                        <Badge variant="outline">Portfolio: {Math.round(review.portfolio_score)}</Badge>
+                      )}
+                      {review.github_score !== null && (
+                        <Badge variant="outline">GitHub: {Math.round(review.github_score)}</Badge>
+                      )}
+                      {review.resume_score !== null && (
+                        <Badge variant="outline">Resume: {Math.round(review.resume_score)}</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <ScoreBadge score={review.overall_score} size="sm" />
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
