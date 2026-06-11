@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { Subscription } from '@/types'
 import { logger } from '@/lib/logger'
 
@@ -28,7 +29,7 @@ export class SubscriptionRepository {
     plan: string
     current_period_end: string
   }): Promise<Subscription> {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data: subscription, error } = await supabase
       .from('subscriptions')
       .insert(data)
@@ -47,7 +48,7 @@ export class SubscriptionRepository {
     stripeSubscriptionId: string,
     updates: Partial<Subscription>
   ): Promise<Subscription | null> {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('subscriptions')
       .update(updates)
@@ -71,7 +72,7 @@ export class SubscriptionRepository {
     plan: string
     current_period_end: string
   }): Promise<Subscription> {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data: existing } = await supabase
       .from('subscriptions')
       .select('id')
@@ -79,7 +80,10 @@ export class SubscriptionRepository {
       .single()
 
     if (existing) {
-      return this.updateSubscription(data.stripe_subscription_id, data as Partial<Subscription>) as Promise<Subscription>
+      return this.updateSubscription(
+        data.stripe_subscription_id,
+        data as Partial<Subscription>
+      ) as Promise<Subscription>
     }
 
     return this.createSubscription(data)

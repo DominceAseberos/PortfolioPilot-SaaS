@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import { PLANS } from '@/constants'
-import { Check, Loader2 } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 interface Subscription {
   id: string
@@ -21,15 +21,16 @@ interface BillingPageClientProps {
   isPro: boolean
   subscription: Subscription | null
   userEmail: string
+  proPriceId: string
 }
 
-// In production, these would come from Stripe
-const STRIPE_PRICES = {
-  pro_monthly: 'price_pro_monthly',
-  pro_yearly: 'price_pro_yearly',
-}
-
-export function BillingPageClient({ currentPlan, isPro, subscription, userEmail }: BillingPageClientProps) {
+export function BillingPageClient({
+  currentPlan,
+  isPro,
+  subscription,
+  userEmail,
+  proPriceId,
+}: BillingPageClientProps) {
   const [isLoading, setIsLoading] = useState<'monthly' | 'yearly' | 'portal' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -140,7 +141,9 @@ export function BillingPageClient({ currentPlan, isPro, subscription, userEmail 
               ))}
             </ul>
             {currentPlan === 'free' && (
-              <Badge variant="secondary" className="w-full justify-center">Current Plan</Badge>
+              <Badge variant="secondary" className="w-full justify-center">
+                Current Plan
+              </Badge>
             )}
           </CardContent>
         </Card>
@@ -163,14 +166,15 @@ export function BillingPageClient({ currentPlan, isPro, subscription, userEmail 
               ))}
             </ul>
             {isPro ? (
-              <Badge variant="success" className="w-full justify-center">Current Plan</Badge>
+              <Badge variant="success" className="w-full justify-center">
+                Current Plan
+              </Badge>
             ) : (
               <Button
                 className="w-full"
-                onClick={() => handleUpgrade(STRIPE_PRICES.pro_monthly, 'monthly')}
+                onClick={() => handleUpgrade(proPriceId, 'monthly')}
                 isLoading={isLoading === 'monthly'}
               >
-                {isLoading === 'monthly' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Upgrade to Pro
               </Button>
             )}

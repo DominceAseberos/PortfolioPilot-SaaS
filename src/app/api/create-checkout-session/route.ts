@@ -6,7 +6,9 @@ import { successResponse, errorResponse, unauthorizedResponse } from '@/utils/ap
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return unauthorizedResponse()
 
     const body = await request.json()
@@ -16,11 +18,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('Price ID is required', 400)
     }
 
-    const session = await subscriptionService.createCheckoutSession(
-      user.id,
-      priceId,
-      user.email!
-    )
+    const session = await subscriptionService.createCheckoutSession(user.id, priceId, user.email!)
 
     return successResponse({ url: session.url }, 'Checkout session created')
   } catch {

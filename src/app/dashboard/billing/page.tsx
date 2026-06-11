@@ -7,7 +7,9 @@ export const dynamic = 'force-dynamic'
 
 export default async function BillingPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect(ROUTES.login)
@@ -28,6 +30,7 @@ export default async function BillingPage() {
       isPro={isPro}
       subscription={subscription}
       userEmail={user.email || ''}
+      proPriceId={process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || ''}
     />
   )
 }

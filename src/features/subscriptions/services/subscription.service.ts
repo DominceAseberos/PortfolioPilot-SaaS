@@ -49,14 +49,17 @@ export class SubscriptionService {
         const userId = session.metadata?.user_id
         if (!userId) break
 
-        const retrievedSub = await stripe.subscriptions.retrieve(session.subscription as string) as unknown as { id: string; status: string; current_period_end: number; customer: string; metadata: Record<string, string> }
+        const retrievedSub = await stripe.subscriptions.retrieve(session.subscription as string)
+        const periodEnd =
+          retrievedSub.items?.data?.[0]?.current_period_end ??
+          Math.floor(Date.now() / 1000) + 2592000
         await subscriptionRepository.upsertSubscription({
           user_id: userId,
-          stripe_customer_id: retrievedSub.customer,
+          stripe_customer_id: retrievedSub.customer as string,
           stripe_subscription_id: retrievedSub.id,
           status: retrievedSub.status,
           plan: 'pro',
-          current_period_end: new Date(retrievedSub.current_period_end * 1000).toISOString(),
+          current_period_end: new Date(periodEnd * 1000).toISOString(),
         })
         break
       }
@@ -67,14 +70,16 @@ export class SubscriptionService {
         const userId = subscription.metadata?.user_id
         if (!userId) break
 
-        const subData = subscription as unknown as { id: string; status: string; current_period_end: number; customer: string; metadata: Record<string, string> }
+        const periodEnd =
+          subscription.items?.data?.[0]?.current_period_end ??
+          Math.floor(Date.now() / 1000) + 2592000
         await subscriptionRepository.upsertSubscription({
           user_id: userId,
-          stripe_customer_id: subData.customer,
-          stripe_subscription_id: subData.id,
+          stripe_customer_id: subscription.customer as string,
+          stripe_subscription_id: subscription.id,
           status: subscription.status,
           plan: 'pro',
-          current_period_end: new Date(subData.current_period_end * 1000).toISOString(),
+          current_period_end: new Date(periodEnd * 1000).toISOString(),
         })
         break
       }
