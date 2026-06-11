@@ -26,8 +26,19 @@ export function Sheet({ children, ...props }: { children: React.ReactNode; open?
   )
 }
 
-export function SheetTrigger({ children, ...props }: { children: React.ReactNode; asChild?: boolean } & React.HTMLAttributes<HTMLButtonElement>) {
+export function SheetTrigger({ children, asChild, ...props }: { children: React.ReactNode; asChild?: boolean } & React.HTMLAttributes<HTMLButtonElement>) {
   const { onOpenChange } = React.useContext(SheetContext)
+  if (asChild && React.isValidElement(children)) {
+    const childProps = children.props as Record<string, unknown>
+    const originalOnClick = childProps.onClick as ((e: unknown) => void) | undefined
+    return React.cloneElement(children, {
+      ...childProps,
+      onClick: (e: unknown) => {
+        originalOnClick?.(e)
+        onOpenChange(true)
+      },
+    } as Record<string, unknown>)
+  }
   return (
     <button onClick={() => onOpenChange(true)} {...props}>
       {children}

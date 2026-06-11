@@ -1,19 +1,30 @@
-import type { GitHubAnalysis } from '@/types'
+import type { GitHubAnalysis, GitHubProfile, GitHubRepo, GitHubDetails, GitHubContributions } from '@/types'
 import { logger } from '@/lib/logger'
 
+function stripGitHubUrl(input: string): string {
+  const trimmed = input.trim()
+  const match = trimmed.match(
+    /(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_-]+)(?:\/.*)?$/i
+  )
+  return match ? match[1] : trimmed
+}
+
 export class GitHubService {
-  async analyze(username: string): Promise<GitHubAnalysis> {
+  async analyze(rawUsername: string): Promise<GitHubAnalysis> {
+    const username = stripGitHubUrl(rawUsername)
     try {
       const headers: Record<string, string> = {
         Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'PortfolioPilot',
       }
       if (process.env.GITHUB_TOKEN) {
         headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
       }
 
-      const [userRes, reposRes] = await Promise.all([
+      const [userRes, reposRes, eventsRes] = await Promise.all([
         fetch(`https://api.github.com/users/${username}`, { headers, signal: AbortSignal.timeout(10000) }),
-        fetch(`https://api.github.com/users/${username}/repos?per_page=30&sort=updated`, { headers, signal: AbortSignal.timeout(10000) }),
+        fetch(`https://api.github.com/users/${username}/repos?per_page=30&sort=updated&direction=desc`, { headers, signal: AbortSignal.timeout(10000) }),
+        fetch(`https://api.github.com/users/${username}/events?per_page=10`, { headers, signal: AbortSignal.timeout(10000) }),
       ])
 
       if (userRes.status === 404) {
@@ -25,34 +36,79 @@ export class GitHubService {
         }
       }
 
-      if (userRes.status === 403) {
+      if (!userRes.ok) {
+        const errorBody = await userRes.text().catch(() => '')
         return {
           score: 0,
           strengths: [],
-          weaknesses: ['GitHub API rate limit exceeded'],
+          weaknesses: [`GitHub API error (${userRes.status})${errorBody ? ': ' + errorBody.slice(0, 100) : ''}`],
           recommendations: ['Try again later or add a GITHUB_TOKEN environment variable'],
         }
       }
 
       const userData = await userRes.json()
-      const repos: Array<{ name: string; description: string | null; stargazers_count: number; forks_count: number; language: string | null; updated_at: string; topics: string[] }> = await reposRes.json()
+      const reposData = reposRes.ok ? await reposRes.json() : []
+      const eventsData = eventsRes.ok ? await eventsRes.json() : []
 
-      const checks = {
-        hasBio: !!userData.bio,
-        hasAvatar: !!userData.avatar_url,
-        hasWebsite: !!userData.blog,
-        hasCompanyOrLocation: !!(userData.company || userData.location),
-        hasPinnedRepos: repos.length > 0,
-        hasRecentActivity: repos.some((r) => {
-          const updated = new Date(r.updated_at)
-          const threeMonthsAgo = new Date()
-          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
-          return updated > threeMonthsAgo
-        }),
+      const profile: GitHubProfile = {
+        name: userData.name || null,
+        bio: userData.bio || null,
+        avatar_url: userData.avatar_url || null,
+        blog: userData.blog || null,
+        company: userData.company || null,
+        location: userData.location || null,
+        public_repos: userData.public_repos || 0,
+        followers: userData.followers || 0,
+        following: userData.following || 0,
+        created_at: userData.created_at || '',
+      }
+
+      const repos: GitHubRepo[] = (reposData as Array<{
+        name: string; description: string | null; language: string | null;
+        stargazers_count: number; forks_count: number; topics: string[];
+        updated_at: string
+      }>).map((r) => ({
+        name: r.name,
+        description: r.description,
+        language: r.language,
+        stars: r.stargazers_count,
+        forks: r.forks_count,
+        topics: r.topics || [],
+        updated_at: r.updated_at,
+      }))
+
+      const events = (eventsData as Array<{ type: string; created_at: string; repo: { name: string } }>)
+        .slice(0, 10)
+        .map((e) => ({
+          type: e.type,
+          repo: e.repo.name,
+          created_at: e.created_at,
+        }))
+
+      const details: GitHubDetails = { profile, repos, events }
+      const contributions = await this.fetchContributions(username, headers)
+      if (contributions) details.contributions = contributions
+
+      const threeMonthsAgo = new Date()
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+
+      const checks: Record<string, boolean> = {
+        hasBio: !!profile.bio,
+        hasAvatar: !!profile.avatar_url,
+        hasWebsite: !!profile.blog,
+        hasCompanyOrLocation: !!(profile.company || profile.location),
+        hasRecentActivity: repos.some((r) => new Date(r.updated_at) > threeMonthsAgo),
         hasMultipleLanguages: new Set(repos.filter((r) => r.language).map((r) => r.language)).size >= 2,
-        hasPopularRepos: repos.some((r) => r.stargazers_count > 0),
+        hasPopularRepos: repos.some((r) => r.stars > 0),
         hasProjectDiversity: repos.length >= 5,
         hasDescriptions: repos.filter((r) => r.description).length >= 3,
+        hasEventActivity: events.some((e) => new Date(e.created_at) > threeMonthsAgo),
+      }
+
+      if (contributions) {
+        checks.hasYearContributions = contributions.totalContributions > 0
+        checks.hasStrongStreak = contributions.currentStreak >= 7
+        checks.hasConsistentActivity = contributions.averagePerWeek >= 3
       }
 
       const passedChecks = Object.values(checks).filter(Boolean).length
@@ -87,21 +143,130 @@ export class GitHubService {
       if (checks.hasDescriptions) strengths.push('Repositories have descriptions')
       else recommendations.push('Add descriptions to your repositories explaining what they do')
 
+      if (checks.hasEventActivity) strengths.push('Recent public activity on GitHub')
+      else recommendations.push('Be more active publicly — push commits, open issues, or contribute to discussions')
+
       if (repos.length > 0) {
         const readmeCount = repos.filter((r) => r.description && r.description.length > 20).length
         if (readmeCount >= 3) strengths.push('Repositories have detailed READMEs')
         else recommendations.push('Add detailed README files to your key repositories')
       }
 
-      return { score, strengths, weaknesses, recommendations }
+      if (contributions) {
+        if (contributions.totalContributions > 0) {
+          strengths.push(`${contributions.totalContributions} contributions in the last year`)
+        } else {
+          weaknesses.push('No contributions in the last year')
+          recommendations.push('Make regular contributions to show active development')
+        }
+        if (contributions.currentStreak >= 7) {
+          strengths.push(`Current contribution streak of ${contributions.currentStreak} days`)
+        } else if (contributions.totalContributions > 0) {
+          recommendations.push('Build a longer contribution streak by committing daily')
+        }
+        if (contributions.averagePerWeek >= 3) {
+          strengths.push(`Consistent activity — ${contributions.averagePerWeek.toFixed(1)} contributions/week on average`)
+        } else if (contributions.totalContributions > 0) {
+          recommendations.push('Increase contribution frequency to at least 3x per week')
+        }
+      }
+
+      return { score, strengths, weaknesses, recommendations, details }
     } catch (error) {
       logger.error('GitHub analysis failed', { error: String(error), username })
       return {
         score: 0,
         strengths: [],
-        weaknesses: ['GitHub analysis failed'],
+        weaknesses: ['GitHub analysis failed: ' + String(error)],
         recommendations: ['Ensure the username is correct and try again'],
       }
+    }
+  }
+
+  private async fetchContributions(
+    username: string,
+    headers: Record<string, string>
+  ): Promise<GitHubContributions | null> {
+    if (!process.env.GITHUB_TOKEN) return null
+
+    const query = `
+      query($username: String!) {
+        user(login: $username) {
+          contributionsCollection {
+            contributionCalendar {
+              totalContributions
+              weeks {
+                contributionDays {
+                  contributionCount
+                  date
+                }
+              }
+            }
+          }
+        }
+      }
+    `
+
+    try {
+      const res = await fetch('https://api.github.com/graphql', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, variables: { username } }),
+        signal: AbortSignal.timeout(10000),
+      })
+
+      if (!res.ok) return null
+
+      const json = await res.json()
+      const calendar = json?.data?.user?.contributionsCollection?.contributionCalendar
+      if (!calendar?.weeks) return null
+
+      const days: { date: string; count: number }[] = []
+      for (const week of calendar.weeks) {
+        for (const day of week.contributionDays) {
+          days.push({ date: day.date, count: day.contributionCount })
+        }
+      }
+
+      const totalContributions = calendar.totalContributions || 0
+      const totalWeeks = calendar.weeks.length || 1
+      const averagePerWeek = totalWeeks > 0 ? totalContributions / totalWeeks : 0
+
+      let currentStreak = 0
+      const today = new Date().toISOString().slice(0, 10)
+      for (let i = days.length - 1; i >= 0; i--) {
+        if (days[i].date > today) continue
+        if (days[i].count > 0) {
+          currentStreak++
+        } else {
+          break
+        }
+      }
+
+      let longestStreak = 0
+      let tempStreak = 0
+      for (const day of days) {
+        if (day.count > 0) {
+          tempStreak++
+          longestStreak = Math.max(longestStreak, tempStreak)
+        } else {
+          tempStreak = 0
+        }
+      }
+
+      const weeksWithActivity = calendar.weeks.filter(
+        (w: { contributionDays: { contributionCount: number }[] }) =>
+          w.contributionDays.some((d: { contributionCount: number }) => d.contributionCount > 0)
+      ).length
+
+      return { totalContributions, currentStreak, longestStreak, averagePerWeek, weeksWithActivity }
+    } catch (error) {
+      logger.warn('GitHub GraphQL contributions fetch failed', { error: String(error), username })
+      return null
     }
   }
 }

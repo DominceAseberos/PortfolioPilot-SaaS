@@ -17,10 +17,16 @@ export class AuthService {
       password,
       options: {
         data: { full_name: fullName },
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
       },
     })
     if (error) {
-      logger.error('Sign up failed', { error: error.message })
+      logger.error('Sign up failed', {
+        ...error,
+        message: error.message,
+        name: error.name,
+        status: (error as { status?: number })?.status,
+      })
       throw error
     }
     return data
@@ -72,7 +78,10 @@ export class AuthService {
   }
 
   async getUser() {
-    const { data: { user }, error } = await this.supabase.auth.getUser()
+    const {
+      data: { user },
+      error,
+    } = await this.supabase.auth.getUser()
     if (error) {
       logger.error('Get user failed', { error: error.message })
       return null
@@ -81,7 +90,10 @@ export class AuthService {
   }
 
   async getSession() {
-    const { data: { session }, error } = await this.supabase.auth.getSession()
+    const {
+      data: { session },
+      error,
+    } = await this.supabase.auth.getSession()
     if (error) {
       logger.error('Get session failed', { error: error.message })
       return null

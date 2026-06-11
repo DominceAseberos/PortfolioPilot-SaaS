@@ -24,7 +24,11 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       <AvatarContext.Provider value={{ size }}>
         <div
           ref={ref}
-          className={cn('relative flex shrink-0 overflow-hidden rounded-full', sizeClasses[size], className)}
+          className={cn(
+            'relative flex shrink-0 overflow-hidden rounded-full',
+            sizeClasses[size],
+            className
+          )}
           {...props}
         />
       </AvatarContext.Provider>
@@ -34,10 +38,11 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 Avatar.displayName = 'Avatar'
 
 const AvatarImage = React.forwardRef<HTMLImageElement, React.ImgHTMLAttributes<HTMLImageElement>>(
-  ({ className, ...props }, ref) => {
+  ({ className, alt = '', ...props }, ref) => {
     return (
       <img
         ref={ref}
+        alt={alt}
         className={cn('aspect-square h-full w-full object-cover', className)}
         {...props}
       />

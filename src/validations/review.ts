@@ -1,15 +1,32 @@
 import { z } from 'zod'
 import { FILE_UPLOAD } from '@/constants'
 
+const urlSchema = z.string().transform((val) => {
+  const trimmed = val.trim()
+  if (!trimmed) throw new Error('URL is required')
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  return `https://${trimmed}`
+}).pipe(z.string().url('Please enter a valid URL'))
+
 export const portfolioReviewSchema = z.object({
-  portfolioUrl: z.string().url('Please enter a valid URL'),
+  portfolioUrl: urlSchema,
   targetRole: z.string().min(2, 'Please enter a target role').optional(),
 })
 
+const githubUsernameSchema = z.string()
+  .min(1, 'GitHub username is required')
+  .regex(/^\S+$/, 'GitHub username cannot contain spaces')
+  .max(100, 'GitHub username is too long')
+  .transform((val) => {
+    const trimmed = val.trim()
+    const match = trimmed.match(
+      /(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_-]+)(?:\/.*)?$/i
+    )
+    return match ? match[1] : trimmed
+  })
+
 export const githubReviewSchema = z.object({
-  githubUsername: z.string()
-    .min(1, 'GitHub username is required')
-    .regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/, 'Please enter a valid GitHub username'),
+  githubUsername: githubUsernameSchema,
 })
 
 export const resumeReviewSchema = z.object({

@@ -1,5 +1,91 @@
-import type { PortfolioAnalysis } from '@/types'
+import type { PortfolioAnalysis, PortfolioCheck, PortfolioDetails } from '@/types'
 import { logger } from '@/lib/logger'
+import { JSDOM } from 'jsdom'
+import { Readability } from '@mozilla/readability'
+
+interface ExtractedContent {
+  headings: string[]
+  paragraphs: string[]
+  links: string[]
+  images: number
+  brokenLinks: string[]
+  imagesNoAlt: number
+}
+
+function extractContent(html: string): ExtractedContent {
+  const stripTag = (s: string) => s.replace(/<[^>]+>/g, '').trim()
+
+  const headings: string[] = []
+  const headingRegex = /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi
+  let m: RegExpExecArray | null
+  while ((m = headingRegex.exec(html)) !== null) {
+    const text = stripTag(m[1])
+    if (text) headings.push(text)
+  }
+
+  const paragraphs: string[] = []
+  const paraRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi
+  while ((m = paraRegex.exec(html)) !== null) {
+    const text = stripTag(m[1])
+    if (text) paragraphs.push(text)
+  }
+
+  const links: string[] = []
+  const brokenLinks: string[] = []
+  const linkRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>/gi
+  while ((m = linkRegex.exec(html)) !== null) {
+    const href = m[1]
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      links.push(href)
+    }
+    if (!href || href === '#' || href === '') {
+      brokenLinks.push(href)
+    }
+  }
+
+  const images = (html.match(/<img[^>]+>/gi) || []).length
+  const imagesNoAlt = (html.match(/<img(?![^>]*\salt=)[^>]*>/gi) || []).length
+
+  return { headings, paragraphs, links, images, brokenLinks, imagesNoAlt }
+}
+
+function countTags(html: string, tag: string): number {
+  const regex = new RegExp(`<${tag}[\\s>]`, 'gi')
+  return (html.match(regex) || []).length
+}
+
+function check(...args: [string, boolean, string]): PortfolioCheck
+function check(...args: [string, boolean, string, 'unverifiable']): PortfolioCheck
+function check(
+  name: string,
+  passed: boolean,
+  detail: string,
+  status?: 'unverifiable'
+): PortfolioCheck {
+  return { name, passed, detail, status: status || (passed ? 'passed' : 'failed') }
+}
+
+function tryReadability(
+  html: string,
+  url: string
+): { content: ExtractedContent; wordCount: number; excerpt: string } | null {
+  try {
+    const dom = new JSDOM(html, { url })
+    const reader = new Readability(dom.window.document)
+    const article = reader.parse()
+    if (article?.textContent) {
+      const wordCount = article.textContent.trim().split(/\s+/).filter(Boolean).length
+      if (wordCount >= 30) {
+        return {
+          wordCount,
+          excerpt: article.excerpt || article.textContent.trim().slice(0, 200),
+          content: extractContent(article.content || ''),
+        }
+      }
+    }
+  } catch {}
+  return null
+}
 
 export class PortfolioService {
   async analyze(portfolioUrl: string): Promise<PortfolioAnalysis> {
@@ -8,56 +94,249 @@ export class PortfolioService {
         signal: AbortSignal.timeout(10000),
       })
       const html = await response.text()
+      const readable = tryReadability(html, portfolioUrl)
+      const content = readable ? readable.content : extractContent(html)
 
-      const checks = {
-        hasTitle: this.hasTitleTag(html),
-        hasMetaDescription: this.hasMetaDescription(html),
-        hasViewportMeta: html.includes('viewport') || html.includes('responsive'),
-        hasNavigation: this.hasNavigation(html),
-        hasContactInfo: this.hasContactInfo(html),
-        hasCallToAction: this.hasCallToAction(html),
-        hasProjectShowcase: this.hasProjectShowcase(html),
-        hasSocialLinks: this.hasSocialLinks(html),
-        isUsingModernFramework: this.hasModernFramework(html),
-        hasCustomDomain: portfolioUrl.includes('https://') && !portfolioUrl.includes('github.io') && !portfolioUrl.includes('netlify.app'),
+      const usesClientFramework = this.detectsClientFramework(html)
+      const isSparse = content.headings.length < 2 && content.paragraphs.length < 3
+      const contentLikelyRendered = usesClientFramework && isSparse && !readable
+
+      const checks: PortfolioCheck[] = []
+
+      // ── SEO / Metadata ──────────────────────────────────
+      checks.push(check('Page Title', this.hasValidTitle(html), 'Descriptive <title> tag'))
+      checks.push(
+        check(
+          'Meta Description',
+          this.hasMetaDescription(html),
+          'Meta description for search engines'
+        )
+      )
+      checks.push(
+        check('Title Length', this.hasGoodTitleLength(html), 'Title is between 30-60 characters')
+      )
+      checks.push(
+        check(
+          'Description Length',
+          this.hasGoodDescriptionLength(html),
+          'Meta description is 40-160 characters'
+        )
+      )
+      checks.push(check('OG Tags', this.hasOGTags(html), 'Open Graph tags for social sharing'))
+      checks.push(
+        check('Twitter Card', this.hasTwitterCard(html), 'Twitter Card tags for X/Twitter sharing')
+      )
+      checks.push(
+        check(
+          'Canonical URL',
+          this.hasCanonical(html),
+          'Canonical link tag to prevent duplicate content'
+        )
+      )
+
+      // ── HTML Structure ──────────────────────────────────
+      checks.push(check('Doctype', /<!DOCTYPE html>/i.test(html), 'HTML5 doctype declared'))
+      checks.push(check('HTML Lang', this.hasLangAttr(html), '<html lang="..."> attribute set'))
+
+      if (contentLikelyRendered) {
+        const note = 'Unverifiable – site uses client-side rendering (check in DevTools)'
+        checks.push(check('Single H1', true, note, 'unverifiable'))
+        checks.push(check('Heading Hierarchy', true, note, 'unverifiable'))
+        checks.push(check('Semantic Landmarks', true, note, 'unverifiable'))
+        checks.push(check('Image Alt Text', true, note, 'unverifiable'))
+        checks.push(check('Link Text Quality', true, note, 'unverifiable'))
+      } else {
+        checks.push(
+          check(
+            'Single H1',
+            countTags(html, 'h1') === 1,
+            'Exactly one <h1> tag (found: ' + countTags(html, 'h1') + ')'
+          )
+        )
+        checks.push(
+          check(
+            'Heading Hierarchy',
+            this.hasValidHeadingHierarchy(html),
+            'Headings follow logical order (h1→h2→h3)'
+          )
+        )
+        checks.push(
+          check(
+            'Semantic Landmarks',
+            this.hasSemanticLandmarks(html),
+            'Uses <main>, <nav>, <header>, <footer> landmarks'
+          )
+        )
+        checks.push(
+          check(
+            'Image Alt Text',
+            content.imagesNoAlt === 0,
+            'All images have alt attributes (' + content.imagesNoAlt + ' missing)'
+          )
+        )
+        checks.push(
+          check(
+            'Link Text Quality',
+            !/>(click here|read more|learn more|this link)\b/i.test(html),
+            'No generic link text like "click here"'
+          )
+        )
       }
 
-      const passedChecks = Object.values(checks).filter(Boolean).length
-      const totalChecks = Object.values(checks).length
-      const score = Math.round((passedChecks / totalChecks) * 100)
+      // ── Technical ───────────────────────────────────────
+      checks.push(
+        check(
+          'Responsive Design',
+          this.hasViewport(html),
+          'Viewport meta tag for mobile responsiveness'
+        )
+      )
+      checks.push(
+        check(
+          'Modern Framework',
+          usesClientFramework || this.hasModernFramework(html),
+          'Modern framework detected (React, Next.js, Vue, Angular, Astro)'
+        )
+      )
+      checks.push(
+        check(
+          'Custom Domain',
+          this.hasCustomDomain(portfolioUrl),
+          'Not a free subdomain (github.io, netlify.app)'
+        )
+      )
+      checks.push(
+        check(
+          'Structured Data',
+          this.hasStructuredData(html),
+          'JSON-LD structured data for search engines'
+        )
+      )
+      checks.push(check('Favicon', this.hasFavicon(html), 'Favicon link tag present'))
+      checks.push(check('HTTPS', portfolioUrl.startsWith('https://'), 'Served over HTTPS'))
 
-      const strengths: string[] = []
-      const weaknesses: string[] = []
-      const recommendations: string[] = []
+      // ── Navigation & Content ────────────────────────────
+      checks.push(check('Navigation', this.hasNavigation(html), '<nav> or navigation menu present'))
+      checks.push(check('Contact Info', this.hasContactInfo(html), 'Email, phone, or contact form'))
+      checks.push(
+        check('Social Links', this.hasSocialLinks(html), 'LinkedIn, GitHub, Twitter, etc.')
+      )
 
-      if (checks.hasTitle) strengths.push('Has a meaningful page title')
-      else { weaknesses.push('Missing or generic page title'); recommendations.push('Add a descriptive page title tag') }
+      if (contentLikelyRendered) {
+        checks.push(
+          check('Call to Action', true, 'Unverifiable – content is client-rendered', 'unverifiable')
+        )
+        checks.push(
+          check(
+            'Content Headings',
+            true,
+            'Unverifiable – content is client-rendered',
+            'unverifiable'
+          )
+        )
+        checks.push(
+          check('Content Text', true, 'Unverifiable – content is client-rendered', 'unverifiable')
+        )
+        checks.push(
+          check(
+            'Project Showcase',
+            true,
+            'Unverifiable – content is client-rendered',
+            'unverifiable'
+          )
+        )
+      } else {
+        checks.push(
+          check(
+            'Call to Action',
+            this.hasCallToAction(html),
+            'CTA buttons like "Hire Me" or "Contact"'
+          )
+        )
+        checks.push(
+          check(
+            'Project Showcase',
+            this.hasProjectShowcase(html),
+            'Projects, portfolio, or case studies section'
+          )
+        )
+        checks.push(
+          check(
+            'Content Headings',
+            content.headings.length >= 3,
+            content.headings.length + ' heading(s) found (h1-h3)'
+          )
+        )
 
-      if (checks.hasMetaDescription) strengths.push('Has meta description for SEO')
-      else recommendations.push('Add a meta description tag for better search visibility')
+        if (readable) {
+          checks.push(
+            check(
+              'Content Text',
+              readable.wordCount >= 80,
+              `${readable.wordCount} words of readable content found via Readability`
+            )
+          )
+        } else {
+          checks.push(
+            check(
+              'Content Text',
+              content.paragraphs.length >= 3,
+              content.paragraphs.length + ' paragraph(s) found'
+            )
+          )
+        }
+      }
 
-      if (checks.hasViewportMeta) strengths.push('Responsive design meta tag present')
-      else recommendations.push('Add viewport meta tag for mobile responsiveness')
+      checks.push(
+        check(
+          'External Links',
+          content.links.length >= 2,
+          content.links.length + ' external link(s) found'
+        )
+      )
+      checks.push(
+        check(
+          'No Broken Links',
+          content.brokenLinks.length === 0,
+          content.brokenLinks.length + ' empty/missing href(s)'
+        )
+      )
 
-      if (checks.hasNavigation) strengths.push('Has clear navigation structure')
-      else recommendations.push('Add a clear navigation menu')
+      // ── Score calculation ───────────────────────────────
+      const passed = checks.filter((c) => c.status === 'passed').length
+      const unverifiable = checks.filter((c) => c.status === 'unverifiable').length
+      const scored = checks.length - unverifiable
+      const score = scored > 0 ? Math.round((passed / scored) * 100) : 0
 
-      if (checks.hasContactInfo) strengths.push('Contact information is accessible')
-      else recommendations.push('Add contact information or a contact form')
+      const strengths: string[] = checks.filter((c) => c.status === 'passed').map((c) => c.detail)
 
-      if (checks.hasCallToAction) strengths.push('Has clear call-to-action elements')
-      else recommendations.push('Add clear call-to-action buttons (e.g., "View My Work", "Contact Me")')
+      const weaknesses: string[] = checks
+        .filter((c) => c.status === 'failed')
+        .map((c) => 'Missing: ' + c.detail)
 
-      if (checks.hasProjectShowcase) strengths.push('Showcases projects effectively')
-      else recommendations.push('Add a project showcase section with descriptions and links')
+      const recommendations: string[] = checks
+        .filter((c) => c.status === 'failed')
+        .map((c) => this.getRecommendation(c.name))
 
-      if (checks.hasSocialLinks) strengths.push('Links to social/professional profiles')
-      else recommendations.push('Add links to LinkedIn, GitHub, or other professional profiles')
+      if (contentLikelyRendered) {
+        recommendations.push(
+          'Run a local audit (Lighthouse) on this site — some checks could not be verified via HTML fetch because the site uses JavaScript rendering'
+        )
+      }
 
-      if (checks.hasCustomDomain) strengths.push('Uses a custom domain name')
-      else recommendations.push('Consider using a custom domain for a more professional impression')
+      const details: PortfolioDetails = {
+        url: portfolioUrl,
+        checks,
+        contentHeadings: content.headings.slice(0, 10),
+        contentParagraphs: content.paragraphs.slice(0, 5).map((p) => p.slice(0, 200)),
+        contentLinkCount: content.links.length,
+        contentImageCount: content.images,
+        readabilityUsed: !!readable,
+        readableExcerpt: readable?.excerpt,
+        readableWordCount: readable?.wordCount,
+      }
 
-      return { score, strengths, weaknesses, recommendations }
+      return { score, strengths, weaknesses, recommendations, details }
     } catch (error) {
       logger.error('Portfolio analysis failed', { error: String(error), url: portfolioUrl })
       return {
@@ -65,17 +344,143 @@ export class PortfolioService {
         strengths: [],
         weaknesses: ['Could not access the provided URL'],
         recommendations: ['Ensure the portfolio URL is publicly accessible and try again'],
+        details: { url: portfolioUrl, checks: [] },
       }
     }
   }
 
-  private hasTitleTag(html: string): boolean {
+  private getRecommendation(checkName: string): string {
+    const map: Record<string, string> = {
+      'Page Title': 'Add a descriptive <title> tag (50-60 characters, front-loaded with keywords)',
+      'Meta Description': 'Add a meta description tag (40-160 characters with a call to action)',
+      'Title Length':
+        'Keep the title between 30-60 characters so it is not truncated in search results',
+      'Description Length': 'Keep meta description between 40-160 characters',
+      'OG Tags': 'Add og:title, og:description, and og:image meta tags for social sharing previews',
+      'Twitter Card':
+        'Add twitter:card, twitter:title, twitter:description meta tags for X/Twitter sharing',
+      'Canonical URL': 'Add a <link rel="canonical"> tag to prevent duplicate content issues',
+      Doctype: 'Add <!DOCTYPE html> at the top of the page',
+      'HTML Lang':
+        'Add lang="en" (or appropriate language) to the <html> tag for accessibility and SEO',
+      'Single H1':
+        'Use exactly one <h1> tag per page. Multiple H1s confuse search engines and screen readers',
+      'Heading Hierarchy':
+        'Do not skip heading levels (h1→h2→h3). Skipped levels break screen reader navigation',
+      'Semantic Landmarks':
+        'Use <main>, <nav>, <header>, <footer> elements for better accessibility and SEO',
+      'Image Alt Text':
+        'Add descriptive alt text to all images. Decorative images should use alt=""',
+      'Link Text Quality':
+        'Replace generic link text ("click here") with descriptive text describing the destination',
+      'Responsive Design': 'Add <meta name="viewport"> tag for mobile responsiveness',
+      'Modern Framework': 'Consider using a modern framework like Next.js or Astro',
+      'Custom Domain':
+        'Use a custom domain (yourname.com) instead of a free subdomain for professionalism',
+      'Structured Data':
+        'Add JSON-LD structured data (Person schema, etc.) for better search results',
+      Favicon: 'Add a favicon link tag so the site shows an icon in browser tabs',
+      HTTPS: 'Ensure your site is served over HTTPS',
+      Navigation: 'Add a <nav> element or navigation menu with clear links',
+      'Contact Info': 'Add visible contact information or a contact form',
+      'Social Links': 'Add links to LinkedIn, GitHub, or other professional profiles',
+      'Call to Action': 'Add clear call-to-action buttons (e.g., "View My Work", "Contact Me")',
+      'Project Showcase': 'Add a project showcase section with descriptions, tech stack, and links',
+      'Content Headings': 'Add more section headings (h1-h3) to structure your content',
+      'Content Text':
+        'Add more written content (at least 3 paragraphs) to showcase your experience',
+      'External Links': 'Include more external links to projects, social profiles, or references',
+      'No Broken Links': 'Fix empty or broken href attributes on all anchor tags',
+    }
+    return map[checkName] || 'Improve: ' + checkName
+  }
+
+  private detectsClientFramework(html: string): boolean {
+    const astro =
+      /astro-island|data-astro-cid-|astro-dev-toolbar|<script[^>]*\/_astro\/|View-Transitions/i.test(
+        html
+      )
+    const nextjs =
+      /__NEXT_DATA__|self\.__next_f|_next\/static\/chunks/i.test(html) ||
+      /<div[^>]*id=["']__next["']/i.test(html)
+    const nuxt = /__NUXT__|_nuxt\/|<div[^>]*id=["']__nuxt["']/i.test(html)
+    const svelte =
+      /__sveltekit|data-sveltekit|svelte-[a-f0-9]{6}/i.test(html) || /_app\/immutable\//i.test(html)
+    const remix = /__remixContext|data-remix-run/i.test(html) || /build\/_assets\//i.test(html)
+    const react = /data-reactroot|data-reactid/i.test(html)
+    const vue = /data-v-[a-f0-9]{6,}/i.test(html) || /ng-app/i.test(html)
+    const angular = /ng-version/i.test(html)
+    const gatsby = /___gatsby|<div[^>]*id=["']___gatsby["']/i.test(html)
+
+    return astro || nextjs || nuxt || svelte || remix || react || vue || angular || gatsby
+  }
+
+  private hasValidTitle(html: string): boolean {
     const match = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-    return !!match && match[1].trim().length > 0 && match[1] !== 'Home' && match[1] !== 'Index'
+    if (!match) return false
+    const title = match[1].trim()
+    return title.length > 0 && title !== 'Home' && title !== 'Index' && title !== 'Portfolio'
+  }
+
+  private hasGoodTitleLength(html: string): boolean {
+    const match = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    if (!match) return false
+    const len = match[1].trim().length
+    return len >= 30 && len <= 60
+  }
+
+  private hasGoodDescriptionLength(html: string): boolean {
+    const match = html.match(/<meta\s+[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
+    if (!match) return false
+    const len = match[1].length
+    return len >= 40 && len <= 160
   }
 
   private hasMetaDescription(html: string): boolean {
     return /<meta\s+[^>]*name=["']description["'][^>]*content=["'][^"']+["']/i.test(html)
+  }
+
+  private hasOGTags(html: string): boolean {
+    return /property=["']og:title["']/i.test(html) && /property=["']og:description["']/i.test(html)
+  }
+
+  private hasTwitterCard(html: string): boolean {
+    return /name=["']twitter:card["']/i.test(html)
+  }
+
+  private hasCanonical(html: string): boolean {
+    return /<link[^>]*rel=["']canonical["'][^>]*href=["'][^"']+["']/i.test(html)
+  }
+
+  private hasLangAttr(html: string): boolean {
+    return /<html[^>]*\slang=["'][^"']+["']/i.test(html)
+  }
+
+  private hasValidHeadingHierarchy(html: string): boolean {
+    const tags: string[] = []
+    const regex = /<(h[1-6])[^>]*>/gi
+    let m: RegExpExecArray | null
+    while ((m = regex.exec(html)) !== null) {
+      tags.push(m[1])
+    }
+    if (tags.length === 0) return false
+    let prev = 0
+    for (const tag of tags) {
+      const level = parseInt(tag[1])
+      if (level - prev > 1) return false
+      prev = level
+    }
+    return true
+  }
+
+  private hasSemanticLandmarks(html: string): boolean {
+    const landmarks = ['<main', '<nav', '<header', '<footer']
+    const found = landmarks.filter((l) => html.includes(l)).length
+    return found >= 2
+  }
+
+  private hasViewport(html: string): boolean {
+    return html.includes('viewport') || html.includes('responsive')
   }
 
   private hasNavigation(html: string): boolean {
@@ -87,7 +492,10 @@ export class PortfolioService {
   }
 
   private hasCallToAction(html: string): boolean {
-    return /class=["'][^"']*(?:cta|btn|button|hire|contact)["'][^>]*>/i.test(html) || /href=["'][^"']*(?:contact|hire|work-with-me)["']/i.test(html)
+    return (
+      /class=["'][^"']*(?:cta|btn|button|hire|contact)["'][^>]*>/i.test(html) ||
+      /href=["'][^"']*(?:contact|hire|work-with-me)["']/i.test(html)
+    )
   }
 
   private hasProjectShowcase(html: string): boolean {
@@ -99,7 +507,32 @@ export class PortfolioService {
   }
 
   private hasModernFramework(html: string): boolean {
-    return /next\.js|react|vue|angular|__NEXT_DATA__|data-reactroot|ng-app/i.test(html)
+    const patterns = [
+      /__NEXT_DATA__|self\.__next_f|_next\/static\/chunks/i,
+      /__NUXT__|_nuxt\//i,
+      /astro-island|data-astro-cid-|\/_astro\//i,
+      /__sveltekit|data-sveltekit|svelte-/i,
+      /__remixContext|data-remix-run/i,
+      /data-reactroot|data-reactid/i,
+      /data-v-[a-f0-9]{6,}/i,
+      /ng-version/i,
+      /___gatsby/i,
+      /q:container|q:host/i,
+      /data-hk=/i,
+    ]
+    return patterns.some((p) => p.test(html))
+  }
+
+  private hasCustomDomain(url: string): boolean {
+    return url.includes('https://') && !url.includes('github.io') && !url.includes('netlify.app')
+  }
+
+  private hasStructuredData(html: string): boolean {
+    return /<script[^>]*type=["']application\/ld\+json["']/i.test(html)
+  }
+
+  private hasFavicon(html: string): boolean {
+    return /<link[^>]*rel=["'](?:shortcut )?icon["']/i.test(html)
   }
 }
 

@@ -1,6 +1,13 @@
 import Link from 'next/link'
 import { Button } from '@/components/common/Button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/common/Card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/common/Card'
 import { Badge } from '@/components/common/Badge'
 import { ROUTES, PLANS } from '@/constants'
 import { Check } from 'lucide-react'
@@ -11,9 +18,7 @@ export function LandingPricing() {
       <div className="container mx-auto px-4">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold">Simple, Transparent Pricing</h2>
-          <p className="text-muted-foreground mt-4">
-            Start free and upgrade as you grow
-          </p>
+          <p className="text-muted-foreground mt-4">Start free and upgrade as you grow</p>
         </div>
         <div className="mt-12 grid gap-8 md:grid-cols-2 mx-auto max-w-3xl">
           <Card className="relative">
@@ -45,7 +50,9 @@ export function LandingPricing() {
 
           <Card className="relative border-primary shadow-lg">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <Badge variant="default" className="px-4">Most Popular</Badge>
+              <Badge variant="default" className="px-4">
+                Most Popular
+              </Badge>
             </div>
             <CardHeader>
               <CardTitle>{PLANS.pro.name}</CardTitle>
@@ -66,9 +73,7 @@ export function LandingPricing() {
             </CardContent>
             <CardFooter>
               <Link href={ROUTES.register} className="w-full">
-                <Button className="w-full">
-                  Start Free Trial
-                </Button>
+                <Button className="w-full">Subscribe to Pro</Button>
               </Link>
             </CardFooter>
           </Card>

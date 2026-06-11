@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Review, ReviewWithReport } from '@/types'
+import type { Review, ReviewWithReport, ReviewFullResults } from '@/types'
 import { logger } from '@/lib/logger'
 
 export class ReviewRepository {
@@ -12,11 +12,26 @@ export class ReviewRepository {
     portfolio_score?: number | null
     github_score?: number | null
     resume_score?: number | null
+    detected_name?: string | null
+    source_types?: string[]
+    full_results?: ReviewFullResults | null
   }): Promise<Review> {
     const supabase = await createClient()
     const { data: review, error } = await supabase
       .from('reviews')
-      .insert(data)
+      .insert({
+        user_id: data.user_id,
+        portfolio_url: data.portfolio_url ?? null,
+        github_username: data.github_username ?? null,
+        resume_url: data.resume_url ?? null,
+        overall_score: data.overall_score ?? null,
+        portfolio_score: data.portfolio_score ?? null,
+        github_score: data.github_score ?? null,
+        resume_score: data.resume_score ?? null,
+        detected_name: data.detected_name ?? null,
+        source_types: data.source_types ?? [],
+        full_results: data.full_results ?? null,
+      })
       .select()
       .single()
 
@@ -95,6 +110,22 @@ export class ReviewRepository {
     }
 
     return count || 0
+  }
+
+  async getReviewsByIds(ids: string[]): Promise<Review[]> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .in('id', ids)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      logger.error('Failed to fetch reviews by ids', { error: error.message })
+      throw error
+    }
+
+    return (data || []) as Review[]
   }
 }
 

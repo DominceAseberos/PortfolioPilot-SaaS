@@ -2,12 +2,59 @@ import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { reviewService } from '@/features/reviews/services/review.service'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/utils/api'
+import type {
+  PortfolioAnalysis,
+  GitHubAnalysis,
+  ResumeAnalysis,
+  AISummaryResult,
+  AIMismatch,
+} from '@/types'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return unauthorizedResponse()
+
+    const contentType = request.headers.get('content-type') || ''
+
+    if (contentType.includes('application/json')) {
+      const body = await request.json()
+      const {
+        portfolioUrl,
+        githubUsername,
+        resumeFileName,
+        portfolio,
+        github,
+        resume,
+        aiSummary,
+        mismatches,
+      } = body as {
+        portfolioUrl?: string
+        githubUsername?: string
+        resumeFileName?: string
+        portfolio?: PortfolioAnalysis | null
+        github?: GitHubAnalysis | null
+        resume?: ResumeAnalysis | null
+        aiSummary?: AISummaryResult | null
+        mismatches?: AIMismatch[]
+      }
+
+      const review = await reviewService.saveReviewWithResults(user.id, {
+        portfolioUrl,
+        githubUsername,
+        resumeFileName,
+        portfolio,
+        github,
+        resume,
+        aiSummary,
+        mismatches,
+      })
+
+      return successResponse(review, 'Review saved successfully')
+    }
 
     const formData = await request.formData()
     const portfolioUrl = formData.get('portfolioUrl') as string | null
@@ -38,7 +85,9 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return unauthorizedResponse()
 
     const reviews = await reviewService.getUserReviews(user.id)

@@ -17,7 +17,14 @@ export interface Profile {
 }
 
 export type PlanType = 'free' | 'pro'
-export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'incomplete' | 'incomplete_expired' | 'trialing' | 'inactive'
+export type SubscriptionStatus =
+  | 'active'
+  | 'canceled'
+  | 'past_due'
+  | 'incomplete'
+  | 'incomplete_expired'
+  | 'trialing'
+  | 'inactive'
 
 export interface Subscription {
   id: string
@@ -30,6 +37,30 @@ export interface Subscription {
   created_at: string
 }
 
+export interface ReviewFullResults {
+  portfolio?: PortfolioAnalysis | null
+  github?: GitHubAnalysis | null
+  resume?: ResumeAnalysis | null
+  aiSummary?: AISummaryResult | null
+  mismatches?: AIMismatch[]
+}
+
+export interface AIMismatch {
+  type:
+    | 'name'
+    | 'location'
+    | 'company'
+    | 'email'
+    | 'github'
+    | 'linkedin'
+    | 'website'
+    | 'skill'
+    | 'other'
+  severity: 'high' | 'medium' | 'low'
+  description: string
+  sources: string[]
+}
+
 export interface Review {
   id: string
   user_id: string
@@ -40,6 +71,9 @@ export interface Review {
   portfolio_score: number | null
   github_score: number | null
   resume_score: number | null
+  detected_name: string | null
+  source_types: string[]
+  full_results: ReviewFullResults | null
   created_at: string
 }
 
@@ -63,11 +97,75 @@ export interface ApiResponse<T = unknown> {
   errors?: string[]
 }
 
+export interface PortfolioCheck {
+  name: string
+  passed: boolean
+  detail: string
+  status?: 'passed' | 'failed' | 'unverifiable'
+}
+
+export interface PortfolioDetails {
+  url: string
+  checks: PortfolioCheck[]
+  contentHeadings?: string[]
+  contentParagraphs?: string[]
+  contentLinkCount?: number
+  contentImageCount?: number
+  readabilityUsed?: boolean
+  readableExcerpt?: string
+  readableWordCount?: number
+}
+
 export interface PortfolioAnalysis {
   score: number
   strengths: string[]
   weaknesses: string[]
   recommendations: string[]
+  details?: PortfolioDetails
+}
+
+export interface GitHubRepo {
+  name: string
+  description: string | null
+  language: string | null
+  stars: number
+  forks: number
+  topics: string[]
+  updated_at: string
+}
+
+export interface GitHubProfile {
+  name: string | null
+  bio: string | null
+  avatar_url: string | null
+  blog: string | null
+  company: string | null
+  location: string | null
+  public_repos: number
+  followers: number
+  following: number
+  created_at: string
+}
+
+export interface GitHubEvent {
+  type: string
+  repo: string
+  created_at: string
+}
+
+export interface GitHubContributions {
+  totalContributions: number
+  currentStreak: number
+  longestStreak: number
+  averagePerWeek: number
+  weeksWithActivity: number
+}
+
+export interface GitHubDetails {
+  profile: GitHubProfile
+  repos: GitHubRepo[]
+  events: GitHubEvent[]
+  contributions?: GitHubContributions
 }
 
 export interface GitHubAnalysis {
@@ -75,6 +173,49 @@ export interface GitHubAnalysis {
   strengths: string[]
   weaknesses: string[]
   recommendations: string[]
+  details?: GitHubDetails
+}
+
+export interface ResumeSkill {
+  name: string
+  found: boolean
+}
+
+export interface ResumeSection {
+  name: string
+  found: boolean
+}
+
+export interface ResumeWorkEntry {
+  company?: string
+  role?: string
+  dates?: string
+  description?: string
+}
+
+export interface ResumeEducation {
+  degree?: string
+  school?: string
+  dates?: string
+}
+
+export interface ResumeDetails {
+  name: string | null
+  email: string | null
+  linkedin: string | null
+  github: string | null
+  skills: ResumeSkill[]
+  sections: ResumeSection[]
+  workEntries: (string | ResumeWorkEntry)[]
+  education?: ResumeEducation[]
+  wordCount: number
+  hasEmail: boolean
+  hasLinkedIn: boolean
+  hasGithub: boolean
+  hasMetrics: boolean
+  hasActionVerbs: boolean
+  rawText: string
+  isAIAnalyzed: boolean
 }
 
 export interface ResumeAnalysis {
@@ -82,6 +223,25 @@ export interface ResumeAnalysis {
   strengths: string[]
   weaknesses: string[]
   recommendations: string[]
+  details?: ResumeDetails
+}
+
+export interface AISourceBreakdown {
+  score: number
+  summary: string
+}
+
+export interface AISummaryResult {
+  overallScore: number
+  summary: string
+  topStrengths: string[]
+  topWeaknesses: string[]
+  topRecommendations: string[]
+  sourceBreakdown: {
+    portfolio: AISourceBreakdown | null
+    github: AISourceBreakdown | null
+    resume: AISourceBreakdown | null
+  }
 }
 
 export interface DashboardMetrics {

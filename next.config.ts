@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['pdf-parse', 'pdfjs-dist', '@napi-rs/canvas', 'jsdom'],
 };
 
 export default nextConfig;

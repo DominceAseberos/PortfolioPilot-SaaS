@@ -8,8 +8,18 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/common/Button'
 import { ROUTES } from '@/constants'
 import { formatDate } from '@/lib/utils'
-import { BarChart3, TrendingUp, Award, Activity, Plus, FileText } from 'lucide-react'
-import type { User } from '@supabase/supabase-js'
+import {
+  BarChart3,
+  TrendingUp,
+  Award,
+  Activity,
+  Plus,
+  FileText,
+  Globe,
+  GitBranch,
+  User,
+} from 'lucide-react'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 interface Review {
   id: string
@@ -17,6 +27,11 @@ interface Review {
   portfolio_score: number | null
   github_score: number | null
   resume_score: number | null
+  detected_name: string | null
+  source_types: string[]
+  portfolio_url: string | null
+  github_username: string | null
+  resume_url: string | null
   created_at: string
 }
 
@@ -26,7 +41,7 @@ interface Subscription {
 }
 
 interface DashboardOverviewProps {
-  user: User
+  user: SupabaseUser
   totalReviews: number
   averageScore: number
   bestScore: number
@@ -46,13 +61,18 @@ export function DashboardOverview({
 }: DashboardOverviewProps) {
   const plan = subscription?.plan || 'free'
   const isPro = plan === 'pro'
+  const isDev = process.env.NODE_ENV === 'development'
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Welcome back{user.email ? `, ${user.email.split('@')[0]}` : ''}</h1>
-          <p className="text-muted-foreground text-sm">Here&apos;s your portfolio performance overview</p>
+          <h1 className="text-2xl font-bold">
+            Welcome back{user.email ? `, ${user.email.split('@')[0]}` : ''}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Here&apos;s your portfolio performance overview
+          </p>
         </div>
         <Link href={ROUTES.reviews}>
           <Button>
@@ -71,7 +91,9 @@ export function DashboardOverview({
           <CardContent>
             <div className="text-2xl font-bold">{totalReviews}</div>
             <p className="text-muted-foreground text-xs">
-              {isPro ? 'Unlimited reviews' : `${Math.max(0, 1 - totalReviews)} review${totalReviews >= 1 ? 's' : ''} remaining this month`}
+              {isPro || isDev
+                ? 'Unlimited reviews'
+                : `${Math.max(0, 1 - totalReviews)} review${totalReviews >= 1 ? 's' : ''} remaining this month`}
             </p>
           </CardContent>
         </Card>
@@ -109,7 +131,9 @@ export function DashboardOverview({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {improvementPercentage !== 0 ? `${improvementPercentage > 0 ? '+' : ''}${improvementPercentage}%` : 'N/A'}
+              {improvementPercentage !== 0
+                ? `${improvementPercentage > 0 ? '+' : ''}${improvementPercentage}%`
+                : 'N/A'}
             </div>
             <p className="text-muted-foreground text-xs">Compared to earlier reviews</p>
           </CardContent>
@@ -119,14 +143,12 @@ export function DashboardOverview({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Subscription</CardTitle>
-          <Badge variant={isPro ? 'success' : 'secondary'}>
-            {isPro ? 'Pro' : 'Free'}
-          </Badge>
+          <Badge variant={isPro ? 'success' : 'secondary'}>{isPro ? 'Pro' : 'Free'}</Badge>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            {isPro
-              ? 'You have unlimited reviews and all Pro features.'
+            {isPro || isDev
+              ? 'Unlimited reviews. Run as many as you want.'
               : 'Upgrade to Pro for unlimited reviews, detailed reports, and progress tracking.'}
           </p>
           {!isPro && (
@@ -161,28 +183,43 @@ export function DashboardOverview({
           ) : (
             <div className="space-y-3">
               {recentReviews.map((review) => (
-                <div
+                <Link
                   key={review.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
+                  href={`/dashboard/reviews/${review.id}`}
+                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/20 transition-colors"
                 >
                   <div>
-                    <p className="text-sm font-medium">
-                      Review from {formatDate(review.created_at)}
-                    </p>
-                    <div className="mt-1 flex gap-2">
-                      {review.portfolio_score !== null && (
-                        <Badge variant="outline">Portfolio: {Math.round(review.portfolio_score)}</Badge>
+                    <div className="flex items-center gap-2">
+                      {review.detected_name ? (
+                        <>
+                          <div className="rounded-full bg-primary/10 p-1">
+                            <User className="h-3 w-3 text-primary" />
+                          </div>
+                          <p className="text-sm font-medium">{review.detected_name}</p>
+                        </>
+                      ) : (
+                        <p className="text-sm font-medium">
+                          Review from {formatDate(review.created_at)}
+                        </p>
                       )}
-                      {review.github_score !== null && (
-                        <Badge variant="outline">GitHub: {Math.round(review.github_score)}</Badge>
-                      )}
-                      {review.resume_score !== null && (
-                        <Badge variant="outline">Resume: {Math.round(review.resume_score)}</Badge>
-                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {review.source_types?.map((t) => (
+                        <Badge
+                          key={t}
+                          variant="outline"
+                          className="text-[10px] flex items-center gap-1"
+                        >
+                          {t === 'portfolio' && <Globe className="h-2.5 w-2.5" />}
+                          {t === 'github' && <GitBranch className="h-2.5 w-2.5" />}
+                          {t === 'resume' && <FileText className="h-2.5 w-2.5" />}
+                          {t}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                   <ScoreBadge score={review.overall_score} size="sm" />
-                </div>
+                </Link>
               ))}
             </div>
           )}

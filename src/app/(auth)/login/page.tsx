@@ -10,10 +10,12 @@ import { authService } from '@/features/auth/services/auth.service'
 import { ROUTES } from '@/constants'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
+import { AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
   const {
@@ -66,14 +68,30 @@ export default function LoginPage() {
           />
           <Input
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="Enter your password"
             error={errors.password?.message}
+            rightElement={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            }
             {...register('password')}
           />
 
           {error && (
-            <p className="text-sm text-red-500">{error}</p>
+            <div
+              className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              role="alert"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
           )}
 
           <Button type="submit" className="w-full" isLoading={isLoading}>

@@ -7,7 +7,9 @@ export const dynamic = 'force-dynamic'
 
 export default async function ReviewsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect(ROUTES.login)
@@ -19,8 +21,5 @@ export default async function ReviewsPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  return <ReviewsPageClient reviews={(reviews || []).map(r => ({
-    ...r,
-    report: null,
-  }))} />
+  return <ReviewsPageClient reviews={reviews || []} />
 }
