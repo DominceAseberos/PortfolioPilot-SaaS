@@ -372,7 +372,7 @@ Return JSON ONLY:
     {
       "type": "name" | "github" | "linkedin" | "project" | "other",
       "severity": "high" | "medium" | "low",
-      "description": "Clear explanation of the mismatch",
+      "description": "Clear explanation of the mismatch AND a specific, actionable recommendation on how to fix it (e.g. 'Update your GitHub display name to match your portfolio name to appear more professional.')",
       "sources": ["Portfolio", "GitHub", "Resume"] // list the sources involved
     }
   ]
