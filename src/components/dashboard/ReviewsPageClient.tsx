@@ -458,7 +458,9 @@ function AgentProgressDropdown({ phase, steps }: { phase: string; steps: Collect
                  <div className="mt-0.5 shrink-0">
                    <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
                  </div>
-                 <span className="text-foreground font-medium">Cross-referencing data and generating AI insights...</span>
+                 <span className="text-foreground font-medium">
+                   {steps.length > 2 ? 'Cross-referencing data and generating AI insights...' : 'Generating AI insights from source data...'}
+                 </span>
               </div>
             )}
             
@@ -607,7 +609,8 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
       initialSteps.push({ id: 'resume-parse', label: 'Semantic Token Extraction', source: 'Neural Pipeline', status: 'pending' })
     }
     
-    initialSteps.push({ id: 'synthesize', label: 'Synthesizing Cross-Source AI Summary', source: 'Neural Core', status: 'pending' })
+    const synthesizeLabel = sources.length > 1 ? 'Synthesizing Cross-Source AI Summary' : 'Synthesizing AI Analysis'
+    initialSteps.push({ id: 'synthesize', label: synthesizeLabel, source: 'Neural Core', status: 'pending' })
     
     setCollectingSteps(initialSteps)
 
