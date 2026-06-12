@@ -1384,15 +1384,16 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
         <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-3xl mx-auto flex flex-col justify-center h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
                 {phase === 'form' ? (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
-                      <div className="mb-10 text-center relative mt-16 sm:mt-0">
-                        <div className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-4 border border-primary/20">
-                          System Access
+                      <div className="mb-10 text-center relative mt-16 sm:mt-0 flex flex-col items-center">
+                        <div className="relative w-32 h-32 sm:w-40 sm:h-40 mb-6 animate-float z-10">
+                          <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full mix-blend-multiply dark:mix-blend-overlay animate-pulse" />
+                          <img src="/ai-review-bot.png" alt="AI Neural Core" className="w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]" />
                         </div>
                         <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent mb-4">
-                          Ready when you are.
+                          Unleash the Neural Core.
                         </h2>
                         <p className="text-lg text-muted-foreground max-w-lg mx-auto">
-                          Provide your digital footprint. The AI will autonomously map and score your engineering capability.
+                          Drop your portfolio, GitHub, and resume to trigger an autonomous, AI-driven technical assessment.
                         </p>
                       </div>
                       
@@ -1509,6 +1510,23 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                           </div>
                         </form>
                       </div>
+
+                      {/* Analysis Types Pills */}
+                      <div className="flex flex-wrap justify-center gap-3 mt-8">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border/50 rounded-full shadow-sm text-sm font-medium text-foreground hover:bg-muted/50 transition-colors cursor-default">
+                          <Globe className="h-4 w-4 text-blue-500" />
+                          Portfolio Analysis
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border/50 rounded-full shadow-sm text-sm font-medium text-foreground hover:bg-muted/50 transition-colors cursor-default">
+                          <GitBranch className="h-4 w-4 text-purple-500" />
+                          GitHub Telemetry
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border/50 rounded-full shadow-sm text-sm font-medium text-foreground hover:bg-muted/50 transition-colors cursor-default">
+                          <FileText className="h-4 w-4 text-emerald-500" />
+                          Resume Parsing
+                        </div>
+                      </div>
+
                     </div>
                   ) : phase === 'finalizing' && results.aiSummary ? (
                     <div className="w-full">
