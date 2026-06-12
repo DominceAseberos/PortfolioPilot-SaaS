@@ -8,6 +8,7 @@ interface ChatMessage {
   id: string
   role: 'system' | 'user'
   content: React.ReactNode
+  fullWidth?: boolean
 }
 
 interface NeuralChatLandingProps {
@@ -131,12 +132,13 @@ export function NeuralChatLanding({
         setChatLog(prev => [...prev, {
           id: step2Id,
           role: 'system',
+          fullWidth: true,
           content: (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                <p className="text-sm font-bold text-muted-foreground flex items-center gap-2">
                  <Loader2 className="h-4 w-4 animate-spin" /> Capturing live preview...
                </p>
-               <div className="relative w-full h-48 sm:h-64 rounded-xl border border-border/50 shadow-sm bg-muted animate-pulse"></div>
+               <div className="relative w-full h-[300px] sm:h-[400px] rounded-xl border border-border/50 shadow-sm bg-muted animate-pulse"></div>
             </div>
           )
         }])
@@ -148,13 +150,15 @@ export function NeuralChatLanding({
           content: (
              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 w-full">
                 <p className="text-sm font-bold text-blue-500 flex items-center gap-2"><Globe className="h-4 w-4" /> Live Portfolio Captured</p>
-                <div className="relative w-full h-48 sm:h-64 rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
-                  <iframe 
-                    src={normalizedUrl} 
-                    className="absolute inset-0 w-full h-full border-0 bg-background" 
-                    title="Portfolio Live Preview"
-                    sandbox="allow-scripts allow-same-origin"
-                  />
+                <div className="relative w-full h-[300px] sm:h-[400px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
+                  <div className="absolute top-0 left-0 w-[200%] h-[200%] origin-top-left scale-50">
+                     <iframe 
+                       src={normalizedUrl} 
+                       className="w-full h-full border-0 bg-background" 
+                       title="Portfolio Live Preview"
+                       sandbox="allow-scripts allow-same-origin"
+                     />
+                  </div>
                 </div>
              </div>
           )
@@ -295,7 +299,7 @@ export function NeuralChatLanding({
                   <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 </div>
              )}
-             <div className={`max-w-[85%] sm:max-w-[75%] rounded-[1.5rem] px-5 py-4 shadow-sm ${msg.role === 'user' ? 'bg-foreground text-background rounded-tr-sm' : 'bg-card border border-border/50 text-foreground rounded-tl-sm'}`}>
+             <div className={`${msg.fullWidth ? 'w-full' : 'max-w-[85%] sm:max-w-[75%]'} rounded-[1.5rem] px-5 py-4 shadow-sm ${msg.role === 'user' ? 'bg-foreground text-background rounded-tr-sm' : 'bg-card border border-border/50 text-foreground rounded-tl-sm'}`}>
                {msg.content}
              </div>
            </div>
