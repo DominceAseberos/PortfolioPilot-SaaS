@@ -189,6 +189,7 @@ export function NeuralChatLanding({
       <div 
         ref={chatScrollRef}
         className="flex-1 overflow-y-auto pb-48 pt-8 space-y-8 custom-scrollbar px-2 sm:px-6 scroll-smooth"
+        style={{ WebkitMaskImage: 'linear-gradient(to top, transparent 0%, black 15%, black 100%)', maskImage: 'linear-gradient(to top, transparent 0%, black 15%, black 100%)' }}
       >
         <div className="flex flex-col items-center justify-center mb-16 pt-8">
           <div className="relative w-28 h-28 sm:w-36 sm:h-36 mb-8 animate-float z-10">
@@ -226,8 +227,8 @@ export function NeuralChatLanding({
       </div>
 
       {/* Input Bar Overlay */}
-      <div className="absolute bottom-0 left-0 right-0 pt-10 pb-6 px-4 sm:px-6 bg-gradient-to-t from-background via-background/95 to-transparent z-20">
-         <div className="max-w-4xl mx-auto flex flex-col gap-3">
+      <div className="absolute bottom-0 left-0 right-0 pt-4 pb-6 px-4 sm:px-6 z-20 pointer-events-none">
+         <div className="max-w-4xl mx-auto flex flex-col gap-3 pointer-events-auto">
             
             {/* Active Attachment Pills */}
             <div className="flex flex-wrap gap-2 px-1">
