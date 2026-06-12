@@ -19,16 +19,22 @@ export async function POST(request: NextRequest) {
     const hardMismatches = checkHardMismatches(portfolio, github, resume)
     if (hardMismatches && hardMismatches.length > 0) {
       // Abort AI cross-reference to save tokens
-      return successResponse({
+      const abortedSummary = {
         summary: "Cross-referencing aborted due to severe identity mismatch across provided sources. Please resolve the broken links below.",
-        mismatches: hardMismatches,
         radar: { presentation: 0, openSource: 0, experience: 0, techStack: 0, consistency: 0 },
         overallScore: 0,
+        topStrengths: [],
+        topWeaknesses: ["Identity mismatch detected."],
+        topRecommendations: ["Fix your profile links to ensure identity consistency."],
         sourceBreakdown: {
           portfolio: portfolio ? { score: portfolio.score, summary: 'Identity mismatch detected.' } : null,
           github: github ? { score: github.score, summary: 'Identity mismatch detected.' } : null,
           resume: resume ? { score: resume.score, summary: 'Identity mismatch detected.' } : null
         }
+      }
+      return successResponse({
+        summary: abortedSummary,
+        mismatches: hardMismatches
       }, 'AI summary generated')
     }
 
