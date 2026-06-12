@@ -12,6 +12,22 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string, fullName: string) {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    const isAnonymous = user?.is_anonymous === true
+
+    if (isAnonymous) {
+      const { data, error } = await this.supabase.auth.updateUser({
+        email,
+        password,
+        data: { full_name: fullName },
+      })
+      if (error) {
+        logger.error('Anonymous upgrade failed', { error: error.message })
+        throw error
+      }
+      return data
+    }
+
     const { data, error } = await this.supabase.auth.signUp({
       email,
       password,
@@ -45,6 +61,23 @@ export class AuthService {
   }
 
   async signInWithGoogle() {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    const isAnonymous = user?.is_anonymous === true
+
+    if (isAnonymous) {
+      const { data, error } = await this.supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+        },
+      })
+      if (error) {
+        logger.error('Google identity link failed', { error: error.message })
+        throw error
+      }
+      return data
+    }
+
     const { data, error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

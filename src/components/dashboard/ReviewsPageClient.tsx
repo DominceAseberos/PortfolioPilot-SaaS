@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
@@ -644,6 +645,26 @@ export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: Revie
       setError('Provide at least one source (portfolio URL, GitHub username, or resume)')
       setIsLoading(false)
       return
+    }
+
+    if (isGuest) {
+      if (reviews.length >= 1) {
+        setError('You have reached your free guest review limit! Please sign up for a free account to run more analyses.')
+        setIsLoading(false)
+        return
+      }
+
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        const { error: authError } = await supabase.auth.signInAnonymously()
+        if (authError) {
+          setError('Failed to initialize session. Please try again.')
+          setIsLoading(false)
+          return
+        }
+      }
     }
 
     // ── Phase 1: Collect sources sequentially ──

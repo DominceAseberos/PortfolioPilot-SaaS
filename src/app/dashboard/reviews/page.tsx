@@ -15,11 +15,13 @@ export default async function ReviewsPage() {
     return <ReviewsPageClient reviews={[]} isGuest={true} />
   }
 
+  const isGuest = user.is_anonymous === true
+
   const { data: reviews } = await supabase
     .from('reviews')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  return <ReviewsPageClient reviews={reviews || []} isGuest={false} />
+  return <ReviewsPageClient reviews={reviews || []} isGuest={isGuest} />
 }
