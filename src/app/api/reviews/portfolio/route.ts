@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
 
     const result = await portfolioService.analyze(parsed.data.portfolioUrl)
     return successResponse(result, 'Portfolio analysis complete')
-  } catch {
+  } catch (error) {
+    console.error('Portfolio API Error:', error)
     return errorResponse('Portfolio analysis failed', 500)
   }
 }

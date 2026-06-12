@@ -1,7 +1,5 @@
 import type { PortfolioAnalysis, PortfolioCheck, PortfolioDetails } from '@/types'
 import { logger } from '@/lib/logger'
-import { JSDOM } from 'jsdom'
-import { Readability } from '@mozilla/readability'
 
 interface ExtractedContent {
   headings: string[]
@@ -65,27 +63,7 @@ function check(
   return { name, passed, detail, status: status || (passed ? 'passed' : 'failed') }
 }
 
-function tryReadability(
-  html: string,
-  url: string
-): { content: ExtractedContent; wordCount: number; excerpt: string } | null {
-  try {
-    const dom = new JSDOM(html, { url })
-    const reader = new Readability(dom.window.document)
-    const article = reader.parse()
-    if (article?.textContent) {
-      const wordCount = article.textContent.trim().split(/\s+/).filter(Boolean).length
-      if (wordCount >= 30) {
-        return {
-          wordCount,
-          excerpt: article.excerpt || article.textContent.trim().slice(0, 200),
-          content: extractContent(article.content || ''),
-        }
-      }
-    }
-  } catch {}
-  return null
-}
+
 
 export class PortfolioService {
   async analyze(portfolioUrl: string): Promise<PortfolioAnalysis> {
@@ -99,12 +77,11 @@ export class PortfolioService {
         throw new Error('NOT_A_PORTFOLIO')
       }
 
-      const readable = tryReadability(html, portfolioUrl)
-      const content = readable ? readable.content : extractContent(html)
+      const content = extractContent(html)
 
       const usesClientFramework = this.detectsClientFramework(html)
       const isSparse = content.headings.length < 2 && content.paragraphs.length < 3
-      const contentLikelyRendered = usesClientFramework && isSparse && !readable
+      const contentLikelyRendered = usesClientFramework && isSparse
 
       const hasPlaceholderText = /lorem ipsum|dolor sit amet|insert text here/i.test(html)
       const isTemplate = /html5 up|bootstrap template|tailwind template|colorlib|created by \[author\]/i.test(html)
@@ -343,9 +320,6 @@ export class PortfolioService {
         contentParagraphs: content.paragraphs.slice(0, 5).map((p) => p.slice(0, 200)),
         contentLinkCount: content.links.length,
         contentImageCount: content.images,
-        readabilityUsed: !!readable,
-        readableExcerpt: readable?.excerpt,
-        readableWordCount: readable?.wordCount,
         hasPlaceholderText,
         isTemplate,
       }
