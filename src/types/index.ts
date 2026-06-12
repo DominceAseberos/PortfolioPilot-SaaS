@@ -114,6 +114,8 @@ export interface PortfolioDetails {
   readabilityUsed?: boolean
   readableExcerpt?: string
   readableWordCount?: number
+  isTemplate?: boolean
+  hasPlaceholderText?: boolean
 }
 
 export interface PortfolioAnalysis {
@@ -132,6 +134,8 @@ export interface GitHubRepo {
   forks: number
   topics: string[]
   updated_at: string
+  hasReadme?: boolean
+  readmeLength?: number
 }
 
 export interface GitHubProfile {
@@ -216,6 +220,8 @@ export interface ResumeDetails {
   hasActionVerbs: boolean
   rawText: string
   isAIAnalyzed: boolean
+  predictedSeniority?: string
+  tone?: string
 }
 
 export interface ResumeAnalysis {
@@ -241,6 +247,13 @@ export interface AISummaryResult {
     portfolio: AISourceBreakdown | null
     github: AISourceBreakdown | null
     resume: AISourceBreakdown | null
+  }
+  radar: {
+    presentation: number
+    openSource: number
+    experience: number
+    techStack: number
+    consistency: number
   }
 }
 
