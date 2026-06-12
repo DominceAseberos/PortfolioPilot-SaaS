@@ -110,7 +110,7 @@ Use null for missing fields. Empty arrays for missing lists. No markdown.`,
   }
 }
 
-function computeFallbackSummary(
+export function computeFallbackSummary(
   portfolio?: PortfolioAnalysis,
   github?: GitHubAnalysis,
   resume?: ResumeAnalysis
@@ -158,7 +158,13 @@ function computeFallbackSummary(
         ? { score: resume.score, summary: resume.strengths.slice(0, 2).join('; ') || 'Analyzed' }
         : null,
     },
-    radar: { presentation: 50, openSource: 50, experience: 50, techStack: 50, consistency: 50 },
+    radar: { 
+      presentation: portfolio ? portfolio.score : 0, 
+      openSource: github ? github.score : 0, 
+      experience: resume ? resume.score : 0, 
+      techStack: fallbackScore, 
+      consistency: fallbackScore 
+    },
   }
 }
 
