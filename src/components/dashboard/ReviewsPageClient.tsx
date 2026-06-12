@@ -1185,7 +1185,7 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
 
   // ── Main render ────────────────────────────────────────
   return (
-    <div className="space-y-8 w-full max-w-6xl mx-auto">
+    <div className="space-y-8 w-full 2xl:max-w-screen-2xl mx-auto">
       <div className="space-y-2">
         <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
           Reviews
@@ -1237,7 +1237,7 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
             </CardHeader>
           )}
           <CardContent className="p-0">
-            <div className="flex flex-col lg:flex-row min-h-[650px] lg:h-[650px]">
+            <div className={`flex flex-col lg:flex-row min-h-[650px] ${phase !== 'finalizing' ? 'lg:h-[650px]' : ''}`}>
               {/* Left Side: Form, Progress Status, or Streaming Results */}
               <div className={`w-full p-8 lg:p-10 flex flex-col justify-center h-full overflow-y-auto custom-scrollbar transition-all duration-700 ${phase === 'finalizing' ? 'lg:w-full mx-auto' : 'lg:w-3/5'}`}>
                 {phase === 'form' ? (
@@ -1346,7 +1346,7 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
                       </form>
                     </div>
                   ) : phase === 'finalizing' && results.aiSummary ? (
-                    <div className="max-w-4xl mx-auto w-full">
+                    <div className="w-full">
                       <StreamingChatBox 
                         result={results.aiSummary} 
                         mismatches={results.mismatches}
