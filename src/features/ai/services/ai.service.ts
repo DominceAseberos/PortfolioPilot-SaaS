@@ -374,7 +374,7 @@ export function evaluateTruthHierarchy(
       if (portfolioGithub && portfolioGithub !== resumeGithub) {
         result.validSources.portfolio = false
         result.mismatches.push({
-          type: 'portfolio',
+          type: 'github',
           severity: 'high',
           description: `Identity Mismatch: Your Portfolio links to a GitHub profile (${portfolioGithub}) that does not match your Resume (${resumeGithub}). The Portfolio has been isolated from the cross-reference summary.`,
           sources: ['Resume', 'Portfolio']
