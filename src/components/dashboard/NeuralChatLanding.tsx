@@ -96,21 +96,51 @@ export function NeuralChatLanding({
      setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: value }])
      setIsChatProcessing(true)
      
+     const sysId = Date.now().toString() + '-sys'
+     
+     // Step 1: Initial Loading State
+     setChatLog(prev => [...prev, { 
+       id: sysId, 
+       role: 'system', 
+       content: (
+         <div className="flex items-center gap-3 animate-in fade-in text-muted-foreground">
+           <Loader2 className="h-4 w-4 animate-spin" />
+           <span className="text-sm font-medium">
+             {mode === 'portfolio' ? 'Validating Live Portfolio...' : 
+              mode === 'github' ? 'Orchestrating GitHub Telemetry...' : 
+              'Validating PDF Structure...'}
+           </span>
+         </div>
+       ) 
+     }])
+     
+     // Step 2: Reveal Results after a delay
      setTimeout(() => {
         setIsChatProcessing(false)
-        const sysId = Date.now().toString()
         
         let content: React.ReactNode = null
         if (mode === 'portfolio') {
+           const normalizedUrl = value.trim().match(/^https?:\/\//i) ? value.trim() : `https://${value.trim()}`
            content = (
              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                 <p className="text-sm font-bold text-blue-500 flex items-center gap-2"><Globe className="h-4 w-4" /> Validating Live Portfolio...</p>
-                <img 
-                  src={`https://api.microlink.io?url=${encodeURIComponent(value)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800`} 
-                  className="w-full h-48 sm:h-64 object-cover rounded-xl border border-border/50 shadow-sm" 
-                  alt="Portfolio Preview" 
-                  loading="lazy"
-                />
+                <div className="relative w-full h-48 sm:h-64 rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
+                  <img 
+                    src={`https://api.microlink.io?url=${encodeURIComponent(normalizedUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800`} 
+                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500" 
+                    alt="Portfolio Preview" 
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.classList.add('fallback-shown');
+                    }}
+                  />
+                  <div className="hidden group-[.fallback-shown]/preview:flex flex-col items-center justify-center text-muted-foreground">
+                     <Globe className="h-8 w-8 mb-2 opacity-50" />
+                     <span className="text-sm font-medium">Live Preview Unavailable</span>
+                     <span className="text-xs opacity-75">URL mapped successfully</span>
+                  </div>
+                </div>
                 <p className="text-sm font-medium">Portfolio is valid. Should we proceed to analyze or provide Resume/CV or GITHUB?</p>
                 <div className="flex flex-wrap gap-2 pt-2">
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('github')}>Provide GitHub</Button>
@@ -149,12 +179,12 @@ export function NeuralChatLanding({
            )
         }
         
-        setChatLog(prev => [...prev, { id: sysId, role: 'system', content }])
-     }, 2000)
+        setChatLog(prev => prev.map(msg => msg.id === sysId ? { ...msg, content } : msg))
+     }, 2500)
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] w-full max-w-4xl mx-auto relative mt-4">
+    <div className="flex flex-col h-[calc(100vh-140px)] w-full max-w-5xl mx-auto relative mt-4">
       {/* Messages */}
       <div 
         ref={chatScrollRef}
@@ -197,7 +227,7 @@ export function NeuralChatLanding({
 
       {/* Input Bar Overlay */}
       <div className="absolute bottom-0 left-0 right-0 pt-10 pb-6 px-4 sm:px-6 bg-gradient-to-t from-background via-background/95 to-transparent z-20">
-         <div className="max-w-3xl mx-auto flex flex-col gap-3">
+         <div className="max-w-4xl mx-auto flex flex-col gap-3">
             
             {/* Active Attachment Pills */}
             <div className="flex flex-wrap gap-2 px-1">

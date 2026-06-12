@@ -1382,7 +1382,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
       <div className={`flex flex-col lg:flex-row flex-1 w-full min-h-[600px] gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
-        <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-3xl mx-auto flex flex-col justify-center h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
+        <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-5xl mx-auto flex flex-col justify-center h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
                 {phase === 'form' ? (
                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-center">
                      <NeuralChatLanding 
