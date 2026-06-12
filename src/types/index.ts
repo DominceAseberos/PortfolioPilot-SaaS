@@ -16,26 +16,7 @@ export interface Profile {
   updated_at: string
 }
 
-export type PlanType = 'free' | 'pro'
-export type SubscriptionStatus =
-  | 'active'
-  | 'canceled'
-  | 'past_due'
-  | 'incomplete'
-  | 'incomplete_expired'
-  | 'trialing'
-  | 'inactive'
 
-export interface Subscription {
-  id: string
-  user_id: string
-  stripe_customer_id: string | null
-  stripe_subscription_id: string | null
-  status: SubscriptionStatus
-  plan: PlanType
-  current_period_end: string | null
-  created_at: string
-}
 
 export interface ReviewFullResults {
   portfolio?: PortfolioAnalysis | null

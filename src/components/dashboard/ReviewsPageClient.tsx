@@ -90,17 +90,19 @@ function StreamingChatBox({
   result,
   mismatches,
   isGuest = false,
+  isHistory = false,
   onReset,
   renderSourceDetails,
 }: {
   result: AISummaryResult
   mismatches?: AIMismatch[]
   isGuest?: boolean
+  isHistory?: boolean
   onReset: () => void
   renderSourceDetails: (id: 'portfolio' | 'github' | 'resume', label: string) => React.ReactNode
 }) {
-  const [animatedScore, setAnimatedScore] = useState(0)
-  const [displayedText, setDisplayedText] = useState('')
+  const [animatedScore, setAnimatedScore] = useState(isHistory ? result.overallScore : 0)
+  const [displayedText, setDisplayedText] = useState(isHistory ? result.summary : '')
   const [showModal, setShowModal] = useState(false)
 
   const radarData = [
@@ -112,6 +114,8 @@ function StreamingChatBox({
   ]
 
   useEffect(() => {
+    if (isHistory) return
+
     let i = 0
     const text = result.summary
     const targetScore = result.overallScore
@@ -133,9 +137,9 @@ function StreamingChatBox({
       
     }, 15)
     return () => clearInterval(interval)
-  }, [result.summary, result.overallScore])
+  }, [result.summary, result.overallScore, isHistory])
 
-  const isDoneTyping = displayedText.length >= result.summary.length
+  const isDoneTyping = isHistory || displayedText.length >= result.summary.length
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -543,7 +547,7 @@ function AgentProgressDropdown({ phase, steps }: { phase: string; steps: Collect
   )
 }
 
-export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGuest?: boolean, reviewCount?: number }) {
+export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [] }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[] }) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -551,6 +555,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
   const [portfolioUrl, setPortfolioUrl] = useState(searchParams?.get('portfolio') || '')
   const [githubUsername, setGithubUsername] = useState(searchParams?.get('github') || '')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('form')
@@ -558,7 +563,42 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
   const [results, setResults] = useState<AnalysisResults>({})
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({})
   const [isDragging, setIsDragging] = useState(false)
+  const [isHistoryMode, setIsHistoryMode] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const supabase = createClient()
+
+  const handleHistorySelect = async (id: string) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('reviews')
+        .select('full_results')
+        .eq('id', id)
+        .single()
+
+      if (fetchError || !data?.full_results) {
+        throw new Error('Failed to load review details.')
+      }
+
+      setResults(data.full_results)
+      setIsHistoryMode(true)
+      
+      const selectedReview = reviews.find((r) => r.id === id)
+      if (selectedReview?.portfolio_url) {
+        setActiveIframeUrl(selectedReview.portfolio_url)
+      } else {
+        setActiveIframeUrl(null)
+      }
+
+      setPhase('finalizing')
+    } catch (err: any) {
+      toast.error(err.message || 'Error loading review.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -618,11 +658,14 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
       }
       try {
         new URL(cleanPortfolio)
+        setActiveIframeUrl(cleanPortfolio)
       } catch {
         setError('Please enter a valid Portfolio URL (e.g. https://your-portfolio.com)')
         setIsLoading(false)
         return
       }
+    } else {
+      setActiveIframeUrl(null)
     }
 
     const cleanGithub = githubUsername ? stripGitHubUrl(githubUsername) : ''
@@ -1281,24 +1324,20 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
 
   // ── Main render ────────────────────────────────────────
   return (
-    <div className="space-y-8 w-full 2xl:max-w-screen-2xl mx-auto">
-      <Card className="overflow-hidden rounded-3xl border border-border/50 shadow-lg transition-all duration-300 bg-card">
-          {phase !== 'form' && (
-            <CardHeader className="border-b border-border/50 bg-muted/5 pb-4 pt-5">
-              <CardTitle className="text-xl">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-primary/10 p-2">
-                    <Search className="h-5 w-5 text-primary" />
-                  </div>
-                  New Review Analysis
-                </div>
-              </CardTitle>
-            </CardHeader>
-          )}
-          <CardContent className="p-0">
-            <div className={`flex flex-col lg:flex-row min-h-[650px] ${phase !== 'finalizing' ? 'lg:h-[650px]' : ''}`}>
-              {/* Left Side: Form, Progress Status, or Streaming Results */}
-              <div className={`w-full p-8 lg:p-10 flex flex-col justify-center h-full overflow-y-auto custom-scrollbar transition-all duration-700 ${phase === 'finalizing' ? 'lg:w-full mx-auto' : 'lg:w-3/5'}`}>
+    <div className="w-full flex flex-col 2xl:max-w-screen-2xl mx-auto min-h-[calc(100vh-100px)] py-12 px-4 sm:px-8 lg:px-12">
+      {phase !== 'form' && (
+        <div className="pb-4 pt-2">
+          <h1 className="text-xl font-bold flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Search className="h-5 w-5 text-primary" />
+            </div>
+            New Review Analysis
+          </h1>
+        </div>
+      )}
+      <div className={`flex flex-col lg:flex-row flex-1 w-full min-h-[600px] gap-8 lg:gap-12`}>
+        {/* Left Side: Form, Progress Status, or Streaming Results */}
+        <div className={`w-full py-6 sm:py-10 lg:pr-12 flex flex-col justify-center h-full transition-all duration-700 ${phase === 'finalizing' ? 'lg:w-full mx-auto' : 'lg:w-1/2'}`}>
                 {phase === 'form' ? (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                       <div className="mb-10 relative">
@@ -1441,6 +1480,10 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
                           </Button>
                         </div>
                       </form>
+                      
+                      {reviews.length > 0 && (
+                        <ReviewHistory reviews={reviews} onSelect={handleHistorySelect} />
+                      )}
                     </div>
                   ) : phase === 'finalizing' && results.aiSummary ? (
                     <div className="w-full">
@@ -1448,11 +1491,13 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
                         result={results.aiSummary} 
                         mismatches={results.mismatches}
                         isGuest={isGuest}
+                        isHistory={isHistoryMode}
                         renderSourceDetails={renderSourceDetails}
                         onReset={() => {
                           setPhase('form')
                           setResults({})
                           setCollectingSteps([])
+                          setIsHistoryMode(false)
                         }} 
                       />
                     </div>
@@ -1497,26 +1542,67 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
               </div>
               
               {/* Right Side: 3D Visual */}
-              <div className={`${phase === 'finalizing' ? 'hidden' : 'hidden lg:flex w-full lg:w-2/5'} bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border-l border-border/50 p-12 group transition-all duration-700`}>
-                {/* Glowing background meshes */}
-                <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2)_0%,transparent_70%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_2s_ease-in-out_infinite]' : 'animate-[pulse_4s_ease-in-out_infinite]'}`} />
-                <div className={`absolute top-1/4 left-1/4 w-full h-full bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.1)_0%,transparent_50%)] dark:bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,transparent_50%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_3s_ease-in-out_infinite_reverse]' : 'animate-[pulse_6s_ease-in-out_infinite_reverse]'}`} />
+              <div className={`${phase === 'finalizing' ? 'hidden' : 'hidden lg:flex flex-1'} bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border border-border/50 rounded-3xl group transition-all duration-700`}>
+                
+                {/* Simulated Scrolling Iframe or Screenshot */}
+                {activeIframeUrl && phase !== 'form' ? (
+                  <div className="absolute inset-0 z-0 bg-background overflow-hidden flex flex-col justify-start">
+                     {/* Overlay to prevent clicking iframe during animation */}
+                     <div className="absolute inset-0 z-10 bg-transparent" />
+                     <div className="w-full h-full animate-simulate-scroll flex justify-center">
+                       {credits > 0 ? (
+                         <div className="w-[1440px] h-auto min-h-[3000px] origin-top scale-[0.35] sm:scale-[0.4] md:scale-[0.5] lg:scale-[0.45] xl:scale-[0.55] transition-transform duration-500">
+                           <img 
+                             src={`https://api.microlink.io?url=${encodeURIComponent(activeIframeUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1440&viewport.height=3000`}
+                             alt="Portfolio Preview Screenshot"
+                             className="w-full h-auto object-cover opacity-80"
+                             loading="eager"
+                           />
+                         </div>
+                       ) : (
+                         <div className="w-[1440px] h-[3000px] origin-top scale-[0.35] sm:scale-[0.4] md:scale-[0.5] lg:scale-[0.45] xl:scale-[0.55] transition-transform duration-500">
+                           <iframe 
+                             src={activeIframeUrl} 
+                             className="w-full h-full border-none opacity-80"
+                             title="Portfolio Preview"
+                             scrolling="no"
+                             sandbox="allow-same-origin allow-scripts"
+                           />
+                         </div>
+                       )}
+                     </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Glowing background meshes */}
+                    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2)_0%,transparent_70%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_2s_ease-in-out_infinite]' : 'animate-[pulse_4s_ease-in-out_infinite]'}`} />
+                    <div className={`absolute top-1/4 left-1/4 w-full h-full bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.1)_0%,transparent_50%)] dark:bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,transparent_50%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_3s_ease-in-out_infinite_reverse]' : 'animate-[pulse_6s_ease-in-out_infinite_reverse]'}`} />
+                  </>
+                )}
                 
                 {/* Grid Lines Overlay */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_70%)]" />
+                <div className={`absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] transition-opacity duration-1000 ${activeIframeUrl && phase !== 'form' ? 'opacity-30 [mask-image:linear-gradient(to_top,black_10%,transparent_50%)]' : '[mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_70%)]'}`} />
                 
                 {/* 3D Floating Asset */}
-                <div className={`relative z-10 w-full max-w-[320px] aspect-square transition-transform duration-700 ${phase !== 'form' ? 'scale-110' : 'group-hover:scale-105'}`}>
+                <div className={`z-20 transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+                  activeIframeUrl && phase !== 'form'
+                    ? 'absolute bottom-28 right-8 w-[140px] h-[140px] opacity-100 drop-shadow-2xl'
+                    : `relative w-full max-w-[320px] aspect-square ${phase !== 'form' ? 'scale-110' : 'group-hover:scale-105'}`
+                }`}>
                    <div className={`absolute inset-0 bg-blue-500/20 dark:bg-blue-500/10 blur-[60px] rounded-full mix-blend-multiply dark:mix-blend-overlay ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_2s_ease-in-out_infinite]' : 'animate-pulse'}`} />
                    <img 
                      src="/ai-review-bot.png" 
                      alt="AI Analysis Core" 
-                     className={`w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)] ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[float_2s_ease-in-out_infinite]' : 'animate-float'}`}
+                     className={`w-full h-full object-contain ${
+                       activeIframeUrl && phase !== 'form'
+                         ? 'drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)]'
+                         : 'drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]'
+                     } ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[float_2s_ease-in-out_infinite]' : 'animate-float'}`}
                    />
                 </div>
                 
                 {/* Status Overlay UI */}
-                <div className={`absolute bottom-8 left-8 right-8 rounded-2xl bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md p-4 shadow-xl dark:shadow-2xl transform transition-all duration-500 ${phase !== 'form' ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100'}`}>
+                <div className={`absolute bottom-8 left-8 right-8 z-20 rounded-2xl bg-white/80 dark:bg-black/40 border border-black/5 dark:border-white/10 backdrop-blur-xl p-4 shadow-xl dark:shadow-2xl transform transition-all duration-500 ${phase !== 'form' ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100'}`}>
                   <div className="flex items-center gap-3">
                     <div className={`h-2 w-2 rounded-full ${error ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'} dark:${error ? 'shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'shadow-[0_0_10px_rgba(34,197,94,0.8)]'} ${phase !== 'form' && !error && phase !== 'finalizing' ? 'animate-ping' : 'animate-pulse'}`} />
                     <p className={`text-sm font-medium ${error ? 'text-red-500' : 'text-slate-800 dark:text-white/90'}`}>
@@ -1525,9 +1611,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
                   </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+      </div>
     </div>
   )
 }

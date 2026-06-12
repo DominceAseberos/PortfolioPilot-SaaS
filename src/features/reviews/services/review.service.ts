@@ -11,9 +11,8 @@ import { gitHubService } from '@/features/github/services/github.service'
 import { resumeService } from '@/features/resume/services/resume.service'
 import { reviewRepository } from '@/features/reviews/repositories/review.repository'
 import { reportRepository } from '@/features/reports/repositories/report.repository'
-import { subscriptionRepository } from '@/features/subscriptions/repositories/subscription.repository'
+import { creditRepository } from '@/features/credits/repositories/credit.repository'
 import { logger } from '@/lib/logger'
-import { PLANS } from '@/constants'
 
 function detectName(
   portfolio?: PortfolioAnalysis | null,
@@ -65,21 +64,7 @@ export class ReviewService {
       mismatches?: ReviewFullResults['mismatches']
     }
   ): Promise<Review> {
-    const subscription = await subscriptionRepository.getUserSubscription(userId)
-    if (process.env.NODE_ENV !== 'development') {
-      const plan = (subscription?.plan as keyof typeof PLANS) || 'free'
-      const planConfig = PLANS[plan]
-      const limit = planConfig.reviewsPerMonth
-      if (limit > 0) {
-        const monthlyCount = await reviewRepository.getMonthlyReviewCount(userId)
-        if (monthlyCount >= limit) {
-          throw new Error(
-            `Free plan limit reached. You have used ${monthlyCount}/${limit} reviews this month. Upgrade to Pro for unlimited reviews.`
-          )
-        }
-      }
-    }
-
+    // Note: Deductions happen in the individual /api/reviews/[type]/route.ts
     const portfolio = data.portfolio ?? null
     const github = data.github ?? null
     const resume = data.resume ?? null
@@ -151,20 +136,19 @@ export class ReviewService {
       resumeFileName?: string
     }
   ): Promise<Review> {
-    const subscription = await subscriptionRepository.getUserSubscription(userId)
-    if (process.env.NODE_ENV !== 'development') {
-      const plan = (subscription?.plan as keyof typeof PLANS) || 'free'
-      const planConfig = PLANS[plan]
-      const limit = planConfig.reviewsPerMonth
-      if (limit > 0) {
-        const monthlyCount = await reviewRepository.getMonthlyReviewCount(userId)
-        if (monthlyCount >= limit) {
-          throw new Error(
-            `Free plan limit reached. You have used ${monthlyCount}/${limit} reviews this month. Upgrade to Pro for unlimited reviews.`
-          )
-        }
-      }
+    // Calculate total cost for a full review
+    let totalCost = 0
+    if (data.portfolioUrl) totalCost += 2
+    if (data.githubUsername) totalCost += 1
+    if (data.resumeBuffer) totalCost += 2
+    if (totalCost > 0) totalCost += 1 // Synthesize AI cost
+
+    const credits = await creditRepository.getUserCredits(userId)
+    if (credits < totalCost) {
+      throw new Error(`Insufficient credits. You need ${totalCost} credits to run this full analysis.`)
     }
+
+    await creditRepository.deductCredits(userId, totalCost)
 
     const calls: Promise<void>[] = []
     let portfolioResult: PortfolioAnalysis | null = null
@@ -256,3 +240,4 @@ export class ReviewService {
 }
 
 export const reviewService = new ReviewService()
+

@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { subscriptionService } from '@/features/subscriptions/services/subscription.service'
+import { paymentService } from '@/features/payments/services/payment.service'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/utils/api'
 
 export async function POST(request: NextRequest) {
@@ -18,10 +18,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('Price ID is required', 400)
     }
 
-    const session = await subscriptionService.createCheckoutSession(user.id, priceId, user.email!)
+    const session = await paymentService.createCheckoutSession(user.id, priceId, user.email!)
 
     return successResponse({ url: session.url }, 'Checkout session created')
-  } catch {
+  } catch (error) {
+    console.error('Checkout Session Error:', error)
     return errorResponse('Failed to create checkout session', 500)
   }
 }

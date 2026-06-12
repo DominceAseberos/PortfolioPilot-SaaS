@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { ROUTES } from '@/constants'
-import { DashboardNav } from '@/components/dashboard/DashboardNav'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 
 export default function DashboardLayout({

@@ -2,9 +2,20 @@ import { type NextRequest } from 'next/server'
 import { resumeService } from '@/features/resume/services/resume.service'
 import { successResponse, errorResponse } from '@/utils/api'
 import { FILE_UPLOAD } from '@/constants'
+import { createClient } from '@/lib/supabase/server'
+import { creditRepository } from '@/features/credits/repositories/credit.repository'
+
+const CREDIT_COST = 2 // Resume parsing + AI is relatively heavy
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return errorResponse('Unauthorized. Please log in to run AI analysis.', 401)
+    }
+
     const formData = await request.formData()
     const file = formData.get('resume') as File | null
 
@@ -18,6 +29,16 @@ export async function POST(request: NextRequest) {
 
     if (file.type !== 'application/pdf') {
       return errorResponse('File must be a PDF', 400)
+    }
+
+    const credits = await creditRepository.getUserCredits(user.id)
+    if (credits < CREDIT_COST) {
+      return errorResponse(`Insufficient credits. You need ${CREDIT_COST} credits to analyze a resume.`, 402)
+    }
+
+    const deducted = await creditRepository.deductCredits(user.id, CREDIT_COST)
+    if (!deducted) {
+      return errorResponse('Failed to deduct credits. Please try again.', 500)
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())

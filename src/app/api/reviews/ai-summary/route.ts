@@ -2,9 +2,20 @@ import { NextRequest } from 'next/server'
 import { successResponse, errorResponse, serverErrorResponse } from '@/utils/api'
 import { generateOverallSummary, detectMismatches, evaluateTruthHierarchy, computeFallbackSummary } from '@/features/ai/services/ai.service'
 import type { PortfolioAnalysis, GitHubAnalysis, ResumeAnalysis } from '@/types'
+import { createClient } from '@/lib/supabase/server'
+import { creditRepository } from '@/features/credits/repositories/credit.repository'
+
+const CREDIT_COST = 1 // Final AI Synthesis cost
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return errorResponse('Unauthorized. Please log in to run AI analysis.', 401)
+    }
+
     const body = await request.json()
     const { portfolio, github, resume } = body as {
       portfolio?: PortfolioAnalysis
@@ -16,7 +27,18 @@ export async function POST(request: NextRequest) {
       return errorResponse('At least one analysis source is required')
     }
 
+    const credits = await creditRepository.getUserCredits(user.id)
+    if (credits < CREDIT_COST) {
+      return errorResponse(`Insufficient credits. You need ${CREDIT_COST} credits to synthesize the final summary.`, 402)
+    }
+
+    const deducted = await creditRepository.deductCredits(user.id, CREDIT_COST)
+    if (!deducted) {
+      return errorResponse('Failed to deduct credits. Please try again.', 500)
+    }
+
     const truth = evaluateTruthHierarchy(portfolio, github, resume)
+
 
     // Remove isolated sources before AI processing
     const validPortfolio = truth.validSources.portfolio ? portfolio : undefined

@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server'
-import { subscriptionService } from '@/features/subscriptions/services/subscription.service'
+import { paymentService } from '@/features/payments/services/payment.service'
 import { errorResponse } from '@/utils/api'
 import Stripe from 'stripe'
 import { logger } from '@/lib/logger'
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const stripe = getStripe()
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
 
-    await subscriptionService.handleWebhookEvent(event)
+    await paymentService.handleWebhookEvent(event)
 
     return new Response(JSON.stringify({ received: true }), {
       status: 200,

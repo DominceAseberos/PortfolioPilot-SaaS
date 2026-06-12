@@ -15,20 +15,18 @@ export default async function BillingPage() {
     redirect(ROUTES.login)
   }
 
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('*')
+  // Fetch user credits
+  const { data: creditData } = await supabase
+    .from('user_credits')
+    .select('credits')
     .eq('user_id', user.id)
     .single()
 
-  const plan = subscription?.plan || 'free'
-  const isPro = plan === 'pro'
+  const credits = creditData?.credits || 0
 
   return (
     <BillingPageClient
-      currentPlan={plan}
-      isPro={isPro}
-      subscription={subscription}
+      credits={credits}
       userEmail={user.email || ''}
       proPriceId={process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || ''}
     />

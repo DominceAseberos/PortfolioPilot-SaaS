@@ -39,6 +39,7 @@ interface ReviewHistoryItem {
 
 interface ReviewHistoryProps {
   reviews: ReviewHistoryItem[]
+  onSelect?: (id: string) => void
 }
 
 interface PersonGroup {
@@ -67,10 +68,10 @@ function groupReviewsByPerson(reviews: ReviewHistoryItem[]): PersonGroup[] {
 
   const result: PersonGroup[] = []
   for (const [name, personReviews] of groups) {
-    const scores = personReviews.map((r) => r.overall_score).filter((s): s is number => s !== null)
     const sorted = [...personReviews].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )
+    const scores = sorted.map((r) => r.overall_score).filter((s): s is number => s !== null)
 
     const avg =
       scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
@@ -138,7 +139,7 @@ function ImprovementBadge({ value }: { value: number }) {
   )
 }
 
-function PersonSection({ group }: { group: PersonGroup }) {
+function PersonSection({ group, onSelect }: { group: PersonGroup; onSelect?: (id: string) => void }) {
   const [isOpen, setIsOpen] = useState(false)
   const hasLinks =
     group.uniqueLinks.portfolios.length > 0 ||
@@ -229,13 +230,10 @@ function PersonSection({ group }: { group: PersonGroup }) {
           <div className="divide-y divide-border/30 rounded-lg border border-border/50">
             {group.reviews.map((review) => {
               const sourceMeta = review.source_types.map((t) => sourceConfig[t]).filter(Boolean)
-              return (
-                <Link
-                  key={review.id}
-                  href={`/dashboard/reviews/${review.id}`}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/20 transition-colors group"
-                >
-                  <div className="flex-1 min-w-0">
+              
+              const innerContent = (
+                <>
+                  <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium">{formatDate(review.created_at)}</span>
                       <div className="flex items-center gap-1">
@@ -260,6 +258,28 @@ function PersonSection({ group }: { group: PersonGroup }) {
                     <ScoreBadge score={review.overall_score} size="sm" />
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
+                </>
+              )
+
+              if (onSelect) {
+                return (
+                  <button
+                    key={review.id}
+                    onClick={() => onSelect(review.id)}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 hover:bg-accent/20 transition-colors group"
+                  >
+                    {innerContent}
+                  </button>
+                )
+              }
+
+              return (
+                <Link
+                  key={review.id}
+                  href={`/dashboard/reviews/${review.id}`}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 hover:bg-accent/20 transition-colors group"
+                >
+                  {innerContent}
                 </Link>
               )
             })}
@@ -270,12 +290,12 @@ function PersonSection({ group }: { group: PersonGroup }) {
   )
 }
 
-export function ReviewHistory({ reviews }: ReviewHistoryProps) {
+export function ReviewHistory({ reviews, onSelect }: ReviewHistoryProps) {
   const groups = useMemo(() => groupReviewsByPerson(reviews), [reviews])
   const totalPeople = groups.length
 
   return (
-    <Card className="border-border/50 shadow-sm">
+    <Card className="border-border/50 shadow-sm mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <CardHeader className="border-b bg-muted/20 pb-3">
         <CardTitle className="text-lg">
           <div className="flex items-center gap-2">
@@ -293,7 +313,7 @@ export function ReviewHistory({ reviews }: ReviewHistoryProps) {
         ) : (
           <div className="divide-y divide-border/50">
             {groups.map((group) => (
-              <PersonSection key={group.name} group={group} />
+              <PersonSection key={group.name} group={group} onSelect={onSelect} />
             ))}
           </div>
         )}

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/common/Button'
-import { PLANS } from '@/constants'
+import { CREDIT_PACKS } from '@/constants'
 import { CheckCircle2, Sparkles } from 'lucide-react'
 import { ScrollReveal } from '@/components/common/ScrollReveal'
 
@@ -26,15 +26,15 @@ export function LandingPricing() {
           <ScrollReveal animation="fade-up" delay={200} className="h-full">
             <div className="relative rounded-3xl bg-card border border-border/50 shadow-sm p-8 md:p-12 flex flex-col h-full hover:border-foreground/20 hover:shadow-xl hover:-translate-y-2 transition-all duration-500 group">
               <div className="mb-10">
-                <h3 className="text-xl font-bold text-foreground mb-3">{PLANS.free.name}</h3>
+                <h3 className="text-xl font-bold text-foreground mb-3">{CREDIT_PACKS.free.name}</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl md:text-6xl font-black tracking-tight">$0</span>
-                  <span className="text-muted-foreground font-medium text-lg">/month</span>
+                  <span className="text-5xl md:text-6xl font-black tracking-tight">${CREDIT_PACKS.free.price}</span>
+                  <span className="text-muted-foreground font-medium text-lg">/free</span>
                 </div>
               </div>
               
               <ul className="space-y-5 mb-12 flex-1">
-                {PLANS.free.features.map((f) => (
+                {CREDIT_PACKS.free.features.map((f) => (
                   <li key={f} className="flex items-start gap-3">
                     <div className="mt-0.5 bg-slate-100 dark:bg-slate-800 rounded-full p-1 shrink-0 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
                       <CheckCircle2 className="h-4 w-4 text-slate-500" />
@@ -80,15 +80,15 @@ export function LandingPricing() {
                 </div>
 
                 <div className="mb-10 relative pt-4">
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-3 uppercase tracking-wider">{PLANS.pro.name} PLAN</h3>
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-3 uppercase tracking-wider">{CREDIT_PACKS.starter.name}</h3>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl md:text-6xl font-black tracking-tight text-foreground drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]">$29</span>
-                    <span className="text-muted-foreground font-medium text-lg">/month</span>
+                    <span className="text-5xl md:text-6xl font-black tracking-tight text-foreground drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]">${CREDIT_PACKS.starter.price}</span>
+                    <span className="text-muted-foreground font-medium text-lg">/100 credits</span>
                   </div>
                 </div>
                 
                 <ul className="space-y-5 mb-12 flex-1 relative">
-                  {PLANS.pro.features.map((f) => (
+                  {CREDIT_PACKS.starter.features.map((f) => (
                     <li key={f} className="flex items-start gap-3 group/item">
                       <div className="mt-0.5 shrink-0 group-hover/item:scale-125 transition-transform duration-300">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400 drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]">

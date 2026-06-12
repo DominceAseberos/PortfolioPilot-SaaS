@@ -19,10 +19,6 @@ export default function AccountLayout({
                   <LayoutDashboard className="h-4 w-4" />
                   Dashboard
                 </Link>
-                <Link href="/account/history" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                  <History className="h-4 w-4" />
-                  History
-                </Link>
                 <Link href="/account/settings" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                   <Settings className="h-4 w-4" />
                   Settings

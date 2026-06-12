@@ -20,6 +20,7 @@ import {
   GitBranch,
   User,
   Minus,
+  Coins,
 } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { cn } from '@/lib/utils'
@@ -47,11 +48,6 @@ interface PersonMetric {
   latestDate: string
 }
 
-interface Subscription {
-  plan: string
-  status: string
-}
-
 interface DashboardOverviewProps {
   user: SupabaseUser
   totalReviews: number
@@ -59,7 +55,7 @@ interface DashboardOverviewProps {
   bestScore: number
   improvementPercentage: number
   recentReviews: Review[]
-  subscription: Subscription | null
+  credits: number
   personMetrics: PersonMetric[]
 }
 
@@ -93,13 +89,9 @@ export function DashboardOverview({
   bestScore,
   improvementPercentage,
   recentReviews,
-  subscription,
+  credits,
   personMetrics,
 }: DashboardOverviewProps) {
-  const plan = subscription?.plan || 'free'
-  const isPro = plan === 'pro'
-  const isDev = process.env.NODE_ENV === 'development'
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -122,15 +114,13 @@ export function DashboardOverview({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Reviews</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Credit Balance</CardTitle>
+            <Coins className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalReviews}</div>
+            <div className="text-2xl font-bold text-primary">{credits}</div>
             <p className="text-muted-foreground text-xs">
-              {isPro || isDev
-                ? 'Unlimited reviews'
-                : `${Math.max(0, 1 - totalReviews)} review${totalReviews >= 1 ? 's' : ''} remaining this month`}
+              Credits available for analysis
             </p>
           </CardContent>
         </Card>
@@ -224,28 +214,24 @@ export function DashboardOverview({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Subscription</CardTitle>
-          <Badge variant={isPro ? 'success' : 'secondary'}>{isPro ? 'Pro' : 'Free'}</Badge>
+          <CardTitle>Account Status</CardTitle>
+          <Badge variant={credits > 0 ? 'success' : 'secondary'}>{credits > 0 ? 'Active' : 'No Credits'}</Badge>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            {isPro || isDev
-              ? 'Unlimited reviews. Run as many as you want.'
-              : 'Upgrade to Pro for unlimited reviews, detailed reports, and progress tracking.'}
+            You have {credits} AI analysis credits. Credits are deducted when you run portfolio, GitHub, or resume reviews.
           </p>
-          {!isPro && (
-            <Link href={ROUTES.billing} className="mt-3 inline-block">
-              <Button variant="outline" size="sm">
-                Upgrade to Pro
-              </Button>
-            </Link>
-          )}
+          <Link href={ROUTES.billing} className="mt-3 inline-block">
+            <Button variant="outline" size="sm">
+              Top Up Credits
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Reviews</CardTitle>
+          <CardTitle>Recent Reviews ({totalReviews} Total)</CardTitle>
         </CardHeader>
         <CardContent>
           {recentReviews.length === 0 ? (

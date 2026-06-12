@@ -1,26 +1,24 @@
-export const PLANS = {
+export const CREDIT_PACKS = {
   free: {
-    name: 'Free',
+    name: 'Guest Pass',
     price: 0,
-    reviewsPerMonth: 1,
+    credits: 0,
     features: [
-      '1 Review Per Month',
-      'Basic Feedback',
-      'Portfolio Analysis',
+      '1 Free Review (No Sign-Up)',
+      'Basic Portfolio Feedback',
+      'Preview Mode Only',
     ],
   },
-  pro: {
-    name: 'Pro',
-    price: 29,
-    reviewsPerMonth: -1,
+  starter: {
+    name: 'Starter Pack',
+    price: 10,
+    credits: 100,
     features: [
-      'Unlimited Reviews',
-      'Detailed Reports',
-      'Progress Tracking',
-      'Priority Processing',
-      'GitHub Analysis',
-      'Resume Analysis',
+      '100 AI Analysis Credits',
+      'Portfolio & Resume Analysis',
+      'GitHub Deep Scans',
       'Historical Comparisons',
+      'Pay-As-You-Go Flexibility',
     ],
   },
 } as const
@@ -29,11 +27,6 @@ export const SCORE_WEIGHTS = {
   portfolio: 0.4,
   github: 0.3,
   resume: 0.3,
-} as const
-
-export const REVIEW_LIMITS = {
-  free: 1,
-  pro: -1,
 } as const
 
 export const FILE_UPLOAD = {

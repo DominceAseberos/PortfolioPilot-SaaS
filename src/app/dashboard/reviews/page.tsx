@@ -12,15 +12,25 @@ export default async function ReviewsPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return <ReviewsPageClient isGuest={true} reviewCount={0} />
+    return <ReviewsPageClient isGuest={true} reviewCount={0} credits={0} reviews={[]} />
   }
 
   const isGuest = user.is_anonymous === true
 
-  const { count } = await supabase
+  // Fetch all reviews for history
+  const { data: reviews } = await supabase
     .from('reviews')
-    .select('*', { count: 'exact', head: true })
+    .select('id, portfolio_url, github_username, resume_url, overall_score, portfolio_score, github_score, resume_score, detected_name, source_types, created_at')
     .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
 
-  return <ReviewsPageClient isGuest={isGuest} reviewCount={count || 0} />
+  const { data: creditData } = await supabase
+    .from('user_credits')
+    .select('credits')
+    .eq('user_id', user.id)
+    .single()
+
+  const credits = creditData?.credits || 0
+
+  return <ReviewsPageClient isGuest={isGuest} reviewCount={reviews?.length || 0} credits={credits} reviews={reviews || []} />
 }

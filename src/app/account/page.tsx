@@ -21,12 +21,13 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('*')
+  const { data: creditData } = await supabase
+    .from('user_credits')
+    .select('credits')
     .eq('user_id', user.id)
     .single()
 
+  const credits = creditData?.credits || 0
   const totalReviews = reviews?.length || 0
   const scores = reviews?.map((r) => r.overall_score).filter((s): s is number => s !== null) || []
   const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
@@ -35,11 +36,12 @@ export default async function DashboardPage() {
   let improvementPercentage = 0
   if (scores.length >= 4) {
     const mid = Math.floor(scores.length / 2)
-    const firstHalf = scores.slice(0, mid)
-    const secondHalf = scores.slice(mid)
-    const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length
-    const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length
-    improvementPercentage = firstAvg > 0 ? Math.round(((secondAvg - firstAvg) / firstAvg) * 100) : 0
+    // scores is descending (newest first)
+    const newerHalf = scores.slice(0, mid)
+    const olderHalf = scores.slice(mid)
+    const newerAvg = newerHalf.reduce((a, b) => a + b, 0) / newerHalf.length
+    const olderAvg = olderHalf.reduce((a, b) => a + b, 0) / olderHalf.length
+    improvementPercentage = olderAvg > 0 ? Math.round(((newerAvg - olderAvg) / olderAvg) * 100) : 0
   }
 
   const reviewList = reviews || []
@@ -58,11 +60,11 @@ export default async function DashboardPage() {
 
   const personMetrics = [...personMap.entries()]
     .map(([name, data]) => {
-      const s = data.scores
+      const s = data.scores // This is descending (newest first)
       const avg = s.length > 0 ? Math.round(s.reduce((a, b) => a + b, 0) / s.length) : 0
       const best = s.length > 0 ? Math.max(...s) : 0
-      const first = s.length > 0 ? s[0] : 0
-      const latest = s.length > 0 ? s[s.length - 1] : 0
+      const latest = s.length > 0 ? s[0] : 0 // Newest is at index 0
+      const first = s.length > 0 ? s[s.length - 1] : 0 // Oldest is at end
       const improvement = first > 0 ? Math.round(((latest - first) / first) * 100) : 0
       const latestDate = data.dates.sort().reverse()[0] || ''
       return {
@@ -84,7 +86,7 @@ export default async function DashboardPage() {
       bestScore={bestScore}
       improvementPercentage={improvementPercentage}
       recentReviews={(reviews || []).slice(0, 5)}
-      subscription={subscription}
+      credits={credits}
       personMetrics={personMetrics}
     />
   )
