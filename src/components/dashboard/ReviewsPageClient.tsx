@@ -10,6 +10,7 @@ import { Input } from '@/components/common/Input'
 import { Badge } from '@/components/common/Badge'
 import { ScoreBadge } from '@/components/common/ScoreBadge'
 import { ReviewHistory } from '@/components/dashboard/ReviewHistory'
+import { NeuralChatLanding } from '@/components/dashboard/NeuralChatLanding'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import type {
   PortfolioAnalysis,
@@ -1383,151 +1384,18 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
         {/* Left Side: Form, Progress Status, or Streaming Results */}
         <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-3xl mx-auto flex flex-col justify-center h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
                 {phase === 'form' ? (
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
-                      <div className="mb-10 text-center relative mt-16 sm:mt-0 flex flex-col items-center">
-                        <div className="relative w-32 h-32 sm:w-40 sm:h-40 mb-6 animate-float z-10">
-                          <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full mix-blend-multiply dark:mix-blend-overlay animate-pulse" />
-                          <img src="/ai-review-bot.png" alt="AI Neural Core" className="w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]" />
-                        </div>
-                        <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent mb-4">
-                          Unleash the Neural Core.
-                        </h2>
-                        <p className="text-lg text-muted-foreground max-w-lg mx-auto">
-                          Drop your portfolio, GitHub, and resume to trigger an autonomous, AI-driven technical assessment.
-                        </p>
-                      </div>
-                      
-                      <div className="bg-card/40 backdrop-blur-md border border-border/50 shadow-2xl rounded-[2rem] p-6 sm:p-10 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50" />
-                        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-                          
-                          {/* Input Group 1: Live Web */}
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-bold text-foreground pl-1">
-                              <Globe className="h-4 w-4 text-primary" />
-                              Live Portfolio URL
-                            </label>
-                            <Input
-                              placeholder="https://your-portfolio.com"
-                              value={portfolioUrl}
-                              onChange={(e) => setPortfolioUrl(e.target.value)}
-                              className="bg-background/80 backdrop-blur-sm border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
-                            />
-                          </div>
-
-                          {/* Input Group 2: Codebase */}
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-bold text-foreground pl-1">
-                              <GitBranch className="h-4 w-4 text-primary" />
-                              GitHub Username
-                            </label>
-                            <Input
-                              placeholder="e.g., torvalds"
-                              value={githubUsername}
-                              onChange={(e) => setGithubUsername(e.target.value)}
-                              className="bg-background/80 backdrop-blur-sm border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
-                            />
-                          </div>
-
-                          {/* Input Group 3: Document */}
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-bold text-foreground pl-1">
-                              <FileText className="h-4 w-4 text-primary" />
-                              Resume/CV (PDF)
-                            </label>
-                            <div 
-                              onDragOver={handleDragOver}
-                              onDragLeave={handleDragLeave}
-                              onDrop={handleDrop}
-                              className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-300 border-2 ${
-                                isDragging 
-                                  ? 'bg-primary/5 border-primary border-dashed scale-[1.02] shadow-lg' 
-                                  : 'bg-background/80 backdrop-blur-sm border-border/50 border-solid hover:border-primary/30 shadow-sm'
-                              }`}
-                            >
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".pdf"
-                                className="hidden"
-                                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="h-12 px-6 bg-background shadow-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all rounded-lg font-medium"
-                              >
-                                <Upload className="mr-2 h-4 w-4" />
-                                {resumeFile ? 'Change File' : 'Browse Files'}
-                              </Button>
-                              <div className="flex-1 min-w-0">
-                                {resumeFile ? (
-                                  <div className="flex items-center justify-between gap-2 bg-primary/5 px-3 py-2 rounded-lg border border-primary/10">
-                                    <span className="text-sm font-medium text-primary truncate">{resumeFile.name}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setResumeFile(null)
-                                        if (fileInputRef.current) fileInputRef.current.value = ''
-                                      }}
-                                      className="text-xs font-bold text-red-500 hover:text-red-600 hover:underline shrink-0 p-1"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-muted-foreground font-medium">Drop your PDF here...</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {error && (
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                              <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-5 py-4 shadow-sm">
-                                <p className="text-sm text-red-500 flex items-center gap-2 font-bold">
-                                  <AlertTriangle className="h-5 w-5 shrink-0" />
-                                  {error}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="pt-6">
-                            <Button 
-                              type="submit" 
-                              size="lg" 
-                              isLoading={isLoading} 
-                              className="w-full h-14 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_-5px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 rounded-xl group/btn"
-                            >
-                              <span className="relative z-10 flex items-center">
-                                Execute Deep Scan
-                                <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
-                              </span>
-                              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite]" />
-                            </Button>
-                          </div>
-                        </form>
-                      </div>
-
-                      {/* Analysis Types Pills */}
-                      <div className="flex flex-wrap justify-center gap-3 mt-8">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border/50 rounded-full shadow-sm text-sm font-medium text-foreground hover:bg-muted/50 transition-colors cursor-default">
-                          <Globe className="h-4 w-4 text-blue-500" />
-                          Portfolio Analysis
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border/50 rounded-full shadow-sm text-sm font-medium text-foreground hover:bg-muted/50 transition-colors cursor-default">
-                          <GitBranch className="h-4 w-4 text-purple-500" />
-                          GitHub Telemetry
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border/50 rounded-full shadow-sm text-sm font-medium text-foreground hover:bg-muted/50 transition-colors cursor-default">
-                          <FileText className="h-4 w-4 text-emerald-500" />
-                          Resume Parsing
-                        </div>
-                      </div>
-
-                    </div>
+                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-center">
+                     <NeuralChatLanding 
+                       portfolioUrl={portfolioUrl}
+                       setPortfolioUrl={setPortfolioUrl}
+                       githubUsername={githubUsername}
+                       setGithubUsername={setGithubUsername}
+                       resumeFile={resumeFile}
+                       setResumeFile={setResumeFile}
+                       onSubmit={handleSubmit}
+                       isLoading={isLoading}
+                     />
+                   </div>
                   ) : phase === 'finalizing' && results.aiSummary ? (
                     <div className="w-full">
                       <StreamingChatBox 
