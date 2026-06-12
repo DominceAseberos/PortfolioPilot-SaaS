@@ -92,8 +92,17 @@ function check(
 export class PortfolioService {
   async analyze(portfolioUrl: string): Promise<PortfolioAnalysis> {
     try {
-      const response = await fetch(portfolioUrl, {
-        signal: AbortSignal.timeout(10000),
+      let fetchUrl = portfolioUrl
+      const headers: Record<string, string> = {}
+      
+      if (process.env.SCRAPINGANT_API_KEY) {
+        fetchUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(portfolioUrl)}&browser=true`
+        headers['x-api-key'] = process.env.SCRAPINGANT_API_KEY
+      }
+
+      const response = await fetch(fetchUrl, {
+        headers,
+        signal: AbortSignal.timeout(25000), // Increased timeout for browser rendering
       })
       const html = await response.text()
       
