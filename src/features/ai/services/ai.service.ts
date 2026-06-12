@@ -312,60 +312,94 @@ Return this JSON structure:
   }
 }
 
-export function checkHardMismatches(
+export interface IsolationResult {
+  mismatches: AIMismatch[]
+  validSources: {
+    portfolio: boolean
+    github: boolean
+    resume: boolean
+  }
+}
+
+export function evaluateTruthHierarchy(
   portfolio?: PortfolioAnalysis | null,
   github?: GitHubAnalysis | null,
   resume?: ResumeAnalysis | null
-): AIMismatch[] {
-  const hardMismatches: AIMismatch[] = []
-
-  if (github && portfolio && portfolio.details?.socialLinks) {
-    const expectedGithub = github.details?.profile?.login?.toLowerCase()
-    if (expectedGithub) {
-      const portfolioGithubLinks = portfolio.details.socialLinks.filter(l => l.toLowerCase().includes('github.com'))
-      
-      portfolioGithubLinks.forEach(link => {
-        const match = link.match(/github\.com\/([A-Za-z0-9-]+)/i)
-        if (match && match[1]) {
-          const linkedUser = match[1].toLowerCase()
-          // Ignore general github.com links or repo specific links for this strict user check
-          if (linkedUser !== expectedGithub && linkedUser.length > 0 && !link.includes('/blob/') && !link.includes('/commit/')) {
-            const exists = hardMismatches.some(m => m.description.includes(linkedUser))
-            if (!exists) {
-              hardMismatches.push({
-                type: 'github',
-                severity: 'high',
-                description: `Cross-referencing aborted: Your portfolio links to a different GitHub profile (github.com/${linkedUser}). Recommendation: Update the \`<a href>\` tags on your portfolio to point to your actual GitHub (${expectedGithub}) to prove ownership before we cross-reference.`,
-                sources: ['Portfolio', 'GitHub']
-              })
-            }
-          }
-        }
-      })
-    }
+): IsolationResult {
+  const result: IsolationResult = {
+    mismatches: [],
+    validSources: { portfolio: !!portfolio, github: !!github, resume: !!resume }
   }
 
-  // Also check resume
-  if (github && resume && resume.details?.github) {
-    const expectedGithub = github.details?.profile?.login?.toLowerCase()
-    const resumeGithubLink = resume.details.github
-    if (expectedGithub && resumeGithubLink) {
-      const match = resumeGithubLink.match(/github\.com\/([A-Za-z0-9-]+)/i)
-      if (match && match[1]) {
-        const linkedUser = match[1].toLowerCase()
-        if (linkedUser !== expectedGithub && linkedUser.length > 0) {
-          hardMismatches.push({
-            type: 'github',
-            severity: 'high',
-            description: `Cross-referencing aborted: Your resume links to a different GitHub profile (github.com/${linkedUser}). Recommendation: Update your resume PDF to link to your actual GitHub (${expectedGithub}) to prove ownership before we cross-reference.`,
-            sources: ['Resume', 'GitHub']
-          })
-        }
+  const expectedGithub = github?.details?.profile?.login?.toLowerCase()
+  
+  let portfolioGithub: string | null = null
+  if (portfolio?.details?.socialLinks) {
+    const pLinks = portfolio.details.socialLinks.filter(l => l.toLowerCase().includes('github.com'))
+    for (const link of pLinks) {
+      const match = link.match(/github\.com\/([A-Za-z0-9-]+)/i)
+      if (match && match[1] && !link.includes('/blob/') && !link.includes('/commit/')) {
+        portfolioGithub = match[1].toLowerCase()
+        break
       }
     }
   }
 
-  return hardMismatches
+  let resumeGithub: string | null = null
+  if (resume?.details?.github) {
+    const match = resume.details.github.match(/github\.com\/([A-Za-z0-9-]+)/i)
+    if (match && match[1]) {
+      resumeGithub = match[1].toLowerCase()
+    }
+  }
+
+  // 1. Resume is the Master Truth if provided
+  if (resume) {
+    if (resumeGithub) {
+      if (expectedGithub && expectedGithub !== resumeGithub) {
+        result.validSources.github = false
+        result.mismatches.push({
+          type: 'github',
+          severity: 'high',
+          description: `Identity Mismatch: The GitHub profile you provided (${expectedGithub}) does not match the GitHub listed on your Resume (${resumeGithub}). The provided GitHub has been isolated from the cross-reference summary.`,
+          sources: ['Resume', 'GitHub']
+        })
+      }
+      if (portfolioGithub && portfolioGithub !== resumeGithub) {
+        result.validSources.portfolio = false
+        result.mismatches.push({
+          type: 'portfolio',
+          severity: 'high',
+          description: `Identity Mismatch: Your Portfolio links to a GitHub profile (${portfolioGithub}) that does not match your Resume (${resumeGithub}). The Portfolio has been isolated from the cross-reference summary.`,
+          sources: ['Resume', 'Portfolio']
+        })
+      }
+    } else {
+       // Resume has no github. Portfolio becomes secondary truth.
+       if (expectedGithub && portfolioGithub && expectedGithub !== portfolioGithub) {
+          result.validSources.github = false
+          result.mismatches.push({
+            type: 'github',
+            severity: 'high',
+            description: `Identity Mismatch: The GitHub profile you provided (${expectedGithub}) does not match the GitHub linked on your Portfolio (${portfolioGithub}). The provided GitHub has been isolated.`,
+            sources: ['Portfolio', 'GitHub']
+          })
+       }
+    }
+  } else {
+    // 2. No resume. Portfolio is Ground Truth.
+    if (portfolioGithub && expectedGithub && portfolioGithub !== expectedGithub) {
+      result.validSources.github = false
+      result.mismatches.push({
+        type: 'github',
+        severity: 'high',
+        description: `Identity Mismatch: The GitHub profile you provided (${expectedGithub}) does not match the GitHub linked on your Portfolio (${portfolioGithub}). The provided GitHub has been isolated from the cross-reference summary.`,
+        sources: ['Portfolio', 'GitHub']
+      })
+    }
+  }
+
+  return result
 }
 
 export async function detectMismatches(
