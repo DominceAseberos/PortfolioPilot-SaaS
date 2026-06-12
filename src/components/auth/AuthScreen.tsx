@@ -69,7 +69,9 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
       router.push(nextPath || ROUTES.dashboard)
       router.refresh()
     } catch (err: unknown) {
-      setLoginError(err instanceof Error ? err.message : 'Invalid email or password')
+      const errorMsg = err instanceof Error ? err.message : 'Invalid email or password'
+      toast.error(errorMsg)
+      setLoginError(errorMsg)
     } finally {
       setIsLoginLoading(false)
     }
@@ -89,7 +91,9 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
         setRegisterSuccess(true)
       }
     } catch (err: unknown) {
-      setRegisterError(err instanceof Error ? err.message : 'Something went wrong.')
+      const errorMsg = err instanceof Error ? err.message : 'Something went wrong.'
+      toast.error(errorMsg)
+      setRegisterError(errorMsg)
     } finally {
       setIsRegisterLoading(false)
     }
@@ -98,8 +102,16 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
   const handleGoogleSignIn = async () => {
     try {
       await authService.signInWithGoogle(nextPath)
-    } catch {
-      toast.error('Google sign in failed')
+    } catch (err) {
+      toast.error('Failed to initialize Google sign in')
+    }
+  }
+
+  const handleGithubSignIn = async () => {
+    try {
+      await authService.signInWithGithub(nextPath)
+    } catch (err) {
+      toast.error('Failed to initialize GitHub sign in')
     }
   }
 

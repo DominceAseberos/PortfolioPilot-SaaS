@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
@@ -628,6 +629,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
     if (cleanGithub) {
       // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen. Max 39 chars.
       if (!/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/i.test(cleanGithub)) {
+        toast.error('Invalid GitHub username')
         setError('Please enter a valid GitHub username')
         setIsLoading(false)
         return
@@ -641,6 +643,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
     if (resumeFile) sources.push({ id: 'resume', label: 'Resume', source: resumeFile.name })
 
     if (sources.length === 0) {
+      toast.error('Missing sources')
       setError('Provide at least one source (portfolio URL, GitHub username, or resume)')
       setIsLoading(false)
       return
@@ -648,6 +651,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
 
     if (isGuest) {
       if (reviewCount >= 1) {
+        toast.error('Guest limit reached')
         setError('You have reached your free guest review limit! Please sign up for a free account to run more analyses.')
         setIsLoading(false)
         return
@@ -659,12 +663,15 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
       if (!session) {
         const { error: authError } = await supabase.auth.signInAnonymously()
         if (authError) {
+          toast.error('Authentication failed')
           setError('Failed to initialize session. Please try again.')
           setIsLoading(false)
           return
         }
       }
     }
+
+    toast.success('Initiating Neural Scan...')
 
     // ── Phase 1: Collect sources sequentially ──
     setPhase('collecting')
@@ -825,13 +832,16 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
       const createJson = await createRes.json()
 
       if (createJson.success) {
+        toast.success('Analysis securely stored to history')
         setPortfolioUrl('')
         setGithubUsername('')
         setResumeFile(null)
         setTimeout(() => router.refresh(), 2000)
+      } else {
+        toast.error('Failed to store analysis in history')
       }
     } catch {
-      // save failed — results still shown
+      toast.error('Network error while saving analysis')
     }
 
     setIsLoading(false)
@@ -1291,105 +1301,143 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
               <div className={`w-full p-8 lg:p-10 flex flex-col justify-center h-full overflow-y-auto custom-scrollbar transition-all duration-700 ${phase === 'finalizing' ? 'lg:w-full mx-auto' : 'lg:w-3/5'}`}>
                 {phase === 'form' ? (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <div className="mb-8">
-                        <h2 className="text-2xl font-bold tracking-tight">Submit Assets</h2>
-                        <p className="text-muted-foreground mt-1">Provide any combination of links or documents for the AI to analyze.</p>
+                      <div className="mb-10 relative">
+                        <div className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-4 border border-primary/20">
+                          System Access
+                        </div>
+                        <h2 className="text-4xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent mb-2">
+                          Initialize Neural Scan
+                        </h2>
+                        <p className="text-lg text-muted-foreground max-w-lg">
+                          Provide your digital footprint. The AI will autonomously map and score your engineering capability across all connected platforms.
+                        </p>
                       </div>
-                      <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      <form onSubmit={handleSubmit} className="space-y-8 relative">
+                        {/* Decorative connector line */}
+                        <div className="absolute left-[19px] top-4 bottom-8 w-px bg-gradient-to-b from-primary/30 via-primary/10 to-transparent -z-10 hidden sm:block" />
+                        
+                        {/* Input Group 1: Live Web */}
+                        <div className="relative pl-0 sm:pl-12 group transition-all duration-300">
+                          <div className="hidden sm:flex absolute left-0 top-3 h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-background shadow-sm group-hover:border-primary/50 group-hover:shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] transition-all">
+                            <Globe className="h-4 w-4 text-primary" />
+                          </div>
                           <div className="space-y-3">
                             <label className="flex items-center gap-2 text-sm font-bold text-foreground">
-                              <Globe className="h-4 w-4 text-blue-500" />
-                              Portfolio URL
+                              <span className="sm:hidden"><Globe className="h-4 w-4 text-primary" /></span>
+                              Live Portfolio URL
+                              <span className="text-xs font-normal text-muted-foreground ml-2">(Optional but recommended)</span>
                             </label>
                             <Input
                               placeholder="https://your-portfolio.com"
                               value={portfolioUrl}
                               onChange={(e) => setPortfolioUrl(e.target.value)}
-                              className="bg-muted/30 border-border/50 focus-visible:ring-blue-500/30 focus-visible:border-blue-500 h-12 rounded-xl"
-                            />
-                          </div>
-
-                          <div className="space-y-3">
-                            <label className="flex items-center gap-2 text-sm font-bold text-foreground">
-                              <GitBranch className="h-4 w-4 text-purple-500" />
-                              GitHub Username
-                            </label>
-                            <Input
-                              placeholder="your-github-username"
-                              value={githubUsername}
-                              onChange={(e) => setGithubUsername(e.target.value)}
-                              className="bg-muted/30 border-border/50 focus-visible:ring-purple-500/30 focus-visible:border-purple-500 h-12 rounded-xl"
+                              className="bg-card border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
                             />
                           </div>
                         </div>
 
-                        <div className="space-y-3">
-                          <label className="flex items-center gap-2 text-sm font-bold text-foreground">
-                            <FileText className="h-4 w-4 text-emerald-500" />
-                            Resume/CV (PDF)
-                          </label>
-                          <div 
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
-                            className={`flex items-center gap-4 p-2 rounded-xl transition-all duration-200 border-2 ${
-                              isDragging 
-                                ? 'bg-emerald-500/10 border-emerald-500/50 border-dashed scale-[1.02]' 
-                                : 'bg-muted/30 border-border/50 border-solid'
-                            }`}
-                          >
-                            <input
-                              ref={fileInputRef}
-                              type="file"
-                              accept=".pdf"
-                              className="hidden"
-                              onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                        {/* Input Group 2: Codebase */}
+                        <div className="relative pl-0 sm:pl-12 group transition-all duration-300">
+                          <div className="hidden sm:flex absolute left-0 top-3 h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-background shadow-sm group-hover:border-primary/50 group-hover:shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] transition-all">
+                            <GitBranch className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="space-y-3">
+                            <label className="flex items-center gap-2 text-sm font-bold text-foreground">
+                              <span className="sm:hidden"><GitBranch className="h-4 w-4 text-primary" /></span>
+                              GitHub Username
+                            </label>
+                            <Input
+                              placeholder="e.g., torvalds"
+                              value={githubUsername}
+                              onChange={(e) => setGithubUsername(e.target.value)}
+                              className="bg-card border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
                             />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="h-10 px-6 bg-background shadow-sm hover:bg-accent/50 rounded-lg font-medium"
+                          </div>
+                        </div>
+
+                        {/* Input Group 3: Document */}
+                        <div className="relative pl-0 sm:pl-12 group transition-all duration-300">
+                          <div className="hidden sm:flex absolute left-0 top-3 h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-background shadow-sm group-hover:border-primary/50 group-hover:shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] transition-all">
+                            <FileText className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="space-y-3">
+                            <label className="flex items-center gap-2 text-sm font-bold text-foreground">
+                              <span className="sm:hidden"><FileText className="h-4 w-4 text-primary" /></span>
+                              Resume/CV (PDF)
+                            </label>
+                            <div 
+                              onDragOver={handleDragOver}
+                              onDragLeave={handleDragLeave}
+                              onDrop={handleDrop}
+                              className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-300 border-2 ${
+                                isDragging 
+                                  ? 'bg-primary/5 border-primary border-dashed scale-[1.02] shadow-lg' 
+                                  : 'bg-card border-border/50 border-solid hover:border-primary/30 shadow-sm'
+                              }`}
                             >
-                              <Upload className="mr-2 h-4 w-4" />
-                              {resumeFile ? 'Change File' : 'Browse Files'}
-                            </Button>
-                            <div className="flex-1 min-w-0">
-                              {resumeFile ? (
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-sm font-medium text-foreground truncate">{resumeFile.name}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setResumeFile(null)
-                                      if (fileInputRef.current) fileInputRef.current.value = ''
-                                    }}
-                                    className="text-xs font-semibold text-red-500 hover:text-red-600 hover:underline shrink-0"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">No file selected</span>
-                              )}
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf"
+                                className="hidden"
+                                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="h-12 px-6 bg-background shadow-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all rounded-lg font-medium"
+                              >
+                                <Upload className="mr-2 h-4 w-4" />
+                                {resumeFile ? 'Change File' : 'Browse Files'}
+                              </Button>
+                              <div className="flex-1 min-w-0">
+                                {resumeFile ? (
+                                  <div className="flex items-center justify-between gap-2 bg-primary/5 px-3 py-2 rounded-lg border border-primary/10">
+                                    <span className="text-sm font-medium text-primary truncate">{resumeFile.name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setResumeFile(null)
+                                        if (fileInputRef.current) fileInputRef.current.value = ''
+                                      }}
+                                      className="text-xs font-bold text-red-500 hover:text-red-600 hover:underline shrink-0 p-1"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground font-medium">Drop your PDF here...</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         {error && (
-                          <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-5 py-4">
-                            <p className="text-sm text-red-500 flex items-center gap-2 font-medium">
-                              <AlertTriangle className="h-5 w-5 shrink-0" />
-                              {error}
-                            </p>
+                          <div className="relative pl-0 sm:pl-12 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-5 py-4 shadow-sm">
+                              <p className="text-sm text-red-500 flex items-center gap-2 font-bold">
+                                <AlertTriangle className="h-5 w-5 shrink-0" />
+                                {error}
+                              </p>
+                            </div>
                           </div>
                         )}
 
-                        <div className="pt-4">
-                          <Button type="submit" size="lg" isLoading={isLoading} className="w-full h-14 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)] hover:shadow-[0_0_25px_-5px_rgba(var(--primary),0.6)] transition-all rounded-xl">
-                            Run Comprehensive Review
-                            <ArrowRight className="ml-2 h-5 w-5" />
+                        <div className="pt-6 relative pl-0 sm:pl-12">
+                          <Button 
+                            type="submit" 
+                            size="lg" 
+                            isLoading={isLoading} 
+                            className="w-full h-14 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_-5px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 rounded-xl group/btn"
+                          >
+                            <span className="relative z-10 flex items-center">
+                              Execute Deep Scan
+                              <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
+                            </span>
+                            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite]" />
                           </Button>
                         </div>
                       </form>
@@ -1409,26 +1457,38 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGues
                       />
                     </div>
                   ) : (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-500 w-full max-w-xl mx-auto my-auto">
-                      <div className="text-center mb-8">
-                        <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-4">
-                          <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+                    <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-700 w-full max-w-xl mx-auto my-auto relative">
+                      <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-primary/5 rounded-[2rem] -z-10 blur-xl" />
+                      
+                      <div className="text-center mb-10 relative">
+                        <div className="absolute left-1/2 -top-10 -translate-x-1/2 w-32 h-32 bg-primary/20 rounded-full blur-[40px] -z-10" />
+                        <div className="inline-flex h-20 w-20 items-center justify-center rounded-[2rem] bg-card border border-border/50 shadow-xl mb-6 relative overflow-hidden group">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
+                          <Sparkles className="h-10 w-10 text-primary animate-pulse relative z-10" />
+                          <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
                         </div>
-                        <h2 className="text-2xl font-bold tracking-tight">Processing Assets</h2>
-                        <p className="text-muted-foreground mt-2">The Neural Core is analyzing your profile.</p>
+                        <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                          Processing Assets
+                        </h2>
+                        <p className="text-base text-muted-foreground mt-3 max-w-sm mx-auto">
+                          The Neural Core is executing deep scans and generating AI insights across your profile.
+                        </p>
                       </div>
 
-                      <AgentProgressDropdown phase={phase} steps={collectingSteps} />
+                      <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-2 shadow-sm">
+                        <AgentProgressDropdown phase={phase} steps={collectingSteps} />
+                      </div>
 
                       {error && (
-                        <div className="animate-in fade-in slide-in-from-top-4 duration-500 flex flex-col items-center justify-center p-8 mt-4 rounded-3xl border border-red-500/20 bg-red-500/5 text-center">
-                          <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-                            <AlertTriangle className="h-6 w-6 text-red-500" />
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center justify-center p-8 mt-6 rounded-[2rem] border-2 border-red-500/20 bg-red-500/5 text-center relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent" />
+                          <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mb-5 relative z-10 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                            <AlertTriangle className="h-8 w-8 text-red-500" />
                           </div>
-                          <h3 className="text-lg font-bold text-red-600 mb-2">Analysis Failed</h3>
-                          <p className="text-sm text-red-500/80 mb-6 max-w-md">{error}</p>
-                          <Button onClick={() => setPhase('form')} variant="outline" className="border-red-500/30 text-red-600 hover:bg-red-500/10 transition-colors">
-                            Try Again
+                          <h3 className="text-xl font-extrabold text-red-600 mb-2 relative z-10">Analysis Terminated</h3>
+                          <p className="text-sm text-red-500/80 mb-8 max-w-md relative z-10 font-medium">{error}</p>
+                          <Button onClick={() => setPhase('form')} size="lg" variant="outline" className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:border-red-500 hover:text-red-700 transition-all shadow-sm rounded-xl font-bold relative z-10">
+                            Re-initialize Scan
                           </Button>
                         </div>
                       )}

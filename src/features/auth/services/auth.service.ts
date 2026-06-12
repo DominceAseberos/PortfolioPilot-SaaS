@@ -87,6 +87,28 @@ export class AuthService {
     return data
   }
 
+  async signInWithGithub(nextPath?: string) {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    const isAnonymous = user?.is_anonymous === true
+    const redirectUrl = `${window.location.origin}/api/auth/callback${nextPath ? `?next=${nextPath}` : ''}`
+
+    if (isAnonymous) {
+      document.cookie = `portfolio_guest_id=${user.id}; path=/; max-age=3600`
+    }
+
+    const { data, error } = await this.supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: redirectUrl,
+      },
+    })
+    if (error) {
+      logger.error('GitHub sign in failed', { error: error.message })
+      throw error
+    }
+    return data
+  }
+
   async signOut() {
     const { error } = await this.supabase.auth.signOut()
     if (error) {

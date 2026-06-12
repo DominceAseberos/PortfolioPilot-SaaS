@@ -2,6 +2,7 @@
 
 @theme {
   --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
   
   @keyframes float {
     0%, 100% {
@@ -9,6 +10,15 @@
     }
     50% {
       transform: translateY(-20px);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
     }
   }
 }
