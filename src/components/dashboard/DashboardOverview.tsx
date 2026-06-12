@@ -11,6 +11,7 @@ import { formatDate } from '@/lib/utils'
 import {
   BarChart3,
   TrendingUp,
+  TrendingDown,
   Award,
   Activity,
   Plus,
@@ -18,8 +19,10 @@ import {
   Globe,
   GitBranch,
   User,
+  Minus,
 } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { cn } from '@/lib/utils'
 
 interface Review {
   id: string
@@ -35,6 +38,15 @@ interface Review {
   created_at: string
 }
 
+interface PersonMetric {
+  name: string
+  averageScore: number
+  bestScore: number
+  improvement: number
+  reviewCount: number
+  latestDate: string
+}
+
 interface Subscription {
   plan: string
   status: string
@@ -48,6 +60,30 @@ interface DashboardOverviewProps {
   improvementPercentage: number
   recentReviews: Review[]
   subscription: Subscription | null
+  personMetrics: PersonMetric[]
+}
+
+function ImprovementBadge({ value }: { value: number }) {
+  if (value === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Minus className="h-3 w-3" /> 0%
+      </span>
+    )
+  }
+  const isPositive = value > 0
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-xs font-medium',
+        isPositive ? 'text-green-600' : 'text-red-600'
+      )}
+    >
+      {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      {isPositive ? '+' : ''}
+      {value}%
+    </span>
+  )
 }
 
 export function DashboardOverview({
@@ -58,6 +94,7 @@ export function DashboardOverview({
   improvementPercentage,
   recentReviews,
   subscription,
+  personMetrics,
 }: DashboardOverviewProps) {
   const plan = subscription?.plan || 'free'
   const isPro = plan === 'pro'
@@ -67,7 +104,7 @@ export function DashboardOverview({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
             Welcome back{user.email ? `, ${user.email.split('@')[0]}` : ''}
           </h1>
           <p className="text-muted-foreground text-sm">
@@ -140,6 +177,51 @@ export function DashboardOverview({
         </Card>
       </div>
 
+      {personMetrics.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>People Reviewed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {personMetrics.map((p) => (
+                <div
+                  key={p.name}
+                  className="flex items-center justify-between rounded-lg border p-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-primary/20 bg-card"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="rounded-full bg-primary/10 p-1.5 shrink-0">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.reviewCount} review{p.reviewCount !== 1 ? 's' : ''} &middot; Last:{' '}
+                        {formatDate(p.latestDate)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs text-muted-foreground">Avg</p>
+                      <ScoreBadge score={p.averageScore} size="sm" />
+                    </div>
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs text-muted-foreground">Best</p>
+                      <ScoreBadge score={p.bestScore} size="sm" />
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Trend</p>
+                      <ImprovementBadge value={p.improvement} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Subscription</CardTitle>
@@ -186,7 +268,7 @@ export function DashboardOverview({
                 <Link
                   key={review.id}
                   href={`/dashboard/reviews/${review.id}`}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/20 transition-colors"
+                  className="flex items-center justify-between rounded-lg border p-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-primary/20 bg-card"
                 >
                   <div>
                     <div className="flex items-center gap-2">

@@ -23,6 +23,7 @@ import {
   Star,
   ChevronDown,
   ChevronRight,
+  Lock,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useState } from 'react'
@@ -40,6 +41,7 @@ import type {
 
 interface ReviewDetailViewProps {
   review: Review
+  isAnonymous?: boolean
 }
 
 const sourceIcons: Record<string, typeof Globe> = {
@@ -378,7 +380,7 @@ function MismatchBanner({ mismatches }: { mismatches: AIMismatch[] }) {
   )
 }
 
-export function ReviewDetailView({ review }: ReviewDetailViewProps) {
+export function ReviewDetailView({ review, isAnonymous }: ReviewDetailViewProps) {
   const router = useRouter()
   const [showSource, setShowSource] = useState<Record<string, boolean>>({})
   const fullResults = review.full_results
@@ -458,106 +460,127 @@ export function ReviewDetailView({ review }: ReviewDetailViewProps) {
         </CardContent>
       </Card>
 
-      {/* Mismatches */}
-      {mismatches.length > 0 && <MismatchBanner mismatches={mismatches} />}
-
       {/* AI Summary */}
       {fullResults?.aiSummary && <AISummaryCard result={fullResults.aiSummary} />}
 
-      {/* Source Details */}
-      {fullResults?.portfolio && (
-        <Card className="border-blue-500/20">
-          <CardHeader className="border-b pb-3">
-            <button
-              type="button"
-              onClick={() => toggleSource('portfolio')}
-              className="flex w-full items-center gap-2 text-left"
-            >
-              {showSource.portfolio ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              )}
-              <Globe className="h-5 w-5 text-blue-500" />
-              <span className="text-sm font-semibold">Portfolio Analysis</span>
-              <span className="ml-auto">
-                <ScoreBadge score={fullResults.portfolio.score} size="sm" />
-              </span>
-            </button>
-          </CardHeader>
-          {showSource.portfolio && (
-            <CardContent className="p-4">
-              <PortfolioDetails analysis={fullResults.portfolio} />
-            </CardContent>
-          )}
-        </Card>
-      )}
+      <div className="relative mt-8">
+        {isAnonymous && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm rounded-xl">
+            <div className="max-w-sm p-6 text-center space-y-4 bg-card border shadow-xl rounded-xl">
+              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Lock className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-xl font-bold">Unlock Full Analysis</h3>
+              <p className="text-sm text-muted-foreground">
+                Create a free account to unlock your detailed 360° review and save it forever.
+              </p>
+              <Button className="w-full" onClick={() => router.push('/register')}>
+                Sign up to unlock
+              </Button>
+            </div>
+          </div>
+        )}
 
-      {fullResults?.github && (
-        <Card className="border-purple-500/20">
-          <CardHeader className="border-b pb-3">
-            <button
-              type="button"
-              onClick={() => toggleSource('github')}
-              className="flex w-full items-center gap-2 text-left"
-            >
-              {showSource.github ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              )}
-              <GitBranch className="h-5 w-5 text-purple-500" />
-              <span className="text-sm font-semibold">GitHub Profile</span>
-              <span className="ml-auto">
-                <ScoreBadge score={fullResults.github.score} size="sm" />
-              </span>
-            </button>
-          </CardHeader>
-          {showSource.github && (
-            <CardContent className="p-4">
-              <GitHubDetails analysis={fullResults.github} />
-            </CardContent>
-          )}
-        </Card>
-      )}
+        <div className={isAnonymous ? "opacity-30 pointer-events-none space-y-6 select-none" : "space-y-6"}>
+          {/* Mismatches */}
+          {mismatches.length > 0 && <MismatchBanner mismatches={mismatches} />}
 
-      {fullResults?.resume && (
-        <Card className="border-emerald-500/20">
-          <CardHeader className="border-b pb-3">
-            <button
-              type="button"
-              onClick={() => toggleSource('resume')}
-              className="flex w-full items-center gap-2 text-left"
-            >
-              {showSource.resume ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          {/* Source Details */}
+          {fullResults?.portfolio && (
+            <Card className="border-blue-500/20">
+              <CardHeader className="border-b pb-3">
+                <button
+                  type="button"
+                  onClick={() => toggleSource('portfolio')}
+                  className="flex w-full items-center gap-2 text-left"
+                >
+                  {showSource.portfolio ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Globe className="h-5 w-5 text-blue-500" />
+                  <span className="text-sm font-semibold">Portfolio Analysis</span>
+                  <span className="ml-auto">
+                    <ScoreBadge score={fullResults.portfolio.score} size="sm" />
+                  </span>
+                </button>
+              </CardHeader>
+              {showSource.portfolio && (
+                <CardContent className="p-4">
+                  <PortfolioDetails analysis={fullResults.portfolio} />
+                </CardContent>
               )}
-              <FileText className="h-5 w-5 text-emerald-500" />
-              <span className="text-sm font-semibold">Resume Analysis</span>
-              <span className="ml-auto">
-                <ScoreBadge score={fullResults.resume.score} size="sm" />
-              </span>
-            </button>
-          </CardHeader>
-          {showSource.resume && (
-            <CardContent className="p-4">
-              <ResumeDetails analysis={fullResults.resume} />
-            </CardContent>
+            </Card>
           )}
-        </Card>
-      )}
 
-      {/* Raw Results */}
-      <details className="group">
-        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-          View raw JSON data
-        </summary>
-        <pre className="mt-1.5 text-xs text-muted-foreground whitespace-pre-wrap max-h-60 overflow-y-auto rounded-lg border bg-muted/50 p-3 leading-relaxed">
-          {JSON.stringify(fullResults, null, 2)}
-        </pre>
-      </details>
+          {fullResults?.github && (
+            <Card className="border-purple-500/20">
+              <CardHeader className="border-b pb-3">
+                <button
+                  type="button"
+                  onClick={() => toggleSource('github')}
+                  className="flex w-full items-center gap-2 text-left"
+                >
+                  {showSource.github ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <GitBranch className="h-5 w-5 text-purple-500" />
+                  <span className="text-sm font-semibold">GitHub Profile</span>
+                  <span className="ml-auto">
+                    <ScoreBadge score={fullResults.github.score} size="sm" />
+                  </span>
+                </button>
+              </CardHeader>
+              {showSource.github && (
+                <CardContent className="p-4">
+                  <GitHubDetails analysis={fullResults.github} />
+                </CardContent>
+              )}
+            </Card>
+          )}
+
+          {fullResults?.resume && (
+            <Card className="border-emerald-500/20">
+              <CardHeader className="border-b pb-3">
+                <button
+                  type="button"
+                  onClick={() => toggleSource('resume')}
+                  className="flex w-full items-center gap-2 text-left"
+                >
+                  {showSource.resume ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <FileText className="h-5 w-5 text-emerald-500" />
+                  <span className="text-sm font-semibold">Resume Analysis</span>
+                  <span className="ml-auto">
+                    <ScoreBadge score={fullResults.resume.score} size="sm" />
+                  </span>
+                </button>
+              </CardHeader>
+              {showSource.resume && (
+                 <CardContent className="p-4">
+                  <ResumeDetails analysis={fullResults.resume} />
+                </CardContent>
+              )}
+            </Card>
+          )}
+
+          {/* Raw Results */}
+          <details className="group">
+            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+              View raw JSON data
+            </summary>
+            <pre className="mt-1.5 text-xs text-muted-foreground whitespace-pre-wrap max-h-60 overflow-y-auto rounded-lg border bg-muted/50 p-3 leading-relaxed">
+              {JSON.stringify(fullResults, null, 2)}
+            </pre>
+          </details>
+        </div>
+      </div>
     </div>
   )
 }

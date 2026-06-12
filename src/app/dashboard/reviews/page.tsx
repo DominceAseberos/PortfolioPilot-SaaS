@@ -12,7 +12,7 @@ export default async function ReviewsPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect(ROUTES.login)
+    return <ReviewsPageClient reviews={[]} />
   }
 
   const { data: reviews } = await supabase

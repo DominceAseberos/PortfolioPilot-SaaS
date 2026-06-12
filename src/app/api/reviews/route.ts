@@ -1,7 +1,9 @@
 import { type NextRequest } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { reviewService } from '@/features/reviews/services/review.service'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/utils/api'
+import crypto from 'crypto'
 import type {
   PortfolioAnalysis,
   GitHubAnalysis,
@@ -16,7 +18,27 @@ export async function POST(request: NextRequest) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return unauthorizedResponse()
+    
+    let userId = user?.id
+    const cookieStore = cookies()
+
+    // Handle Guest Session
+    if (!userId) {
+      const guestCookie = cookieStore.get('portfolio_guest_id')
+      if (guestCookie?.value) {
+        userId = guestCookie.value
+      } else {
+        userId = crypto.randomUUID()
+        // Next.js 13+ allows setting cookies in POST route handlers
+        cookieStore.set('portfolio_guest_id', userId, {
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/'
+        })
+      }
+    }
 
     const contentType = request.headers.get('content-type') || ''
 
@@ -42,7 +64,7 @@ export async function POST(request: NextRequest) {
         mismatches?: AIMismatch[]
       }
 
-      const review = await reviewService.saveReviewWithResults(user.id, {
+      const review = await reviewService.saveReviewWithResults(userId, {
         portfolioUrl,
         githubUsername,
         resumeFileName,
@@ -69,7 +91,7 @@ export async function POST(request: NextRequest) {
       resumeFileName = resumeFile.name
     }
 
-    const review = await reviewService.createFullReview(user.id, {
+    const review = await reviewService.createFullReview(userId, {
       portfolioUrl: portfolioUrl || undefined,
       githubUsername: githubUsername || undefined,
       resumeBuffer,
@@ -88,9 +110,20 @@ export async function GET() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return unauthorizedResponse()
+    
+    let userId = user?.id
 
-    const reviews = await reviewService.getUserReviews(user.id)
+    if (!userId) {
+      const cookieStore = cookies()
+      const guestCookie = cookieStore.get('portfolio_guest_id')
+      if (guestCookie?.value) {
+        userId = guestCookie.value
+      } else {
+        return unauthorizedResponse('Not logged in and no guest session found')
+      }
+    }
+
+    const reviews = await reviewService.getUserReviews(userId)
     return successResponse(reviews, 'Reviews fetched successfully')
   } catch {
     return errorResponse('Failed to fetch reviews', 500)
