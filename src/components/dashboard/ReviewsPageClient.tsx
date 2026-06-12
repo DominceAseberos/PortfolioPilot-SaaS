@@ -87,6 +87,7 @@ const sourceColors: Record<string, string> = {
 function StreamingChatBox({
   result,
   mismatches,
+  isGuest = false,
   onReset,
   renderSourceDetails,
 }: {
