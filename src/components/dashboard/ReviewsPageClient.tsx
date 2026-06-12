@@ -1383,7 +1383,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       <div className={`flex flex-col lg:flex-row flex-1 w-full min-h-[600px] gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
         <div className={`w-full py-6 sm:py-10 transition-all duration-700 max-w-5xl mx-auto flex flex-col justify-start h-full`}>
-                {(phase === 'form' || phase === 'collecting') ? (
+                {(phase === 'form' || phase === 'collecting' || phase === 'finalizing') ? (
                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-start">
                      <NeuralChatLanding 
                        portfolioUrl={portfolioUrl}
@@ -1413,24 +1413,27 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                            </div>
                          ) : null
                        }
+                       resultNode={
+                         phase === 'finalizing' && results.aiSummary ? (
+                           <div className="w-full mt-6">
+                             <StreamingChatBox 
+                               result={results.aiSummary} 
+                               mismatches={results.mismatches}
+                               isGuest={isGuest}
+                               isHistory={isHistoryMode}
+                               renderSourceDetails={renderSourceDetails}
+                               onReset={() => {
+                                 setPhase('form')
+                                 setResults({})
+                                 setCollectingSteps([])
+                                 setIsHistoryMode(false)
+                               }} 
+                             />
+                           </div>
+                         ) : null
+                       }
                      />
                    </div>
-                  ) : phase === 'finalizing' && results.aiSummary ? (
-                    <div className="w-full">
-                      <StreamingChatBox 
-                        result={results.aiSummary} 
-                        mismatches={results.mismatches}
-                        isGuest={isGuest}
-                        isHistory={isHistoryMode}
-                        renderSourceDetails={renderSourceDetails}
-                        onReset={() => {
-                          setPhase('form')
-                          setResults({})
-                          setCollectingSteps([])
-                          setIsHistoryMode(false)
-                        }} 
-                      />
-                    </div>
                   ) : null}
               </div>
               

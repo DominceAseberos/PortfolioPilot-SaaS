@@ -22,6 +22,7 @@ interface NeuralChatLandingProps {
   isLoading: boolean
   collectingNode?: React.ReactNode
   errorNode?: React.ReactNode
+  resultNode?: React.ReactNode
 }
 
 export function NeuralChatLanding({
@@ -34,7 +35,8 @@ export function NeuralChatLanding({
   onSubmit,
   isLoading,
   collectingNode,
-  errorNode
+  errorNode,
+  resultNode
 }: NeuralChatLandingProps) {
   const [chatLog, setChatLog] = useState<ChatMessage[]>([
     {
