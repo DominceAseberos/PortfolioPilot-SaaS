@@ -49,6 +49,11 @@ export function NeuralChatLanding({
   const [chatInputValue, setChatInputValue] = useState('')
   const [isChatProcessing, setIsChatProcessing] = useState(false)
   
+  const onSubmitRef = useRef(onSubmit)
+  useEffect(() => {
+    onSubmitRef.current = onSubmit
+  }, [onSubmit])
+
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -175,7 +180,7 @@ export function NeuralChatLanding({
                 <div className="flex flex-wrap gap-2">
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('github')}>Provide GitHub</Button>
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('resume')}>Provide Resume/CV</Button>
-                   <Button size="sm" onClick={(e) => onSubmit(e as any)}>Proceed Analysis</Button>
+                   <Button size="sm" onClick={(e) => onSubmitRef.current(e as any)}>Proceed Analysis</Button>
                 </div>
             </div>
           )
@@ -218,7 +223,7 @@ export function NeuralChatLanding({
                 <div className="flex flex-wrap gap-2 pt-1">
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('portfolio')}>Provide Portfolio</Button>
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('resume')}>Provide Resume/CV</Button>
-                   <Button size="sm" onClick={(e) => onSubmit(e as any)}>Proceed Analysis</Button>
+                   <Button size="sm" onClick={(e) => onSubmitRef.current(e as any)}>Proceed Analysis</Button>
                 </div>
             </div>
           )
@@ -264,7 +269,7 @@ export function NeuralChatLanding({
                 <div className="flex flex-wrap gap-2 pt-1">
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('portfolio')}>Provide Portfolio</Button>
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('github')}>Provide GitHub</Button>
-                   <Button size="sm" onClick={(e) => onSubmit(e as any)}>Proceed Analysis</Button>
+                   <Button size="sm" onClick={(e) => onSubmitRef.current(e as any)}>Proceed Analysis</Button>
                 </div>
             </div>
           )
