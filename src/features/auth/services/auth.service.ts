@@ -60,15 +60,16 @@ export class AuthService {
     return data
   }
 
-  async signInWithGoogle() {
+  async signInWithGoogle(nextPath?: string) {
     const { data: { user } } = await this.supabase.auth.getUser()
     const isAnonymous = user?.is_anonymous === true
+    const redirectUrl = `${window.location.origin}/api/auth/callback${nextPath ? `?next=${nextPath}` : ''}`
 
     if (isAnonymous) {
       const { data, error } = await this.supabase.auth.linkIdentity({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: redirectUrl,
         },
       })
       if (error) {
@@ -81,7 +82,7 @@ export class AuthService {
     const { data, error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: redirectUrl,
       },
     })
     if (error) {

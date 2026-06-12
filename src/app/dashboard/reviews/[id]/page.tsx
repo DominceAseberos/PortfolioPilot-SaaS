@@ -22,6 +22,25 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ i
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  if (id === 'latest') {
+    if (!user) {
+      redirect('/dashboard/reviews')
+    }
+    const { data: latestReview } = await supabaseAdmin
+      .from('reviews')
+      .select('id')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (latestReview) {
+      redirect(`/dashboard/reviews/${latestReview.id}`)
+    } else {
+      redirect('/dashboard/reviews')
+    }
+  }
+
   const { data: review } = await supabaseAdmin
     .from('reviews')
     .select('*, report:reports(*)')

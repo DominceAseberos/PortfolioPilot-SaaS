@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -21,6 +21,8 @@ interface AuthScreenProps {
 export function AuthScreen({ initialMode }: AuthScreenProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const nextPath = searchParams?.get('next') || undefined
   
   const [isLogin, setIsLogin] = useState(initialMode === 'login')
   const [showPassword, setShowPassword] = useState(false)
@@ -43,7 +45,8 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
   const handleSwitchMode = () => {
     const newMode = !isLogin
     setIsLogin(newMode)
-    window.history.pushState(null, '', newMode ? ROUTES.login : ROUTES.register)
+    const newUrl = (newMode ? ROUTES.login : ROUTES.register) + (nextPath ? `?next=${nextPath}` : '')
+    window.history.pushState(null, '', newUrl)
   }
 
   // --- Forms Setup ---
@@ -63,7 +66,7 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
       await authService.signIn(data.email, data.password)
       try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
       toast.success('Signed in successfully')
-      router.push(ROUTES.dashboard)
+      router.push(nextPath || ROUTES.dashboard)
       router.refresh()
     } catch (err: unknown) {
       setLoginError(err instanceof Error ? err.message : 'Invalid email or password')
@@ -80,7 +83,7 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
       if (result?.user) {
         try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
         toast.success('Account created successfully')
-        router.push(ROUTES.dashboard)
+        router.push(nextPath || ROUTES.dashboard)
       } else {
         toast.success('Account created! Check your email to confirm.')
         setRegisterSuccess(true)
@@ -94,7 +97,7 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
 
   const handleGoogleSignIn = async () => {
     try {
-      await authService.signInWithGoogle()
+      await authService.signInWithGoogle(nextPath)
     } catch {
       toast.error('Google sign in failed')
     }

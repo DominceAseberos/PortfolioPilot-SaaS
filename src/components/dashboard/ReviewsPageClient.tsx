@@ -291,7 +291,7 @@ function StreamingChatBox({
                   You've previewed your strengths! Sign up for a free account to unlock your personalized areas for improvement, actionable recommendations, and raw extraction telemetry.
                 </p>
                 <div className="space-y-3">
-                  <Button className="w-full h-12 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)]" onClick={() => window.location.href = '/register'}>
+                  <Button className="w-full h-12 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)]" onClick={() => window.location.href = '/register?next=/dashboard/reviews/latest'}>
                     Create Free Account
                   </Button>
                   <p className="text-xs text-muted-foreground">
@@ -556,7 +556,7 @@ export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: Revie
   const [collectingSteps, setCollectingSteps] = useState<CollectingStep[]>([])
   const [results, setResults] = useState<AnalysisResults>({})
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({})
-  const [activeTab, setActiveTab] = useState<'new' | 'history'>('new')
+  const [activeTab, setActiveTab] = useState<'new' | 'history'>(reviews.length > 0 ? 'history' : 'new')
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
