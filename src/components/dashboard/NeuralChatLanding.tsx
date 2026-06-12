@@ -30,7 +30,9 @@ export function NeuralChatLanding({
   resumeFile,
   setResumeFile,
   onSubmit,
-  isLoading
+  isLoading,
+  collectingNode,
+  errorNode
 }: NeuralChatLandingProps) {
   const [chatLog, setChatLog] = useState<ChatMessage[]>([
     {

@@ -1382,8 +1382,8 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
       <div className={`flex flex-col lg:flex-row flex-1 w-full min-h-[600px] gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
-        <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-5xl mx-auto flex flex-col justify-start h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
-                {phase === 'form' ? (
+        <div className={`w-full py-6 sm:py-10 transition-all duration-700 max-w-5xl mx-auto flex flex-col justify-start h-full`}>
+                {(phase === 'form' || phase === 'collecting') ? (
                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-start">
                      <NeuralChatLanding 
                        portfolioUrl={portfolioUrl}
@@ -1394,6 +1394,25 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                        setResumeFile={setResumeFile}
                        onSubmit={handleSubmit}
                        isLoading={isLoading}
+                       collectingNode={
+                         phase === 'collecting' ? (
+                           <div className="rounded-2xl border border-border/50 bg-card p-2 shadow-sm w-full max-w-xl">
+                             <AgentProgressDropdown phase={phase} steps={collectingSteps} />
+                           </div>
+                         ) : null
+                       }
+                       errorNode={
+                         error ? (
+                           <div className="flex flex-col items-center justify-center p-6 mt-4 rounded-[1.5rem] border-2 border-red-500/20 bg-red-500/5 text-center relative overflow-hidden w-full max-w-xl">
+                             <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />
+                             <h3 className="text-lg font-extrabold text-red-600 mb-1">Analysis Terminated</h3>
+                             <p className="text-sm text-red-500/80 mb-4">{error}</p>
+                             <Button onClick={() => setPhase('form')} size="sm" variant="outline" className="border-red-500/30 text-red-600 hover:bg-red-500/10">
+                               Re-initialize Scan
+                             </Button>
+                           </div>
+                         ) : null
+                       }
                      />
                    </div>
                   ) : phase === 'finalizing' && results.aiSummary ? (
@@ -1412,48 +1431,11 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                         }} 
                       />
                     </div>
-                  ) : (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-700 w-full max-w-xl mx-auto my-auto relative">
-                      <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-primary/5 rounded-[2rem] -z-10 blur-xl" />
-                      
-                      <div className="text-center mb-10 relative">
-                        <div className="absolute left-1/2 -top-10 -translate-x-1/2 w-32 h-32 bg-primary/20 rounded-full blur-[40px] -z-10" />
-                        <div className="inline-flex h-20 w-20 items-center justify-center rounded-[2rem] bg-card border border-border/50 shadow-xl mb-6 relative overflow-hidden group">
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
-                          <Sparkles className="h-10 w-10 text-primary animate-pulse relative z-10" />
-                          <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-                        </div>
-                        <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                          Processing Assets
-                        </h2>
-                        <p className="text-base text-muted-foreground mt-3 max-w-sm mx-auto">
-                          The Neural Core is executing deep scans and generating AI insights across your profile.
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-2 shadow-sm">
-                        <AgentProgressDropdown phase={phase} steps={collectingSteps} />
-                      </div>
-
-                      {error && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center justify-center p-8 mt-6 rounded-[2rem] border-2 border-red-500/20 bg-red-500/5 text-center relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent" />
-                          <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mb-5 relative z-10 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
-                            <AlertTriangle className="h-8 w-8 text-red-500" />
-                          </div>
-                          <h3 className="text-xl font-extrabold text-red-600 mb-2 relative z-10">Analysis Terminated</h3>
-                          <p className="text-sm text-red-500/80 mb-8 max-w-md relative z-10 font-medium">{error}</p>
-                          <Button onClick={() => setPhase('form')} size="lg" variant="outline" className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:border-red-500 hover:text-red-700 transition-all shadow-sm rounded-xl font-bold relative z-10">
-                            Re-initialize Scan
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  ) : null}
               </div>
               
-              {/* Right Side: 3D Visual */}
-              <div className={`${(phase === 'finalizing' || phase === 'form') ? 'hidden' : 'hidden lg:flex flex-1'} bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border border-border/50 rounded-3xl group transition-all duration-700`}>
+              {/* Right Side: 3D Visual (Removed) */}
+              <div className="hidden">
                 
                 {/* Desktop Iframe/Screenshot Preview */}
                 {activeIframeUrl && phase !== 'form' ? (
