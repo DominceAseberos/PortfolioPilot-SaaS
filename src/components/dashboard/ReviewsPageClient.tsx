@@ -758,6 +758,8 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       await delay(400)
     }
 
+    let serverError: string | null = null
+
     for (const source of sources) {
       setCollectingSteps((prev) =>
         prev.map((s) => (s.id === source.id ? { ...s, status: 'loading' } : s))
@@ -798,16 +800,21 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
             setCollectingSteps((prev) =>
               prev.map((s) => (s.id === source.id ? { ...s, status: 'error' } : s))
             )
+            if (!serverError) serverError = `No verifiable data found for ${source.id}`
           }
         } else {
           setCollectingSteps((prev) =>
             prev.map((s) => (s.id === source.id ? { ...s, status: 'error' } : s))
           )
+          if (!serverError && res.message) {
+            serverError = res.message
+          }
         }
-      } catch {
+      } catch (err: any) {
         setCollectingSteps((prev) =>
           prev.map((s) => (s.id === source.id ? { ...s, status: 'error' } : s))
         )
+        if (!serverError) serverError = err.message || `Failed to connect to ${source.id} service`
       }
 
       await delay(600)
@@ -817,7 +824,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
     const hasAnyData = Object.values(collected).some(Boolean)
     if (!hasAnyData) {
-      setError('All provided sources failed. Check each source and try again.')
+      setError(serverError || 'All provided sources failed. Check each source and try again.')
       setIsLoading(false)
       return
     }
