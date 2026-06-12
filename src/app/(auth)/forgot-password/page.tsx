@@ -9,6 +9,7 @@ import { authService } from '@/features/auth/services/auth.service'
 import { ROUTES } from '@/constants'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
+import { ArrowLeft } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +40,10 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
+        <Link href="/" className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Link>
         <div className="w-full max-w-sm text-center space-y-4">
           <h1 className="text-2xl font-bold">Check your email</h1>
           <p className="text-muted-foreground">
@@ -54,6 +59,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
+      <Link href="/" className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Home
+      </Link>
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Forgot password?</h1>

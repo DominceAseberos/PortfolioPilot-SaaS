@@ -27,8 +27,19 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // Merge guest session reviews if applicable
+      const guestId = request.cookies.get('portfolio_guest_id')?.value
+      if (guestId && sessionData.user?.id) {
+        await supabase
+          .from('reviews')
+          .update({ user_id: sessionData.user.id })
+          .eq('user_id', guestId)
+          
+        response.cookies.delete('portfolio_guest_id')
+      }
+      
       return response
     }
   }
