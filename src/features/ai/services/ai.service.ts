@@ -232,7 +232,7 @@ RULES (do not violate these):
 3. The overallScore MUST be a weighted average of the provided source scores. Default weights: portfolio 35%, github 30%, resume 35%. If a source is missing, redistribute its weight to the remaining sources equally.
 4. Do NOT use markdown. Return valid JSON only.
 5. Keep summaries concise (1-2 sentences per source).
-6. topStrengths, topWeaknesses, topRecommendations: combine from all sources, deduplicate, pick top 5 each, rephrase naturally.
+6. topStrengths, topWeaknesses, topRecommendations: combine from all sources, deduplicate, pick top 5 each, rephrase naturally. If there are no items for a category, return an empty array [], do NOT return strings like "No data available" in these arrays.
 
 Return this JSON structure:
 {

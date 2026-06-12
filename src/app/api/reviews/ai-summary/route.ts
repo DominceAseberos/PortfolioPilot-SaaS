@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Generate summary using ONLY the valid sources
     const [summary, aiMismatches] = await Promise.all([
       generateOverallSummary(validPortfolio, validGithub, validResume),
-      detectMismatches(validPortfolio, validGithub, validResume),
+      validSourcesCount > 1 ? detectMismatches(validPortfolio, validGithub, validResume) : Promise.resolve([]),
     ])
 
     const combinedMismatches = [...truth.mismatches, ...aiMismatches]
