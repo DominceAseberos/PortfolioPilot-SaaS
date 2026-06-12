@@ -1337,7 +1337,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       
       {/* Recents Toggle Button (Only on Form Phase) */}
       {phase === 'form' && reviews.length > 0 && (
-         <div className="absolute top-4 left-4 sm:top-8 sm:left-8 z-50">
+         <div className="absolute top-4 left-0 sm:top-8 sm:left-0 z-50">
            <Button 
              variant="ghost" 
              className="font-bold gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-xl px-4 py-6" 
@@ -1382,9 +1382,9 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
       <div className={`flex flex-col lg:flex-row flex-1 w-full min-h-[600px] gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
-        <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-5xl mx-auto flex flex-col justify-center h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
+        <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-5xl mx-auto flex flex-col justify-start h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
                 {phase === 'form' ? (
-                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-center">
+                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-start">
                      <NeuralChatLanding 
                        portfolioUrl={portfolioUrl}
                        setPortfolioUrl={setPortfolioUrl}
