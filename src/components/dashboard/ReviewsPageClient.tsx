@@ -564,6 +564,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({})
   const [isDragging, setIsDragging] = useState(false)
   const [isHistoryMode, setIsHistoryMode] = useState(false)
+  const [showHistoryDropdown, setShowHistoryDropdown] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
@@ -1331,7 +1332,42 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
   // ── Main render ────────────────────────────────────────
   return (
-    <div className="w-full flex flex-col 2xl:max-w-screen-2xl mx-auto min-h-[calc(100vh-100px)] py-12 px-4 sm:px-8 lg:px-12">
+    <div className="w-full flex flex-col 2xl:max-w-screen-2xl mx-auto min-h-[calc(100vh-100px)] py-12 px-4 sm:px-8 lg:px-12 relative">
+      
+      {/* Recents Toggle Button (Only on Form Phase) */}
+      {phase === 'form' && reviews.length > 0 && (
+         <div className="absolute top-4 left-4 sm:top-8 sm:left-8 z-50">
+           <Button 
+             variant="ghost" 
+             className="font-bold gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-xl px-4 py-6" 
+             onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+           >
+             <FileText className="h-5 w-5" />
+             Recents
+             <ChevronDown className={`h-4 w-4 transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
+           </Button>
+           
+           {/* Dropdown Menu */}
+           {showHistoryDropdown && (
+             <div className="absolute top-full mt-2 left-0 w-80 bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl max-h-[60vh] overflow-y-auto p-4 animate-in fade-in slide-in-from-top-2 z-50">
+               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Recent Scans</h3>
+               <div className="space-y-1">
+                 {reviews.slice(0, 15).map(r => (
+                    <button 
+                      key={r.id} 
+                      onClick={() => { setShowHistoryDropdown(false); handleHistorySelect(r.id); }} 
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-between group"
+                    >
+                       <span className="text-sm font-semibold truncate pr-2 group-hover:text-primary">{r.detected_name || (r.portfolio_url ? r.portfolio_url.replace(/^https?:\/\//, '') : 'Unnamed Scan')}</span>
+                       {r.overall_score !== null && <ScoreBadge score={r.overall_score} size="sm" />}
+                    </button>
+                 ))}
+               </div>
+             </div>
+           )}
+         </div>
+      )}
+
       {phase !== 'form' && (
         <div className="pb-4 pt-2">
           <h1 className="text-xl font-bold flex items-center gap-3">
@@ -1342,74 +1378,60 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
           </h1>
         </div>
       )}
+
       <div className={`flex flex-col lg:flex-row flex-1 w-full min-h-[600px] gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
-        <div className={`w-full py-6 sm:py-10 lg:pr-12 flex flex-col justify-center h-full transition-all duration-700 ${phase === 'finalizing' ? 'lg:w-full mx-auto' : 'lg:w-1/2'}`}>
+        <div className={`w-full py-6 sm:py-10 transition-all duration-700 ${phase === 'form' || phase === 'finalizing' ? 'max-w-3xl mx-auto flex flex-col justify-center h-full' : 'lg:pr-12 lg:w-1/2 flex flex-col justify-center h-full'}`}>
                 {phase === 'form' ? (
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <div className="mb-10 relative">
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+                      <div className="mb-10 text-center relative mt-16 sm:mt-0">
                         <div className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-4 border border-primary/20">
                           System Access
                         </div>
-                        <h2 className="text-4xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent mb-2">
-                          Initialize Neural Scan
+                        <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent mb-4">
+                          Ready when you are.
                         </h2>
-                        <p className="text-lg text-muted-foreground max-w-lg">
-                          Provide your digital footprint. The AI will autonomously map and score your engineering capability across all connected platforms.
+                        <p className="text-lg text-muted-foreground max-w-lg mx-auto">
+                          Provide your digital footprint. The AI will autonomously map and score your engineering capability.
                         </p>
                       </div>
                       
-                      <form onSubmit={handleSubmit} className="space-y-8 relative">
-                        {/* Decorative connector line */}
-                        <div className="absolute left-[19px] top-4 bottom-8 w-px bg-gradient-to-b from-primary/30 via-primary/10 to-transparent -z-10 hidden sm:block" />
-                        
-                        {/* Input Group 1: Live Web */}
-                        <div className="relative pl-0 sm:pl-12 group transition-all duration-300">
-                          <div className="hidden sm:flex absolute left-0 top-3 h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-background shadow-sm group-hover:border-primary/50 group-hover:shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] transition-all">
-                            <Globe className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="space-y-3">
-                            <label className="flex items-center gap-2 text-sm font-bold text-foreground">
-                              <span className="sm:hidden"><Globe className="h-4 w-4 text-primary" /></span>
+                      <div className="bg-card/40 backdrop-blur-md border border-border/50 shadow-2xl rounded-[2rem] p-6 sm:p-10 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50" />
+                        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                          
+                          {/* Input Group 1: Live Web */}
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm font-bold text-foreground pl-1">
+                              <Globe className="h-4 w-4 text-primary" />
                               Live Portfolio URL
-                              <span className="text-xs font-normal text-muted-foreground ml-2">(Optional but recommended)</span>
                             </label>
                             <Input
                               placeholder="https://your-portfolio.com"
                               value={portfolioUrl}
                               onChange={(e) => setPortfolioUrl(e.target.value)}
-                              className="bg-card border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
+                              className="bg-background/80 backdrop-blur-sm border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
                             />
                           </div>
-                        </div>
 
-                        {/* Input Group 2: Codebase */}
-                        <div className="relative pl-0 sm:pl-12 group transition-all duration-300">
-                          <div className="hidden sm:flex absolute left-0 top-3 h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-background shadow-sm group-hover:border-primary/50 group-hover:shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] transition-all">
-                            <GitBranch className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="space-y-3">
-                            <label className="flex items-center gap-2 text-sm font-bold text-foreground">
-                              <span className="sm:hidden"><GitBranch className="h-4 w-4 text-primary" /></span>
+                          {/* Input Group 2: Codebase */}
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm font-bold text-foreground pl-1">
+                              <GitBranch className="h-4 w-4 text-primary" />
                               GitHub Username
                             </label>
                             <Input
                               placeholder="e.g., torvalds"
                               value={githubUsername}
                               onChange={(e) => setGithubUsername(e.target.value)}
-                              className="bg-card border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
+                              className="bg-background/80 backdrop-blur-sm border-border/50 focus-visible:ring-primary/30 focus-visible:border-primary h-14 rounded-xl shadow-sm text-base transition-all hover:border-primary/30"
                             />
                           </div>
-                        </div>
 
-                        {/* Input Group 3: Document */}
-                        <div className="relative pl-0 sm:pl-12 group transition-all duration-300">
-                          <div className="hidden sm:flex absolute left-0 top-3 h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-background shadow-sm group-hover:border-primary/50 group-hover:shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] transition-all">
-                            <FileText className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="space-y-3">
-                            <label className="flex items-center gap-2 text-sm font-bold text-foreground">
-                              <span className="sm:hidden"><FileText className="h-4 w-4 text-primary" /></span>
+                          {/* Input Group 3: Document */}
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm font-bold text-foreground pl-1">
+                              <FileText className="h-4 w-4 text-primary" />
                               Resume/CV (PDF)
                             </label>
                             <div 
@@ -1419,7 +1441,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                               className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-300 border-2 ${
                                 isDragging 
                                   ? 'bg-primary/5 border-primary border-dashed scale-[1.02] shadow-lg' 
-                                  : 'bg-card border-border/50 border-solid hover:border-primary/30 shadow-sm'
+                                  : 'bg-background/80 backdrop-blur-sm border-border/50 border-solid hover:border-primary/30 shadow-sm'
                               }`}
                             >
                               <input
@@ -1459,38 +1481,34 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        {error && (
-                          <div className="relative pl-0 sm:pl-12 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-5 py-4 shadow-sm">
-                              <p className="text-sm text-red-500 flex items-center gap-2 font-bold">
-                                <AlertTriangle className="h-5 w-5 shrink-0" />
-                                {error}
-                              </p>
+                          {error && (
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                              <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-5 py-4 shadow-sm">
+                                <p className="text-sm text-red-500 flex items-center gap-2 font-bold">
+                                  <AlertTriangle className="h-5 w-5 shrink-0" />
+                                  {error}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        <div className="pt-6 relative pl-0 sm:pl-12">
-                          <Button 
-                            type="submit" 
-                            size="lg" 
-                            isLoading={isLoading} 
-                            className="w-full h-14 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_-5px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 rounded-xl group/btn"
-                          >
-                            <span className="relative z-10 flex items-center">
-                              Execute Deep Scan
-                              <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
-                            </span>
-                            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite]" />
-                          </Button>
-                        </div>
-                      </form>
-                      
-                      {reviews.length > 0 && (
-                        <ReviewHistory reviews={reviews} onSelect={handleHistorySelect} />
-                      )}
+                          <div className="pt-6">
+                            <Button 
+                              type="submit" 
+                              size="lg" 
+                              isLoading={isLoading} 
+                              className="w-full h-14 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_-5px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 rounded-xl group/btn"
+                            >
+                              <span className="relative z-10 flex items-center">
+                                Execute Deep Scan
+                                <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
+                              </span>
+                              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite]" />
+                            </Button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
                   ) : phase === 'finalizing' && results.aiSummary ? (
                     <div className="w-full">
