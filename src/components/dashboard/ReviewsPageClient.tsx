@@ -318,7 +318,7 @@ function StreamingChatBox({
         )}
 
         {/* Radar Chart Bubble */}
-        {isDoneTyping && result.radar && (
+        {isDoneTyping && result.radar && result.overallScore > 0 && (
            <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[800ms]">
              <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                <Target className="h-5 w-5 text-primary" />
