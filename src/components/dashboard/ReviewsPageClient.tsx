@@ -542,7 +542,7 @@ function AgentProgressDropdown({ phase, steps }: { phase: string; steps: Collect
   )
 }
 
-export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: ReviewHistoryItem[], isGuest?: boolean }) {
+export function ReviewsPageClient({ isGuest = false, reviewCount = 0 }: { isGuest?: boolean, reviewCount?: number }) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -556,7 +556,6 @@ export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: Revie
   const [collectingSteps, setCollectingSteps] = useState<CollectingStep[]>([])
   const [results, setResults] = useState<AnalysisResults>({})
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({})
-  const [activeTab, setActiveTab] = useState<'new' | 'history'>(reviews.length > 0 ? 'history' : 'new')
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -648,7 +647,7 @@ export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: Revie
     }
 
     if (isGuest) {
-      if (reviews.length >= 1) {
+      if (reviewCount >= 1) {
         setError('You have reached your free guest review limit! Please sign up for a free account to run more analyses.')
         setIsLoading(false)
         return
@@ -1273,37 +1272,7 @@ export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: Revie
   // ── Main render ────────────────────────────────────────
   return (
     <div className="space-y-8 w-full 2xl:max-w-screen-2xl mx-auto">
-      {/* Removed header as it is now a standalone page */}
-
-      <div className="flex gap-1 rounded-xl bg-muted/50 p-1 border border-border/50 w-fit">
-        <button
-          type="button"
-          onClick={() => setActiveTab('new')}
-          className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all ${
-            activeTab === 'new'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-          }`}
-        >
-          <Search className="h-4 w-4" />
-          New Review
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all ${
-            activeTab === 'history'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          History
-        </button>
-      </div>
-
-      {activeTab === 'new' && (
-        <Card className="overflow-hidden rounded-3xl border border-border/50 shadow-lg transition-all duration-300 bg-card">
+      <Card className="overflow-hidden rounded-3xl border border-border/50 shadow-lg transition-all duration-300 bg-card">
           {phase !== 'form' && (
             <CardHeader className="border-b border-border/50 bg-muted/5 pb-4 pt-5">
               <CardTitle className="text-xl">
@@ -1499,9 +1468,6 @@ export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: Revie
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {activeTab === 'history' && <ReviewHistory reviews={reviews} />}
     </div>
   )
 }

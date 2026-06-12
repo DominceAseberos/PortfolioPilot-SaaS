@@ -12,16 +12,15 @@ export default async function ReviewsPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return <ReviewsPageClient reviews={[]} isGuest={true} />
+    return <ReviewsPageClient isGuest={true} reviewCount={0} />
   }
 
   const isGuest = user.is_anonymous === true
 
-  const { data: reviews } = await supabase
+  const { count } = await supabase
     .from('reviews')
-    .select('*')
+    .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
 
-  return <ReviewsPageClient reviews={reviews || []} isGuest={isGuest} />
+  return <ReviewsPageClient isGuest={isGuest} reviewCount={count || 0} />
 }

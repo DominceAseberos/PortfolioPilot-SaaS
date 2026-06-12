@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { authService } from '@/features/auth/services/auth.service'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { Button } from '@/components/common/Button'
-import { LogOut, Settings, CreditCard, LayoutDashboard, User as UserIcon } from 'lucide-react'
+import { LogOut, Settings, CreditCard, LayoutDashboard, User as UserIcon, History } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { ROUTES } from '@/constants'
@@ -71,6 +71,10 @@ export function DashboardHeader() {
                   <Link href={ROUTES.account} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                     <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
                     Dashboard
+                  </Link>
+                  <Link href={ROUTES.history} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    History
                   </Link>
                   <Link href={ROUTES.settings} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                     <Settings className="h-4 w-4 text-muted-foreground" />

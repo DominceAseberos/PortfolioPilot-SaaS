@@ -49,6 +49,7 @@ export const ROUTES = {
   dashboard: '/dashboard', // Redirects to reviews
   reviews: '/dashboard/reviews', // Standalone app
   account: '/account',
+  history: '/account/history',
   settings: '/account/settings',
   billing: '/account/billing',
 } as const
