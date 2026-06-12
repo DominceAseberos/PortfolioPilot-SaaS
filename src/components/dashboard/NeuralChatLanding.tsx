@@ -20,6 +20,8 @@ interface NeuralChatLandingProps {
   setResumeFile: (val: File | null) => void
   onSubmit: (e: any) => void
   isLoading: boolean
+  collectingNode?: React.ReactNode
+  errorNode?: React.ReactNode
 }
 
 export function NeuralChatLanding({
