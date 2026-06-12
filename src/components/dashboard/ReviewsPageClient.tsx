@@ -1239,7 +1239,7 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
           <CardContent className="p-0">
             <div className="flex flex-col lg:flex-row min-h-[650px] lg:h-[650px]">
               {/* Left Side: Form, Progress Status, or Streaming Results */}
-              <div className="w-full lg:w-3/5 p-8 lg:p-10 flex flex-col justify-center h-full overflow-y-auto custom-scrollbar">
+              <div className={`w-full p-8 lg:p-10 flex flex-col justify-center h-full overflow-y-auto custom-scrollbar transition-all duration-700 ${phase === 'finalizing' ? 'lg:w-full mx-auto' : 'lg:w-3/5'}`}>
                 {phase === 'form' ? (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                       <div className="mb-8">
@@ -1346,16 +1346,18 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
                       </form>
                     </div>
                   ) : phase === 'finalizing' && results.aiSummary ? (
-                    <StreamingChatBox 
-                      result={results.aiSummary} 
-                      mismatches={results.mismatches}
-                      renderSourceDetails={renderSourceDetails}
-                      onReset={() => {
-                        setPhase('form')
-                        setResults({})
-                        setCollectingSteps([])
-                      }} 
-                    />
+                    <div className="max-w-4xl mx-auto w-full">
+                      <StreamingChatBox 
+                        result={results.aiSummary} 
+                        mismatches={results.mismatches}
+                        renderSourceDetails={renderSourceDetails}
+                        onReset={() => {
+                          setPhase('form')
+                          setResults({})
+                          setCollectingSteps([])
+                        }} 
+                      />
+                    </div>
                   ) : (
                     <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-500 w-full max-w-xl mx-auto my-auto">
                       <div className="text-center mb-8">
@@ -1385,7 +1387,7 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
               </div>
               
               {/* Right Side: 3D Visual */}
-              <div className="hidden lg:flex w-full lg:w-2/5 bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border-l border-border/50 p-12 group">
+              <div className={`${phase === 'finalizing' ? 'hidden' : 'hidden lg:flex w-full lg:w-2/5'} bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border-l border-border/50 p-12 group transition-all duration-700`}>
                 {/* Glowing background meshes */}
                 <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2)_0%,transparent_70%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_2s_ease-in-out_infinite]' : 'animate-[pulse_4s_ease-in-out_infinite]'}`} />
                 <div className={`absolute top-1/4 left-1/4 w-full h-full bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.1)_0%,transparent_50%)] dark:bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,transparent_50%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_3s_ease-in-out_infinite_reverse]' : 'animate-[pulse_6s_ease-in-out_infinite_reverse]'}`} />
