@@ -8,6 +8,9 @@ interface ExtractedContent {
   images: number
   brokenLinks: string[]
   imagesNoAlt: number
+  socialLinks: string[]
+  projectLinks: string[]
+  authorName: string
 }
 
 function extractContent(html: string): ExtractedContent {
@@ -41,10 +44,31 @@ function extractContent(html: string): ExtractedContent {
     }
   }
 
+  const socialDomains = ['github.com', 'linkedin.com', 'twitter.com', 'x.com', 'medium.com', 'dev.to', 'hashnode.com']
+  const projectDomains = ['vercel.app', 'netlify.app', 'herokuapp.com', 'onrender.com', 'firebaseapp.com']
+  const socialLinks: string[] = []
+  const projectLinks: string[] = []
+  
+  links.forEach(href => {
+    if (socialDomains.some(d => href.includes(d))) socialLinks.push(href)
+    else if (projectDomains.some(d => href.includes(d))) projectLinks.push(href)
+  })
+
+  let authorName = ''
+  const metaAuthorMatch = html.match(/<meta[^>]+name=["']author["'][^>]+content=["']([^"']+)["']/i)
+  if (metaAuthorMatch && metaAuthorMatch[1]) {
+    authorName = metaAuthorMatch[1].trim()
+  } else {
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+    if (titleMatch) {
+      authorName = stripTag(titleMatch[1]).split(/[-|]/)[0].trim()
+    }
+  }
+
   const images = (html.match(/<img[^>]+>/gi) || []).length
   const imagesNoAlt = (html.match(/<img(?![^>]*\salt=)[^>]*>/gi) || []).length
 
-  return { headings, paragraphs, links, images, brokenLinks, imagesNoAlt }
+  return { headings, paragraphs, links, images, brokenLinks, imagesNoAlt, socialLinks, projectLinks, authorName }
 }
 
 function countTags(html: string, tag: string): number {
@@ -312,6 +336,9 @@ export class PortfolioService {
         contentImageCount: content.images,
         hasPlaceholderText,
         isTemplate,
+        authorName: content.authorName,
+        socialLinks: content.socialLinks,
+        projectLinks: content.projectLinks,
       }
 
       return { score, strengths, weaknesses, recommendations, details }

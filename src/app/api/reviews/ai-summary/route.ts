@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     const [summary, mismatches] = await Promise.all([
       generateOverallSummary(portfolio, github, resume),
-      Promise.resolve(detectMismatches(portfolio, github, resume)),
+      detectMismatches(portfolio, github, resume),
     ])
 
     return successResponse({ summary, mismatches }, 'AI summary generated')

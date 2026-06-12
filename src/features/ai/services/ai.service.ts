@@ -21,6 +21,7 @@ export interface AIAnalysisResult {
     | { company?: string; role?: string; dates?: string; description?: string }
   )[]
   education: { degree?: string; school?: string; dates?: string }[]
+  projects?: { name?: string; link?: string; description?: string }[]
   skills: string[]
   sections: string[]
   strengths: string[]
@@ -57,6 +58,7 @@ Return this exact structure:
   "github": "GitHub URL or null",
   "workEntries": [{"company":"...","role":"...","dates":"...","description":"..."}],
   "education": [{"degree":"...","school":"...","dates":"..."}],
+  "projects": [{"name":"...","link":"...","description":"..."}],
   "skills": ["skill1", "skill2"],
   "sections": ["Experience", "Education", "Skills"],
   "score": 0-100,
@@ -92,6 +94,7 @@ Use null for missing fields. Empty arrays for missing lists. No markdown.`,
       github: parsed.github || null,
       workEntries: Array.isArray(parsed.workEntries) ? parsed.workEntries : [],
       education: Array.isArray(parsed.education) ? parsed.education : [],
+      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],
       sections: Array.isArray(parsed.sections) ? parsed.sections : [],
       strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
@@ -309,118 +312,88 @@ Return this JSON structure:
   }
 }
 
-export function detectMismatches(
+export async function detectMismatches(
   portfolio?: PortfolioAnalysis | null,
   github?: GitHubAnalysis | null,
   resume?: ResumeAnalysis | null
-): AIMismatch[] {
-  const mismatches: AIMismatch[] = []
+): Promise<AIMismatch[]> {
+  const client = createClient()
+  if (!client) return []
 
-  const resumeName = resume?.details?.name?.toLowerCase().trim() || null
-  const githubName = github?.details?.profile?.name?.toLowerCase().trim() || null
-  const resumeGithub = resume?.details?.github?.toLowerCase() || null
-  const resumeLinkedin = resume?.details?.linkedin?.toLowerCase() || null
-  const resumeEmail = resume?.details?.email?.toLowerCase() || null
-  const githubUsername = github?.details?.profile?.name || null
-
-  if (resumeName && githubName && resumeName !== githubName) {
-    mismatches.push({
-      type: 'name',
-      severity: 'high',
-      description: `Name in resume ("${resumeName}") differs from GitHub profile name ("${githubName}")`,
-      sources: ['Resume', 'GitHub'],
-    })
-  }
-
-  const inputGithubUsername = process.env.__GITHUB_INPUT
-  if (resumeGithub && inputGithubUsername) {
-    const extractedUser = resumeGithub.replace('github.com/', '').trim()
-    if (extractedUser !== inputGithubUsername.toLowerCase()) {
-      mismatches.push({
-        type: 'github',
-        severity: 'medium',
-        description: `GitHub username in resume ("${extractedUser}") differs from the GitHub username reviewed ("${inputGithubUsername}")`,
-        sources: ['Resume', 'GitHub'],
-      })
-    }
-  }
-
-  const portfolioHasGithub = portfolio?.details?.checks?.some(
-    (c) => c.name === 'Social Links' && c.status === 'passed'
-  )
-  const portfolioHasLinkedin = portfolio?.details?.checks?.some(
-    (c) => c.name === 'Social Links' && c.status === 'passed'
-  )
-
-  if (resumeGithub && !portfolioHasGithub && portfolio) {
-    mismatches.push({
-      type: 'github',
-      severity: 'low',
-      description: 'Resume includes a GitHub link but the portfolio does not link to GitHub',
-      sources: ['Resume', 'Portfolio'],
-    })
-  }
-
-  if (resumeLinkedin && !portfolioHasLinkedin && portfolio) {
-    mismatches.push({
-      type: 'linkedin',
-      severity: 'low',
-      description: 'Resume includes a LinkedIn link but the portfolio does not link to LinkedIn',
-      sources: ['Resume', 'Portfolio'],
-    })
-  }
-
-  const resumeSkills =
-    resume?.details?.skills?.filter((s) => s.found).map((s) => s.name.toLowerCase()) || []
-  if (resumeSkills.length > 0 && github) {
-    const githubLanguages =
-      (github.details?.repos?.map((r) => r.language?.toLowerCase()).filter(Boolean) as string[]) ||
-      []
-    const uniqueLanguages = [...new Set(githubLanguages)]
-    const matchCount = uniqueLanguages.filter((l) =>
-      resumeSkills.some((s) => s.includes(l) || l.includes(s))
-    ).length
-    if (uniqueLanguages.length >= 3 && matchCount === 0) {
-      mismatches.push({
-        type: 'skill',
-        severity: 'medium',
-        description: `Resume skills don't match any GitHub repository languages (${uniqueLanguages.slice(0, 5).join(', ')})`,
-        sources: ['Resume', 'GitHub'],
-      })
-    }
-  }
-
-  if (portfolio?.details?.isTemplate) {
-    mismatches.push({
-      type: 'other',
-      severity: 'medium',
-      description: `Portfolio appears to be an unmodified template or contains placeholder "Lorem Ipsum" text`,
-      sources: ['Portfolio'],
-    })
-  }
-
-  const predictedSeniority = resume?.details?.predictedSeniority?.toLowerCase() || ''
-  const resumeRoles = resume?.details?.workEntries?.map(e => typeof e === 'string' ? e : e.role)?.join(' ').toLowerCase() || ''
+  const sourcesData: any = {}
   
-  if (predictedSeniority && (predictedSeniority.includes('junior') || predictedSeniority.includes('mid'))) {
-    if (resumeRoles.includes('senior') || resumeRoles.includes('lead') || resumeRoles.includes('head')) {
-      mismatches.push({
-        type: 'other',
-        severity: 'high',
-        description: `Title Inflation Detected: Claimed titles (Senior/Lead) do not align with the AI's predicted ${predictedSeniority} seniority based on overall experience depth.`,
-        sources: ['Resume'],
-      })
+  if (portfolio) {
+    sourcesData.portfolio = {
+      name: portfolio.details?.authorName || null,
+      socialLinks: portfolio.details?.socialLinks || [],
+      projects: portfolio.details?.projectLinks || []
+    }
+  }
+  
+  if (github) {
+    sourcesData.github = {
+      name: github.details?.profile?.name || null,
+      username: github.details?.profile?.login || null,
+      repos: github.details?.repos?.map(r => r.name) || []
+    }
+  }
+  
+  if (resume) {
+    sourcesData.resume = {
+      name: resume.details?.name || null,
+      socialLinks: [resume.details?.github, resume.details?.linkedin].filter(Boolean) || [],
+      skills: resume.details?.skills?.map(s => s.name) || []
     }
   }
 
-  if (resume?.details?.tone && resume.details.tone.toLowerCase().includes('passive')) {
-    mismatches.push({
-      type: 'other',
-      severity: 'low',
-      description: `Passive Language: Resume tone is ${resume.details.tone}. Use stronger action-oriented verbs to describe impact.`,
-      sources: ['Resume'],
-    })
-  }
+  try {
+    const response = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an AI auditor. Cross-reference the developer's identity, links, and projects across Portfolio, GitHub, and Resume.
+Find discrepancies (mismatches) across the provided sources.
 
-  return mismatches
+Look for:
+1. "name" mismatches (e.g. John on Resume, Jane on GitHub).
+2. "link" or "github" mismatches (e.g. Resume links to github.com/foo, but the actual github username is bar).
+3. "project" mismatches (e.g. Portfolio links to project X, but GitHub has no repo for it).
+
+Severity:
+- "high": Completely different names, linking to wrong GitHub profile.
+- "medium": Missing major projects across platforms.
+- "low": Missing social links on one platform but present on another.
+
+If there are no major mismatches, return an empty array.
+Return JSON ONLY:
+{
+  "mismatches": [
+    {
+      "type": "name" | "github" | "linkedin" | "project" | "other",
+      "severity": "high" | "medium" | "low",
+      "description": "Clear explanation of the mismatch",
+      "sources": ["Portfolio", "GitHub", "Resume"] // list the sources involved
+    }
+  ]
+}`
+        },
+        {
+          role: 'user',
+          content: `Data:\n${JSON.stringify(sourcesData, null, 2)}`
+        }
+      ],
+      temperature: 0.1,
+      response_format: { type: 'json_object' }
+    })
+
+    const content = response.choices?.[0]?.message?.content
+    if (!content) return []
+    
+    const parsed = JSON.parse(content)
+    return Array.isArray(parsed.mismatches) ? parsed.mismatches : []
+  } catch (error) {
+    logger.error('Mismatch detection failed', { error: String(error) })
+    return []
+  }
 }

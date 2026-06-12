@@ -83,6 +83,10 @@ export async function POST(request: NextRequest) {
       resumeFileName = resumeFile.name
     }
 
+    if (!userId) {
+      return errorResponse('Guest users cannot process files via form data endpoints. Please use the JSON endpoint.', 401)
+    }
+
     const review = await reviewService.createFullReview(userId, {
       portfolioUrl: portfolioUrl || undefined,
       githubUsername: githubUsername || undefined,

@@ -51,6 +51,7 @@ export class GitHubService {
       const eventsData = eventsRes.ok ? await eventsRes.json() : []
 
       const profile: GitHubProfile = {
+        login: userData.login || username,
         name: userData.name || null,
         bio: userData.bio || null,
         avatar_url: userData.avatar_url || null,

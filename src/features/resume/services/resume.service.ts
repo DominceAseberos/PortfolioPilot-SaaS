@@ -42,6 +42,7 @@ export class ResumeService {
                 ? aiResult.workEntries
                 : ruleResult.details?.workEntries || [],
             education: aiResult.education.length > 0 ? aiResult.education : [],
+            projects: aiResult.projects && aiResult.projects.length > 0 ? aiResult.projects : [],
             skills:
               aiResult.skills.length > 0
                 ? aiResult.skills.map((s) => {

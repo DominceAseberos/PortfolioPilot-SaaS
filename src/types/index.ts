@@ -111,11 +111,11 @@ export interface PortfolioDetails {
   contentParagraphs?: string[]
   contentLinkCount?: number
   contentImageCount?: number
-  readabilityUsed?: boolean
-  readableExcerpt?: string
-  readableWordCount?: number
   isTemplate?: boolean
   hasPlaceholderText?: boolean
+  authorName?: string
+  socialLinks?: string[]
+  projectLinks?: string[]
 }
 
 export interface PortfolioAnalysis {
@@ -139,6 +139,7 @@ export interface GitHubRepo {
 }
 
 export interface GitHubProfile {
+  login?: string | null
   name: string | null
   bio: string | null
   avatar_url: string | null
@@ -212,6 +213,7 @@ export interface ResumeDetails {
   sections: ResumeSection[]
   workEntries: (string | ResumeWorkEntry)[]
   education?: ResumeEducation[]
+  projects?: { name?: string; link?: string; description?: string }[]
   wordCount: number
   hasEmail: boolean
   hasLinkedIn: boolean
