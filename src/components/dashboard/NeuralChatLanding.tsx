@@ -149,21 +149,12 @@ export function NeuralChatLanding({
              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 w-full">
                 <p className="text-sm font-bold text-blue-500 flex items-center gap-2"><Globe className="h-4 w-4" /> Live Portfolio Captured</p>
                 <div className="relative w-full h-48 sm:h-64 rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
-                  <img 
-                    src={`https://api.microlink.io?url=${encodeURIComponent(normalizedUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800&prerender=true&waitFor=2000`} 
-                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500" 
-                    alt="Portfolio Preview" 
-                    loading="lazy"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.parentElement?.classList.add('fallback-shown');
-                    }}
+                  <iframe 
+                    src={normalizedUrl} 
+                    className="absolute inset-0 w-full h-full border-0 bg-background" 
+                    title="Portfolio Live Preview"
+                    sandbox="allow-scripts allow-same-origin"
                   />
-                  <div className="hidden group-[.fallback-shown]/preview:flex flex-col items-center justify-center text-muted-foreground">
-                     <Globe className="h-8 w-8 mb-2 opacity-50" />
-                     <span className="text-sm font-medium">Live Preview Unavailable</span>
-                     <span className="text-xs opacity-75">URL mapped successfully</span>
-                  </div>
                 </div>
              </div>
           )
