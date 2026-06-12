@@ -257,23 +257,13 @@ export class PortfolioService {
           )
         )
 
-        if (readable) {
-          checks.push(
-            check(
-              'Content Text',
-              readable.wordCount >= 80,
-              `${readable.wordCount} words of readable content found via Readability`
-            )
+        checks.push(
+          check(
+            'Content Text',
+            content.paragraphs.length >= 3,
+            content.paragraphs.length + ' paragraph(s) found'
           )
-        } else {
-          checks.push(
-            check(
-              'Content Text',
-              content.paragraphs.length >= 3,
-              content.paragraphs.length + ' paragraph(s) found'
-            )
-          )
-        }
+        )
       }
 
       checks.push(
