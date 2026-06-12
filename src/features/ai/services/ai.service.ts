@@ -60,7 +60,9 @@ Return this exact structure:
   "score": 0-100,
   "strengths": ["..."],
   "weaknesses": ["..."],
-  "recommendations": ["..."]
+  "recommendations": ["..."],
+  "predictedSeniority": "Junior | Mid-Level | Senior | Lead | Executive",
+  "tone": "Confident | Passive | Action-Oriented | Vague"
 }
 
 Score: 90-100 excellent, 70-89 good, 50-69 average, below 50 needs work.
@@ -94,6 +96,8 @@ Use null for missing fields. Empty arrays for missing lists. No markdown.`,
       weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
       rawText: text,
+      predictedSeniority: parsed.predictedSeniority || undefined,
+      tone: parsed.tone || undefined,
     }
   } catch (error) {
     logger.error('AI resume analysis failed', { error: String(error) })
@@ -149,6 +153,7 @@ function computeFallbackSummary(
         ? { score: resume.score, summary: resume.strengths.slice(0, 2).join('; ') || 'Analyzed' }
         : null,
     },
+    radar: { presentation: 50, openSource: 50, experience: 50, techStack: 50, consistency: 50 },
   }
 }
 
@@ -229,6 +234,13 @@ Return this JSON structure:
     "portfolio": { "score": number | null, "summary": "1-2 sentence summary of portfolio findings" },
     "github": { "score": number | null, "summary": "1-2 sentence summary of GitHub findings" },
     "resume": { "score": number | null, "summary": "1-2 sentence summary of resume findings" }
+  },
+  "radar": {
+    "presentation": number (0-100, based on portfolio structure and quality),
+    "openSource": number (0-100, based on github repos, stars, followers),
+    "experience": number (0-100, based on resume work history),
+    "techStack": number (0-100, based on diversity of skills/languages),
+    "consistency": number (0-100, based on recent activity and streaks)
   }
 }`,
         },
@@ -280,6 +292,13 @@ Return this JSON structure:
               summary: parsed.sourceBreakdown.resume.summary ?? '',
             }
           : null,
+      },
+      radar: {
+        presentation: parsed.radar?.presentation ?? 50,
+        openSource: parsed.radar?.openSource ?? 50,
+        experience: parsed.radar?.experience ?? 50,
+        techStack: parsed.radar?.techStack ?? 50,
+        consistency: parsed.radar?.consistency ?? 50,
       },
     }
   } catch (error) {
@@ -367,6 +386,38 @@ export function detectMismatches(
         sources: ['Resume', 'GitHub'],
       })
     }
+  }
+
+  if (portfolio?.details?.isTemplate) {
+    mismatches.push({
+      type: 'other',
+      severity: 'medium',
+      description: `Portfolio appears to be an unmodified template or contains placeholder "Lorem Ipsum" text`,
+      sources: ['Portfolio'],
+    })
+  }
+
+  const predictedSeniority = resume?.details?.predictedSeniority?.toLowerCase() || ''
+  const resumeRoles = resume?.details?.workEntries?.map(e => typeof e === 'string' ? e : e.role)?.join(' ').toLowerCase() || ''
+  
+  if (predictedSeniority && (predictedSeniority.includes('junior') || predictedSeniority.includes('mid'))) {
+    if (resumeRoles.includes('senior') || resumeRoles.includes('lead') || resumeRoles.includes('head')) {
+      mismatches.push({
+        type: 'other',
+        severity: 'high',
+        description: `Title Inflation Detected: Claimed titles (Senior/Lead) do not align with the AI's predicted ${predictedSeniority} seniority based on overall experience depth.`,
+        sources: ['Resume'],
+      })
+    }
+  }
+
+  if (resume?.details?.tone && resume.details.tone.toLowerCase().includes('passive')) {
+    mismatches.push({
+      type: 'other',
+      severity: 'low',
+      description: `Passive Language: Resume tone is ${resume.details.tone}. Use stronger action-oriented verbs to describe impact.`,
+      sources: ['Resume'],
+    })
   }
 
   return mismatches

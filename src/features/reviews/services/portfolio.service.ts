@@ -94,12 +94,20 @@ export class PortfolioService {
         signal: AbortSignal.timeout(10000),
       })
       const html = await response.text()
+      
+      if (!this.isLikelyPortfolio(html)) {
+        throw new Error('NOT_A_PORTFOLIO')
+      }
+
       const readable = tryReadability(html, portfolioUrl)
       const content = readable ? readable.content : extractContent(html)
 
       const usesClientFramework = this.detectsClientFramework(html)
       const isSparse = content.headings.length < 2 && content.paragraphs.length < 3
       const contentLikelyRendered = usesClientFramework && isSparse && !readable
+
+      const hasPlaceholderText = /lorem ipsum|dolor sit amet|insert text here/i.test(html)
+      const isTemplate = /html5 up|bootstrap template|tailwind template|colorlib|created by \[author\]/i.test(html)
 
       const checks: PortfolioCheck[] = []
 
@@ -182,6 +190,10 @@ export class PortfolioService {
           )
         )
       }
+
+      // ── Template & Plagiarism ───────────────────────────
+      checks.push(check('Original Content', !hasPlaceholderText, 'No placeholder "Lorem Ipsum" text detected'))
+      checks.push(check('Custom Design', !isTemplate, 'Does not rely on unmodified standard templates (e.g. HTML5 UP)'))
 
       // ── Technical ───────────────────────────────────────
       checks.push(
@@ -334,11 +346,24 @@ export class PortfolioService {
         readabilityUsed: !!readable,
         readableExcerpt: readable?.excerpt,
         readableWordCount: readable?.wordCount,
+        hasPlaceholderText,
+        isTemplate,
       }
 
       return { score, strengths, weaknesses, recommendations, details }
     } catch (error) {
       logger.error('Portfolio analysis failed', { error: String(error), url: portfolioUrl })
+      
+      if (error instanceof Error && error.message === 'NOT_A_PORTFOLIO') {
+        return {
+          score: 0,
+          strengths: [],
+          weaknesses: ['Target URL does not appear to be a personal portfolio or resume website'],
+          recommendations: ['Please provide a direct link to your personal portfolio, portfolio platform (like Behance/Dribbble), or personal website.'],
+          details: { url: portfolioUrl, checks: [] },
+        }
+      }
+      
       return {
         score: 0,
         strengths: [],
@@ -347,6 +372,28 @@ export class PortfolioService {
         details: { url: portfolioUrl, checks: [] },
       }
     }
+  }
+
+  private isLikelyPortfolio(html: string): boolean {
+    const textContent = html.replace(/<[^>]+>/g, ' ').toLowerCase()
+    
+    const keywords = [
+      'portfolio', 'resume', 'projects', 'experience', 
+      'about me', 'contact', 'developer', 'engineer', 
+      'designer', 'freelance', 'work', 'skills', 
+      'education', 'hire', 'about', 'services', 'cv'
+    ]
+    
+    let matchCount = 0
+    for (const kw of keywords) {
+      if (new RegExp(`\\b${kw}\\b`).test(textContent)) {
+        matchCount++
+      }
+    }
+    
+    // We require at least 2 distinct portfolio keywords to proceed
+    // This filters out generic websites, search engines, and random SaaS pages
+    return matchCount >= 2
   }
 
   private getRecommendation(checkName: string): string {
@@ -391,6 +438,8 @@ export class PortfolioService {
         'Add more written content (at least 3 paragraphs) to showcase your experience',
       'External Links': 'Include more external links to projects, social profiles, or references',
       'No Broken Links': 'Fix empty or broken href attributes on all anchor tags',
+      'Original Content': 'Remove all placeholder "Lorem Ipsum" text and replace it with your actual experience.',
+      'Custom Design': 'Modify your template further. Relying heavily on default HTML5 UP or Bootstrap themes makes your portfolio blend in.',
     }
     return map[checkName] || 'Improve: ' + checkName
   }

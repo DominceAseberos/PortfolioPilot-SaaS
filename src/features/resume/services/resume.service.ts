@@ -16,6 +16,10 @@ export class ResumeService {
         }
       }
 
+      if (!this.isLikelyResume(text)) {
+        throw new Error('NOT_A_RESUME')
+      }
+
       const aiResult = await analyzeResumeWithAI(text)
       const ruleResult = this.ruleBasedAnalyze(text)
 
@@ -82,6 +86,16 @@ export class ResumeService {
       return ruleResult
     } catch (error) {
       logger.error('Resume analysis failed', { error: String(error), fileName })
+      
+      if (error instanceof Error && error.message === 'NOT_A_RESUME') {
+        return {
+          score: 0,
+          strengths: [],
+          weaknesses: ['The uploaded document does not appear to be a Resume or CV'],
+          recommendations: ['Please upload a valid personal Resume or CV document in PDF format.'],
+        }
+      }
+      
       return {
         score: 0,
         strengths: [],
@@ -89,6 +103,28 @@ export class ResumeService {
         recommendations: ['Ensure the file is a valid PDF with selectable text'],
       }
     }
+  }
+
+  private isLikelyResume(text: string): boolean {
+    const content = text.toLowerCase()
+    
+    const keywords = [
+      'resume', 'cv', 'curriculum vitae',
+      'experience', 'employment', 'work history',
+      'education', 'university', 'college', 'degree', 'bachelor', 'master',
+      'skills', 'technologies', 'proficiencies',
+      'projects', 'certifications', 'summary', 'objective', 'profile'
+    ]
+    
+    let matchCount = 0
+    for (const kw of keywords) {
+      if (new RegExp(`\\b${kw}\\b`).test(content)) {
+        matchCount++
+      }
+    }
+    
+    // We require at least 3 distinct resume sections/keywords to proceed
+    return matchCount >= 3
   }
 
   private ruleBasedAnalyze(text: string): ResumeAnalysis {

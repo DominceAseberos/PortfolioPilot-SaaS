@@ -85,6 +85,29 @@ export class GitHubService {
           created_at: e.created_at,
         }))
 
+      let topRepoReadmeLength = 0
+      let topRepoHasReadme = false
+      if (repos.length > 0) {
+        const topRepo = [...repos].sort((a, b) => b.stars - a.stars || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
+        try {
+          const readmeRes = await fetch(`https://api.github.com/repos/${username}/${topRepo.name}/readme`, { headers, signal: AbortSignal.timeout(5000) })
+          if (readmeRes.ok) {
+            const readmeData = await readmeRes.json()
+            if (readmeData.content) {
+              const decoded = Buffer.from(readmeData.content, 'base64').toString('utf8')
+              topRepoReadmeLength = decoded.length
+              topRepoHasReadme = true
+              
+              const topRepoIndex = repos.findIndex(r => r.name === topRepo.name)
+              if (topRepoIndex !== -1) {
+                repos[topRepoIndex].hasReadme = true
+                repos[topRepoIndex].readmeLength = topRepoReadmeLength
+              }
+            }
+          }
+        } catch { /* ignore error fetching readme */ }
+      }
+
       const details: GitHubDetails = { profile, repos, events }
       const contributions = await this.fetchContributions(username, headers)
       if (contributions) details.contributions = contributions
@@ -103,6 +126,7 @@ export class GitHubService {
         hasProjectDiversity: repos.length >= 5,
         hasDescriptions: repos.filter((r) => r.description).length >= 3,
         hasEventActivity: events.some((e) => new Date(e.created_at) > threeMonthsAgo),
+        hasDetailedReadme: topRepoHasReadme && topRepoReadmeLength > 500,
       }
 
       if (contributions) {
@@ -145,6 +169,9 @@ export class GitHubService {
 
       if (checks.hasEventActivity) strengths.push('Recent public activity on GitHub')
       else recommendations.push('Be more active publicly — push commits, open issues, or contribute to discussions')
+
+      if (checks.hasDetailedReadme) strengths.push('Top repository has a detailed README (good documentation)')
+      else if (repos.length > 0) recommendations.push('Add a detailed README to your top repository (architecture, setup instructions, etc)')
 
       if (repos.length > 0) {
         const readmeCount = repos.filter((r) => r.description && r.description.length > 20).length
