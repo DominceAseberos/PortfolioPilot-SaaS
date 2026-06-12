@@ -1551,26 +1551,26 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
               {/* Right Side: 3D Visual */}
               <div className={`${phase === 'finalizing' ? 'hidden' : 'hidden lg:flex flex-1'} bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border border-border/50 rounded-3xl group transition-all duration-700`}>
                 
-                {/* Simulated Scrolling Iframe or Screenshot */}
+                {/* Desktop Iframe/Screenshot Preview */}
                 {activeIframeUrl && phase !== 'form' ? (
-                  <div className="absolute inset-0 z-0 bg-background overflow-hidden flex flex-col justify-start">
+                  <div className="absolute inset-0 z-0 bg-background/50 backdrop-blur-sm overflow-hidden flex flex-col items-center justify-center p-8">
                      {/* Overlay to prevent clicking iframe during animation */}
                      <div className="absolute inset-0 z-10 bg-transparent" />
-                     <div className="w-full h-full animate-simulate-scroll flex justify-center">
+                     <div className="relative w-full h-full flex items-center justify-center">
                        {credits > 0 ? (
-                         <div className="w-[1440px] h-auto min-h-[3000px] origin-top scale-[0.35] sm:scale-[0.4] md:scale-[0.5] lg:scale-[0.45] xl:scale-[0.55] transition-transform duration-500">
+                         <div className="w-[1280px] h-[800px] origin-center scale-[0.35] sm:scale-[0.4] md:scale-[0.45] lg:scale-[0.5] xl:scale-[0.6] 2xl:scale-[0.7] transition-transform duration-500 rounded-2xl overflow-hidden border border-border/50 shadow-2xl bg-background">
                            <img 
-                             src={`https://api.microlink.io?url=${encodeURIComponent(activeIframeUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1440&viewport.height=3000`}
+                             src={`https://api.microlink.io?url=${encodeURIComponent(activeIframeUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800`}
                              alt="Portfolio Preview Screenshot"
-                             className="w-full h-auto object-cover opacity-80"
+                             className="w-full h-full object-cover opacity-90"
                              loading="eager"
                            />
                          </div>
                        ) : (
-                         <div className="w-[1440px] h-[3000px] origin-top scale-[0.35] sm:scale-[0.4] md:scale-[0.5] lg:scale-[0.45] xl:scale-[0.55] transition-transform duration-500">
+                         <div className="w-[1280px] h-[800px] origin-center scale-[0.35] sm:scale-[0.4] md:scale-[0.45] lg:scale-[0.5] xl:scale-[0.6] 2xl:scale-[0.7] transition-transform duration-500 rounded-2xl overflow-hidden border border-border/50 shadow-2xl bg-background">
                            <iframe 
                              src={activeIframeUrl} 
-                             className="w-full h-full border-none opacity-80"
+                             className="w-full h-full border-none opacity-90"
                              title="Portfolio Preview"
                              scrolling="no"
                              sandbox="allow-same-origin allow-scripts"
