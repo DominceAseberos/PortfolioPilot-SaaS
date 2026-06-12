@@ -1585,7 +1585,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
               </div>
               
               {/* Right Side: 3D Visual */}
-              <div className={`${phase === 'finalizing' ? 'hidden' : 'hidden lg:flex flex-1'} bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border border-border/50 rounded-3xl group transition-all duration-700`}>
+              <div className={`${(phase === 'finalizing' || phase === 'form') ? 'hidden' : 'hidden lg:flex flex-1'} bg-slate-50 dark:bg-slate-950 relative items-center justify-center overflow-hidden border border-border/50 rounded-3xl group transition-all duration-700`}>
                 
                 {/* Desktop Iframe/Screenshot Preview */}
                 {activeIframeUrl && phase !== 'form' ? (
