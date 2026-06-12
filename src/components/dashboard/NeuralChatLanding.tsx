@@ -92,41 +92,65 @@ export function NeuralChatLanding({
     }
   }
 
-  const addChatFlow = (value: string, mode: 'portfolio' | 'github' | 'resume') => {
+  const addChatFlow = async (value: string, mode: 'portfolio' | 'github' | 'resume') => {
      setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: value }])
      setIsChatProcessing(true)
      
-     const sysId = Date.now().toString() + '-sys'
-     
-     // Step 1: Initial Loading State
-     setChatLog(prev => [...prev, { 
-       id: sysId, 
-       role: 'system', 
-       content: (
-         <div className="flex items-center gap-3 animate-in fade-in text-muted-foreground">
-           <Loader2 className="h-4 w-4 animate-spin" />
-           <span className="text-sm font-medium">
-             {mode === 'portfolio' ? 'Validating Live Portfolio...' : 
-              mode === 'github' ? 'Orchestrating GitHub Telemetry...' : 
-              'Validating PDF Structure...'}
-           </span>
-         </div>
-       ) 
-     }])
-     
-     // Step 2: Reveal Results after a delay
-     setTimeout(() => {
-        setIsChatProcessing(false)
+     const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
+
+     if (mode === 'portfolio') {
+        const normalizedUrl = value.trim().match(/^https?:\/\//i) ? value.trim() : `https://${value.trim()}`
         
-        let content: React.ReactNode = null
-        if (mode === 'portfolio') {
-           const normalizedUrl = value.trim().match(/^https?:\/\//i) ? value.trim() : `https://${value.trim()}`
-           content = (
-             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-sm font-bold text-blue-500 flex items-center gap-2"><Globe className="h-4 w-4" /> Validating Live Portfolio...</p>
+        const step1Id = Date.now().toString() + '-sys1'
+        setChatLog(prev => [...prev, { 
+          id: step1Id, 
+          role: 'system', 
+          content: (
+            <div className="flex items-center gap-3 animate-in fade-in text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">Checking DNS and web accessibility...</span>
+            </div>
+          ) 
+        }])
+        
+        await delay(1500)
+        
+        setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
+          ...msg,
+          content: (
+            <div className="flex items-center gap-3 animate-in fade-in text-blue-500">
+              <Globe className="h-4 w-4" />
+              <span className="text-sm font-medium">Target acquired. Validating {normalizedUrl.replace(/^https?:\/\//, '')}...</span>
+            </div>
+          )
+        } : msg))
+
+        await delay(1000)
+
+        const step2Id = Date.now().toString() + '-sys2'
+        setChatLog(prev => [...prev, {
+          id: step2Id,
+          role: 'system',
+          content: (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+               <p className="text-sm font-bold text-muted-foreground flex items-center gap-2">
+                 <Loader2 className="h-4 w-4 animate-spin" /> Capturing live preview...
+               </p>
+               <div className="relative w-full h-48 sm:h-64 rounded-xl border border-border/50 shadow-sm bg-muted animate-pulse"></div>
+            </div>
+          )
+        }])
+
+        await delay(2000)
+
+        setChatLog(prev => prev.map(msg => msg.id === step2Id ? {
+          ...msg,
+          content: (
+             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 w-full">
+                <p className="text-sm font-bold text-blue-500 flex items-center gap-2"><Globe className="h-4 w-4" /> Live Portfolio Captured</p>
                 <div className="relative w-full h-48 sm:h-64 rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
                   <img 
-                    src={`https://api.microlink.io?url=${encodeURIComponent(normalizedUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800`} 
+                    src={`https://api.microlink.io?url=${encodeURIComponent(normalizedUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800&prerender=true&waitFor=2000`} 
                     className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500" 
                     alt="Portfolio Preview" 
                     loading="lazy"
@@ -141,46 +165,118 @@ export function NeuralChatLanding({
                      <span className="text-xs opacity-75">URL mapped successfully</span>
                   </div>
                 </div>
-                <p className="text-sm font-medium">Portfolio is valid. Should we proceed to analyze or provide Resume/CV or GITHUB?</p>
-                <div className="flex flex-wrap gap-2 pt-2">
+             </div>
+          )
+        } : msg))
+
+        await delay(800)
+
+        setChatLog(prev => [...prev, {
+          id: Date.now().toString() + '-sys3',
+          role: 'system',
+          content: (
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                <p className="text-sm font-medium">Portfolio is ready for deep scan. Should we proceed to analyze, or provide Resume/CV or GITHUB?</p>
+                <div className="flex flex-wrap gap-2">
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('github')}>Provide GitHub</Button>
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('resume')}>Provide Resume/CV</Button>
                    <Button size="sm" onClick={(e) => onSubmit(e as any)}>Proceed Analysis</Button>
                 </div>
-             </div>
-           )
-        } else if (mode === 'github') {
-           content = (
-             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-sm font-bold text-purple-500 flex items-center gap-2"><GitBranch className="h-4 w-4" /> Orchestrating GitHub Telemetry...</p>
-                <p className="text-sm font-medium">GitHub mapped successfully. Proceed to analyze or provide more context?</p>
-                <div className="flex flex-wrap gap-2 pt-2">
+            </div>
+          )
+        }])
+
+     } else if (mode === 'github') {
+        const step1Id = Date.now().toString() + '-sys1'
+        setChatLog(prev => [...prev, { 
+          id: step1Id, 
+          role: 'system', 
+          content: (
+            <div className="flex items-center gap-3 animate-in fade-in text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">Pinging GitHub API...</span>
+            </div>
+          ) 
+        }])
+        
+        await delay(1200)
+
+        setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
+          ...msg,
+          content: (
+            <div className="flex items-center gap-3 animate-in fade-in text-purple-500">
+              <GitBranch className="h-4 w-4" />
+              <span className="text-sm font-medium">GitHub API responsive. Verifying user @{value}...</span>
+            </div>
+          )
+        } : msg))
+
+        await delay(1200)
+
+        setChatLog(prev => [...prev, {
+          id: Date.now().toString() + '-sys2',
+          role: 'system',
+          content: (
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                <p className="text-sm font-bold text-purple-500 flex items-center gap-2"><GitBranch className="h-4 w-4" /> Telemetry Mapped</p>
+                <p className="text-sm font-medium">User mapped successfully. Proceed to analyze or provide more context?</p>
+                <div className="flex flex-wrap gap-2 pt-1">
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('portfolio')}>Provide Portfolio</Button>
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('resume')}>Provide Resume/CV</Button>
                    <Button size="sm" onClick={(e) => onSubmit(e as any)}>Proceed Analysis</Button>
                 </div>
-             </div>
-           )
-        } else {
-           content = (
-             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-sm font-bold text-emerald-500 flex items-center gap-2"><FileText className="h-4 w-4" /> Validating PDF Structure...</p>
+            </div>
+          )
+        }])
+     } else {
+        const step1Id = Date.now().toString() + '-sys1'
+        setChatLog(prev => [...prev, { 
+          id: step1Id, 
+          role: 'system', 
+          content: (
+            <div className="flex items-center gap-3 animate-in fade-in text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">Verifying PDF file signature...</span>
+            </div>
+          ) 
+        }])
+        
+        await delay(1200)
+
+        setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
+          ...msg,
+          content: (
+            <div className="flex items-center gap-3 animate-in fade-in text-emerald-500">
+              <FileText className="h-4 w-4" />
+              <span className="text-sm font-medium">Signature valid. Scanning document text layers...</span>
+            </div>
+          )
+        } : msg))
+
+        await delay(1500)
+
+        setChatLog(prev => [...prev, {
+          id: Date.now().toString() + '-sys2',
+          role: 'system',
+          content: (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                <p className="text-sm font-bold text-emerald-500 flex items-center gap-2"><FileText className="h-4 w-4" /> PDF Structure Parsed</p>
                 <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl border border-border/50">
                   <FileText className="h-8 w-8 text-emerald-500" />
                   <span className="font-semibold text-sm truncate">{value}</span>
                 </div>
-                <p className="text-sm font-medium">Resume parsing ready. Proceed to analyze or provide more context?</p>
-                <div className="flex flex-wrap gap-2 pt-2">
+                <p className="text-sm font-medium">Resume text layers ready. Proceed to analyze or provide more context?</p>
+                <div className="flex flex-wrap gap-2 pt-1">
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('portfolio')}>Provide Portfolio</Button>
                    <Button size="sm" variant="outline" onClick={() => setActiveInputMode('github')}>Provide GitHub</Button>
                    <Button size="sm" onClick={(e) => onSubmit(e as any)}>Proceed Analysis</Button>
                 </div>
-             </div>
-           )
-        }
-        
-        setChatLog(prev => prev.map(msg => msg.id === sysId ? { ...msg, content } : msg))
-     }, 2500)
+            </div>
+          )
+        }])
+     }
+     
+     setIsChatProcessing(false)
   }
 
   return (
@@ -213,17 +309,6 @@ export function NeuralChatLanding({
              </div>
            </div>
         ))}
-        {isChatProcessing && (
-           <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 w-full">
-             <div className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 mr-3 sm:mr-4 mt-1">
-               <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-             </div>
-             <div className="max-w-[85%] rounded-[1.5rem] rounded-tl-sm bg-card border border-border/50 px-6 py-5 shadow-sm flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-sm font-semibold text-muted-foreground">Orchestration happens here...</span>
-             </div>
-           </div>
-        )}
       </div>
 
       {/* Input Bar Overlay */}
