@@ -27,6 +27,8 @@ export interface AIAnalysisResult {
   weaknesses: string[]
   recommendations: string[]
   rawText: string
+  predictedSeniority?: string
+  tone?: string
 }
 
 function createClient(): OpenAI | null {
