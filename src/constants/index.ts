@@ -46,9 +46,11 @@ export const ROUTES = {
   login: '/login',
   register: '/register',
   forgotPassword: '/forgot-password',
-  dashboard: '/dashboard',
-  reviews: '/dashboard/reviews',
-  billing: '/dashboard/billing',
+  dashboard: '/dashboard', // Redirects to reviews
+  reviews: '/dashboard/reviews', // Standalone app
+  account: '/account',
+  settings: '/account/settings',
+  billing: '/account/billing',
 } as const
 
 export const API_ROUTES = {

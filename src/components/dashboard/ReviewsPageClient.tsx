@@ -1273,14 +1273,7 @@ export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: Revie
   // ── Main render ────────────────────────────────────────
   return (
     <div className="space-y-8 w-full 2xl:max-w-screen-2xl mx-auto">
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          Reviews
-        </h1>
-        <p className="text-lg text-muted-foreground">
-          Analyze portfolio, GitHub, and resume in one comprehensive review
-        </p>
-      </div>
+      {/* Removed header as it is now a standalone page */}
 
       <div className="flex gap-1 rounded-xl bg-muted/50 p-1 border border-border/50 w-fit">
         <button

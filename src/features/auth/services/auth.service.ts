@@ -49,6 +49,11 @@ export class AuthService {
   }
 
   async signIn(email: string, password: string) {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (user?.is_anonymous) {
+      document.cookie = `portfolio_guest_id=${user.id}; path=/; max-age=3600`
+    }
+
     const { data, error } = await this.supabase.auth.signInWithPassword({
       email,
       password,
@@ -66,17 +71,7 @@ export class AuthService {
     const redirectUrl = `${window.location.origin}/api/auth/callback${nextPath ? `?next=${nextPath}` : ''}`
 
     if (isAnonymous) {
-      const { data, error } = await this.supabase.auth.linkIdentity({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-        },
-      })
-      if (error) {
-        logger.error('Google identity link failed', { error: error.message })
-        throw error
-      }
-      return data
+      document.cookie = `portfolio_guest_id=${user.id}; path=/; max-age=3600`
     }
 
     const { data, error } = await this.supabase.auth.signInWithOAuth({
