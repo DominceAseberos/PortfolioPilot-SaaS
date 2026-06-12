@@ -40,6 +40,7 @@ import {
   HelpCircle,
   FileCode2,
   X,
+  BarChart2,
 } from 'lucide-react'
 
 interface ReviewHistoryItem {
@@ -141,8 +142,14 @@ function StreamingChatBox({
            <p className="text-sm text-muted-foreground">The Neural Core has finished its review.</p>
         </div>
         <div className="flex flex-col items-end">
-           <ScoreBadge score={animatedScore} size="lg" />
-           <p className="text-xs text-muted-foreground mt-1 font-medium">Overall Score</p>
+           {animatedScore > 0 ? (
+             <>
+               <ScoreBadge score={animatedScore} size="lg" />
+               <p className="text-xs text-muted-foreground mt-1 font-medium">Overall Score</p>
+             </>
+           ) : (
+             <p className="text-xs text-muted-foreground mt-1 font-medium px-3 py-1 bg-muted/50 rounded-full">Score N/A</p>
+           )}
         </div>
       </div>
       
@@ -166,6 +173,49 @@ function StreamingChatBox({
              </div>
            </div>
         </div>
+        
+        {/* Individual Scores Bubble */}
+        {isDoneTyping && (
+           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+             <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+               <BarChart2 className="h-5 w-5 text-indigo-500" />
+             </div>
+             <div className="flex-1 space-y-2">
+               <div className="flex items-center gap-2">
+                 <span className="font-bold text-sm">Individual Scores</span>
+               </div>
+               <div className="flex flex-wrap gap-4">
+                 {result.sourceBreakdown.portfolio && (
+                   <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-center gap-3">
+                     <Globe className="h-5 w-5 text-indigo-500" />
+                     <div className="flex flex-col">
+                       <span className="text-xs text-muted-foreground font-medium">Portfolio</span>
+                       <span className="font-bold text-indigo-600">{result.sourceBreakdown.portfolio.score}/100</span>
+                     </div>
+                   </div>
+                 )}
+                 {result.sourceBreakdown.github && (
+                   <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-center gap-3">
+                     <GitBranch className="h-5 w-5 text-indigo-500" />
+                     <div className="flex flex-col">
+                       <span className="text-xs text-muted-foreground font-medium">GitHub</span>
+                       <span className="font-bold text-indigo-600">{result.sourceBreakdown.github.score}/100</span>
+                     </div>
+                   </div>
+                 )}
+                 {result.sourceBreakdown.resume && (
+                   <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-center gap-3">
+                     <FileText className="h-5 w-5 text-indigo-500" />
+                     <div className="flex flex-col">
+                       <span className="text-xs text-muted-foreground font-medium">Resume</span>
+                       <span className="font-bold text-indigo-600">{result.sourceBreakdown.resume.score}/100</span>
+                     </div>
+                   </div>
+                 )}
+               </div>
+             </div>
+           </div>
+        )}
         
         {/* Strengths Bubble (Appears after typing) */}
         {isDoneTyping && result.topStrengths.length > 0 && (
@@ -1123,9 +1173,6 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
             {id === 'resume' && <FileText className="h-5 w-5 shrink-0" />}
           </div>
           <span className="text-lg font-bold tracking-tight">{label}</span>
-          <span className="ml-auto flex items-center">
-            <ScoreBadge score={score} size="md" className="shadow-sm scale-110" />
-          </span>
         </div>
         <div className="px-6 py-6 bg-gradient-to-b from-muted/5 to-transparent">
           {id === 'portfolio' && <PortfolioDetails analysis={d as PortfolioAnalysis} />}

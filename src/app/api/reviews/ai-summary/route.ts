@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       // Abort AI cross-reference but preserve individual analysis recommendations and radar!
       const fallback = computeFallbackSummary(portfolio, github, resume)
       fallback.summary = "Cross-referencing aborted due to severe identity mismatch. Showing isolated analysis results below."
+      fallback.overallScore = 0
       
       // We do NOT zero out the radar here because everything is isolated, so we just show their individual scores.
       // Or we can zero out the invalid ones if we want to be strict, but the user requested individual scores to be preserved.
