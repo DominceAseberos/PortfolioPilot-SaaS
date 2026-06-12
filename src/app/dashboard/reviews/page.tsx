@@ -12,7 +12,7 @@ export default async function ReviewsPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return <ReviewsPageClient reviews={[]} />
+    return <ReviewsPageClient reviews={[]} isGuest={true} />
   }
 
   const { data: reviews } = await supabase
@@ -21,5 +21,5 @@ export default async function ReviewsPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  return <ReviewsPageClient reviews={reviews || []} />
+  return <ReviewsPageClient reviews={reviews || []} isGuest={false} />
 }

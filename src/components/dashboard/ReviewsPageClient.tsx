@@ -92,6 +92,7 @@ function StreamingChatBox({
 }: {
   result: AISummaryResult
   mismatches?: AIMismatch[]
+  isGuest?: boolean
   onReset: () => void
   renderSourceDetails: (id: 'portfolio' | 'github' | 'resume', label: string) => React.ReactNode
 }) {
@@ -241,138 +242,199 @@ function StreamingChatBox({
            </div>
         )}
 
-        {/* Weaknesses Bubble */}
-        {isDoneTyping && result.topWeaknesses.length > 0 && (
-           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-             <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-               <AlertTriangle className="h-5 w-5 text-red-500" />
-             </div>
-             <div className="flex-1 space-y-2">
-               <div className="flex items-center gap-2">
-                 <span className="font-bold text-sm">Areas for Improvement</span>
-               </div>
-               <div className="rounded-2xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-5 shadow-sm">
-                 <ul className="space-y-3">
-                   {result.topWeaknesses.map((w, i) => (
-                     <li key={i} className="text-sm flex items-start gap-3">
-                       <div className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-                       <span className="text-foreground/80 leading-relaxed font-medium">{w}</span>
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             </div>
-           </div>
-        )}
+        {/* Guest Lock Overlay for Content Below Strengths */}
+        {isDoneTyping && isGuest ? (
+          <div className="relative mt-8 group animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
+            {/* The actual blurred content preview (Weaknesses, Recommendations) */}
+            <div className="pointer-events-none select-none blur-sm opacity-40 space-y-6">
+              <div className="flex gap-4">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm">Areas for Improvement</span>
+                  </div>
+                  <div className="rounded-2xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-5 shadow-sm h-32">
+                     <div className="h-4 w-3/4 bg-red-500/20 rounded mb-3"></div>
+                     <div className="h-4 w-1/2 bg-red-500/20 rounded"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                  <Target className="h-5 w-5 text-blue-500" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm">Actionable Recommendations</span>
+                  </div>
+                  <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 p-5 shadow-sm h-32">
+                     <div className="h-4 w-full bg-blue-500/20 rounded mb-3"></div>
+                     <div className="h-4 w-5/6 bg-blue-500/20 rounded mb-3"></div>
+                     <div className="h-4 w-4/6 bg-blue-500/20 rounded"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        {/* Recommendations Bubble */}
-        {isDoneTyping && (
-           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500">
-             <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-               <Target className="h-5 w-5 text-blue-500" />
-             </div>
-             <div className="flex-1 space-y-2">
-               <div className="flex items-center gap-2">
-                 <span className="font-bold text-sm">Actionable Recommendations</span>
-               </div>
-               <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 p-5 shadow-sm">
-                 {result.topRecommendations.length > 0 ? (
-                   <ul className="space-y-3">
-                     {result.topRecommendations.map((r, i) => (
-                       <li key={i} className="text-sm flex items-start gap-3">
-                         <span className="text-blue-500 font-bold bg-blue-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{i + 1}</span>
-                         <span className="text-foreground/80 leading-relaxed font-medium">{r}</span>
-                       </li>
-                     ))}
-                   </ul>
-                 ) : (
-                   <p className="text-sm text-foreground/80 leading-relaxed font-medium">No major areas of improvement found. Excellent profile!</p>
-                 )}
-               </div>
-             </div>
-           </div>
-        )}
-
-        {/* Mismatches Bubble */}
-        {isDoneTyping && mismatches && mismatches.length > 0 && (
-           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[600ms]">
-             <div className="h-10 w-10 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
-               <AlertTriangle className="h-5 w-5 text-orange-500" />
-             </div>
-             <div className="flex-1 space-y-2">
-               <div className="flex items-center gap-2">
-                 <span className="font-bold text-sm">Cross-Reference Discrepancies</span>
-               </div>
-               <div className="rounded-2xl rounded-tl-none border border-orange-500/20 bg-orange-500/5 p-5 shadow-sm">
-                 <ul className="space-y-3">
-                   {mismatches.map((m, i) => (
-                     <li key={i} className="text-sm flex items-start gap-3">
-                       <span className="text-orange-500 font-bold bg-orange-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{m.sources.join(' ⚡ ')}</span>
-                       <span className="text-foreground/80 leading-relaxed font-medium">{m.description}</span>
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             </div>
-           </div>
-        )}
-
-        {/* Radar Chart Bubble */}
-        {isDoneTyping && result.radar && result.overallScore > 0 && (
-           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[800ms]">
-             <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-               <Target className="h-5 w-5 text-primary" />
-             </div>
-             <div className="flex-1 space-y-2">
-               <div className="flex items-center gap-2">
-                 <span className="font-bold text-sm">Competency Radar</span>
-               </div>
-                <div className="rounded-2xl rounded-tl-none border border-primary/20 bg-primary/5 p-5 shadow-sm h-72 min-h-[288px] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={10} minHeight={200}>
-                   <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                     <PolarGrid stroke="#888888" strokeOpacity={0.2} />
-                     <PolarAngleAxis dataKey="subject" tick={{ fill: '#888888', fontSize: 11, fontWeight: 'bold' }} />
-                     <Radar name="Candidate" dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
-                   </RadarChart>
-                 </ResponsiveContainer>
-               </div>
-             </div>
-           </div>
-        )}
-
-        {/* Telemetry Attachment Bubble */}
-        {isDoneTyping && (
-           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1000ms]">
-             <div className="h-10 w-10 shrink-0 rounded-full bg-muted/50 flex items-center justify-center border border-border/50">
-               <FileCode2 className="h-5 w-5 text-muted-foreground" />
-             </div>
-             <div className="flex-1 space-y-2">
-               <div className="flex items-center gap-2">
-                 <span className="font-bold text-sm">Extracted Telemetry</span>
-               </div>
-               <div 
-                 onClick={() => setShowModal(true)}
-                 className="rounded-xl border border-border/50 bg-card p-4 shadow-sm flex items-center gap-4 cursor-pointer hover:bg-muted/30 hover:border-primary/30 transition-all group"
-               >
-                 <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                   <FileText className="h-6 w-6 text-primary" />
+            {/* Premium CTA Overlay */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-6 bg-gradient-to-t from-background/90 via-background/60 to-transparent">
+              <div className="bg-card border border-primary/20 shadow-2xl rounded-3xl p-8 max-w-md text-center transform transition-transform group-hover:scale-105 duration-300">
+                <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+                </div>
+                <h3 className="text-xl font-bold mb-2 tracking-tight">Unlock Your Full AI Report</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  You've previewed your strengths! Sign up for a free account to unlock your personalized areas for improvement, actionable recommendations, and raw extraction telemetry.
+                </p>
+                <div className="space-y-3">
+                  <Button className="w-full h-12 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)]" onClick={() => window.location.href = '/register'}>
+                    Create Free Account
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Already have an account? <a href="/login" className="text-primary font-bold hover:underline">Log in</a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Weaknesses Bubble */}
+            {isDoneTyping && result.topWeaknesses.length > 0 && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                 <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                   <AlertTriangle className="h-5 w-5 text-red-500" />
                  </div>
-                 <div className="flex-1">
-                   <p className="font-bold text-sm group-hover:text-primary transition-colors">raw_source_telemetry.md</p>
-                   <p className="text-xs text-muted-foreground mt-0.5">Click to view detailed extraction logs</p>
+                 <div className="flex-1 space-y-2">
+                   <div className="flex items-center gap-2">
+                     <span className="font-bold text-sm">Areas for Improvement</span>
+                   </div>
+                   <div className="rounded-2xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-5 shadow-sm">
+                     <ul className="space-y-3">
+                       {result.topWeaknesses.map((w, i) => (
+                         <li key={i} className="text-sm flex items-start gap-3">
+                           <div className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                           <span className="text-foreground/80 leading-relaxed font-medium">{w}</span>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
                  </div>
                </div>
-             </div>
-           </div>
-        )}
+            )}
 
-        {/* Action Buttons */}
-        {isDoneTyping && (
-           <div className="pt-8 flex justify-end animate-in fade-in duration-1000 delay-1000">
-             <Button onClick={onReset} variant="outline" className="shadow-sm border-border/50 hover:bg-muted/50">
-               Run Another Analysis
-             </Button>
-           </div>
+            {/* Recommendations Bubble */}
+            {isDoneTyping && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500">
+                 <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                   <Target className="h-5 w-5 text-blue-500" />
+                 </div>
+                 <div className="flex-1 space-y-2">
+                   <div className="flex items-center gap-2">
+                     <span className="font-bold text-sm">Actionable Recommendations</span>
+                   </div>
+                   <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 p-5 shadow-sm">
+                     {result.topRecommendations.length > 0 ? (
+                       <ul className="space-y-3">
+                         {result.topRecommendations.map((r, i) => (
+                           <li key={i} className="text-sm flex items-start gap-3">
+                             <span className="text-blue-500 font-bold bg-blue-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{i + 1}</span>
+                             <span className="text-foreground/80 leading-relaxed font-medium">{r}</span>
+                           </li>
+                         ))}
+                       </ul>
+                     ) : (
+                       <p className="text-sm text-foreground/80 leading-relaxed font-medium">No major areas of improvement found. Excellent profile!</p>
+                     )}
+                   </div>
+                 </div>
+               </div>
+            )}
+
+            {/* Mismatches Bubble */}
+            {isDoneTyping && mismatches && mismatches.length > 0 && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[600ms]">
+                 <div className="h-10 w-10 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                   <AlertTriangle className="h-5 w-5 text-orange-500" />
+                 </div>
+                 <div className="flex-1 space-y-2">
+                   <div className="flex items-center gap-2">
+                     <span className="font-bold text-sm">Cross-Reference Discrepancies</span>
+                   </div>
+                   <div className="rounded-2xl rounded-tl-none border border-orange-500/20 bg-orange-500/5 p-5 shadow-sm">
+                     <ul className="space-y-3">
+                       {mismatches.map((m, i) => (
+                         <li key={i} className="text-sm flex items-start gap-3">
+                           <span className="text-orange-500 font-bold bg-orange-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{m.sources.join(' ⚡ ')}</span>
+                           <span className="text-foreground/80 leading-relaxed font-medium">{m.description}</span>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
+                 </div>
+               </div>
+            )}
+
+            {/* Radar Chart Bubble */}
+            {isDoneTyping && result.radar && result.overallScore > 0 && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[800ms]">
+                 <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                   <Target className="h-5 w-5 text-primary" />
+                 </div>
+                 <div className="flex-1 space-y-2">
+                   <div className="flex items-center gap-2">
+                     <span className="font-bold text-sm">Competency Radar</span>
+                   </div>
+                    <div className="rounded-2xl rounded-tl-none border border-primary/20 bg-primary/5 p-5 shadow-sm h-72 min-h-[288px] w-full">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={10} minHeight={200}>
+                       <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                         <PolarGrid stroke="#888888" strokeOpacity={0.2} />
+                         <PolarAngleAxis dataKey="subject" tick={{ fill: '#888888', fontSize: 11, fontWeight: 'bold' }} />
+                         <Radar name="Candidate" dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
+                       </RadarChart>
+                     </ResponsiveContainer>
+                   </div>
+                 </div>
+               </div>
+            )}
+
+            {/* Telemetry Attachment Bubble */}
+            {isDoneTyping && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1000ms]">
+                 <div className="h-10 w-10 shrink-0 rounded-full bg-muted/50 flex items-center justify-center border border-border/50">
+                   <FileCode2 className="h-5 w-5 text-muted-foreground" />
+                 </div>
+                 <div className="flex-1 space-y-2">
+                   <div className="flex items-center gap-2">
+                     <span className="font-bold text-sm">Extracted Telemetry</span>
+                   </div>
+                   <div 
+                     onClick={() => setShowModal(true)}
+                     className="rounded-xl border border-border/50 bg-card p-4 shadow-sm flex items-center gap-4 cursor-pointer hover:bg-muted/30 hover:border-primary/30 transition-all group"
+                   >
+                     <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                       <FileText className="h-6 w-6 text-primary" />
+                     </div>
+                     <div className="flex-1">
+                       <p className="font-bold text-sm group-hover:text-primary transition-colors">raw_source_telemetry.md</p>
+                       <p className="text-xs text-muted-foreground mt-0.5">Click to view detailed extraction logs</p>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+            )}
+
+            {/* Action Buttons */}
+            {isDoneTyping && (
+               <div className="pt-8 flex justify-end animate-in fade-in duration-1000 delay-1000">
+                 <Button onClick={onReset} variant="outline" className="shadow-sm border-border/50 hover:bg-muted/50">
+                   Run Another Analysis
+                 </Button>
+               </div>
+            )}
+          </>
         )}
       </div>
 
@@ -478,7 +540,7 @@ function AgentProgressDropdown({ phase, steps }: { phase: string; steps: Collect
   )
 }
 
-export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
+export function ReviewsPageClient({ reviews, isGuest = false }: { reviews: ReviewHistoryItem[], isGuest?: boolean }) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -1353,6 +1415,7 @@ export function ReviewsPageClient({ reviews }: ReviewsPageClientProps) {
                       <StreamingChatBox 
                         result={results.aiSummary} 
                         mismatches={results.mismatches}
+                        isGuest={isGuest}
                         renderSourceDetails={renderSourceDetails}
                         onReset={() => {
                           setPhase('form')
