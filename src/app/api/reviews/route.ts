@@ -20,25 +20,6 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     
     let userId = user?.id
-    const cookieStore = await cookies()
-
-    // Handle Guest Session
-    if (!userId) {
-      const guestCookie = cookieStore.get('portfolio_guest_id')
-      if (guestCookie?.value) {
-        userId = guestCookie.value
-      } else {
-        userId = crypto.randomUUID()
-        // Next.js 13+ allows setting cookies in POST route handlers
-        cookieStore.set('portfolio_guest_id', userId, {
-          maxAge: 60 * 60 * 24 * 30, // 30 days
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/'
-        })
-      }
-    }
 
     const contentType = request.headers.get('content-type') || ''
 
@@ -62,6 +43,17 @@ export async function POST(request: NextRequest) {
         resume?: ResumeAnalysis | null
         aiSummary?: AISummaryResult | null
         mismatches?: AIMismatch[]
+      }
+
+      if (!userId) {
+        // Guest mode: do not save to DB, just return the data so UI works
+        return successResponse({
+          id: 'guest_review_' + Date.now(),
+          user_id: 'guest',
+          overall_score: aiSummary?.overallScore ?? 0,
+          created_at: new Date().toISOString(),
+          full_results: { portfolio, github, resume, aiSummary, mismatches }
+        }, 'Review processed successfully (Guest mode)')
       }
 
       const review = await reviewService.saveReviewWithResults(userId, {
@@ -99,7 +91,8 @@ export async function POST(request: NextRequest) {
     })
 
     return successResponse(review, 'Review created successfully')
-  } catch {
+  } catch (error) {
+    console.error('Save review API Error:', error)
     return errorResponse('Review creation failed', 500)
   }
 }

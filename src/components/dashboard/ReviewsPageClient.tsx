@@ -277,8 +277,8 @@ function StreamingChatBox({
                <div className="flex items-center gap-2">
                  <span className="font-bold text-sm">Competency Radar</span>
                </div>
-               <div className="rounded-2xl rounded-tl-none border border-primary/20 bg-primary/5 p-5 shadow-sm h-72">
-                 <ResponsiveContainer width="100%" height="100%">
+                <div className="rounded-2xl rounded-tl-none border border-primary/20 bg-primary/5 p-5 shadow-sm h-72 min-h-[288px] w-full">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={10} minHeight={200}>
                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
                      <PolarGrid stroke="#888888" strokeOpacity={0.2} />
                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#888888', fontSize: 11, fontWeight: 'bold' }} />
