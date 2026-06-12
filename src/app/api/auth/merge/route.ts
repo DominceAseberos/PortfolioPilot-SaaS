@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('Must be logged in to merge sessions', 401)
     }
 
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const guestId = cookieStore.get('portfolio_guest_id')?.value
 
     if (guestId) {

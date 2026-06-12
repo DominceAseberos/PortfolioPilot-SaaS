@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     
     let userId = user?.id
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
 
     // Handle Guest Session
     if (!userId) {
@@ -114,7 +114,7 @@ export async function GET() {
     let userId = user?.id
 
     if (!userId) {
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       const guestCookie = cookieStore.get('portfolio_guest_id')
       if (guestCookie?.value) {
         userId = guestCookie.value
