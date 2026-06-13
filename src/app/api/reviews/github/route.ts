@@ -5,7 +5,9 @@ import { successResponse, errorResponse } from '@/utils/api'
 import { createClient } from '@/lib/supabase/server'
 import { creditRepository } from '@/features/credits/repositories/credit.repository'
 
-const CREDIT_COST = 1 // GitHub Analysis is cheaper (text only)
+import { getAnalysisCost } from '@/config/pricing'
+
+const CREDIT_COST = getAnalysisCost('github')
 
 export async function POST(request: NextRequest) {
   try {

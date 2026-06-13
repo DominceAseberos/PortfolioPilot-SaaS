@@ -5,7 +5,9 @@ import { FILE_UPLOAD } from '@/constants'
 import { createClient } from '@/lib/supabase/server'
 import { creditRepository } from '@/features/credits/repositories/credit.repository'
 
-const CREDIT_COST = 2 // Resume parsing + AI is relatively heavy
+import { getAnalysisCost } from '@/config/pricing'
+
+const CREDIT_COST = getAnalysisCost('resume')
 
 export async function POST(request: NextRequest) {
   try {

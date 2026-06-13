@@ -24,9 +24,16 @@
 
   --animate-simulate-scroll: simulate-scroll 45s ease-in-out infinite;
   @keyframes simulate-scroll {
-    0% { transform: translateY(0); }
-    50% { transform: translateY(calc(-100% + 100vh)); }
-    100% { transform: translateY(0); }
+    0% { transform: scale(0.5) translateY(0); }
+    50% { transform: scale(0.5) translateY(-30%); }
+    100% { transform: scale(0.5) translateY(0); }
+  }
+  --animate-scan-line: scan-line 4s linear infinite;
+  @keyframes scan-line {
+    0% { top: 0; opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
   }
 }
 

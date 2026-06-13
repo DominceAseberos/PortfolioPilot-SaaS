@@ -97,6 +97,7 @@ export interface PortfolioDetails {
   authorName?: string
   socialLinks?: string[]
   projectLinks?: string[]
+  markdown?: string
 }
 
 export interface PortfolioAnalysis {

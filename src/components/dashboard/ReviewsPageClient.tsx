@@ -103,6 +103,7 @@ function StreamingChatBox({
   onReset: () => void
   renderSourceDetails: (id: 'portfolio' | 'github' | 'resume', label: string) => React.ReactNode
 }) {
+  const [isThinking, setIsThinking] = useState(!isHistory)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? result.overallScore : 0)
   const [displayedText, setDisplayedText] = useState(isHistory ? result.summary : '')
   const [showModal, setShowModal] = useState(false)
@@ -123,48 +124,38 @@ function StreamingChatBox({
     const targetScore = result.overallScore
     setDisplayedText('')
 
-    const interval = setInterval(() => {
-      i += 2 // Type 2 chars at a time
-      if (i > text.length) {
-        setDisplayedText(text)
-        setAnimatedScore(targetScore)
-        clearInterval(interval)
-        return
-      }
-      setDisplayedText(text.slice(0, i))
-      
-      // Calculate score based on percentage of text typed
-      const progress = i / text.length
-      setAnimatedScore(Math.floor(progress * targetScore))
-      
-    }, 15)
-    return () => clearInterval(interval)
+    const thinkTimeout = setTimeout(() => {
+      setIsThinking(false)
+      const interval = setInterval(() => {
+        i += 2 // Type 2 chars at a time
+        if (i > text.length) {
+          setDisplayedText(text)
+          setAnimatedScore(targetScore)
+          clearInterval(interval)
+          return
+        }
+        setDisplayedText(text.slice(0, i))
+        
+        // Calculate score based on percentage of text typed
+        const progress = i / text.length
+        setAnimatedScore(Math.floor(progress * targetScore))
+        
+      }, 15)
+      // Cleanup inner interval on unmount
+      return () => clearInterval(interval)
+    }, 1500) // 1.5 seconds thinking delay
+
+    return () => clearTimeout(thinkTimeout)
   }, [result.summary, result.overallScore, isHistory])
 
-  const isDoneTyping = isHistory || displayedText.length >= result.summary.length
+  const isDoneTyping = isHistory || (!isThinking && displayedText.length >= result.summary.length)
+  const activeSourceCount = [result.sourceBreakdown.portfolio, result.sourceBreakdown.github, result.sourceBreakdown.resume].filter(Boolean).length
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-6 border-b border-border/50">
-        <div>
-           <h3 className="text-xl font-bold">Analysis Complete</h3>
-           <p className="text-sm text-muted-foreground">The Pilot Review agent has finished its analysis.</p>
-        </div>
-        <div className="flex flex-col items-end">
-           {animatedScore > 0 ? (
-             <>
-               <ScoreBadge score={animatedScore} size="lg" />
-               <p className="text-xs text-muted-foreground mt-1 font-medium">Overall Score</p>
-             </>
-           ) : (
-             <p className="text-xs text-muted-foreground mt-1 font-medium px-3 py-1 bg-muted/50 rounded-full">Score N/A</p>
-           )}
-        </div>
-      </div>
       
       {/* Chat Thread */}
-      <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar pb-10">
+      <div className="flex-1 pr-2 space-y-6 pb-10">
         {/* Main AI Summary Chat Bubble */}
         <div className="flex gap-4">
            <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -176,16 +167,25 @@ function StreamingChatBox({
                <span className="text-xs text-muted-foreground">Just now</span>
              </div>
              <div className="rounded-2xl rounded-tl-none bg-muted/30 border border-border/50 p-5 text-sm leading-relaxed text-foreground/90 font-medium shadow-sm">
-               {displayedText}
-               {!isDoneTyping && (
-                 <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary animate-pulse" />
-               )}
+                {isThinking ? (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span className="italic">Analyzing code and formulating report...</span>
+                  </div>
+                ) : (
+                  <>
+                    {displayedText}
+                    {!isDoneTyping && (
+                      <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary animate-pulse" />
+                    )}
+                  </>
+                )}
              </div>
            </div>
         </div>
         
         {/* Individual Scores Bubble */}
-        {isDoneTyping && (
+        {isDoneTyping && activeSourceCount > 1 && (
            <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
              <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
                <BarChart2 className="h-5 w-5 text-indigo-500" />
@@ -435,12 +435,31 @@ function StreamingChatBox({
                </div>
             )}
 
-            {/* Action Buttons */}
+            {/* Final Overall Score Bubble */}
             {isDoneTyping && (
-               <div className="pt-8 flex justify-end animate-in fade-in duration-1000 delay-1000">
-                 <Button onClick={onReset} variant="outline" className="shadow-sm border-border/50 hover:bg-muted/50">
-                   Run Another Analysis
-                 </Button>
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1200ms] mt-4">
+                 <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                   <Sparkles className="h-5 w-5 text-primary" />
+                 </div>
+                 <div className="flex-1 space-y-2">
+                   <div className="flex items-center gap-2">
+                     <span className="font-bold text-sm">Final Evaluation</span>
+                   </div>
+                   <div className="rounded-2xl rounded-tl-none border border-primary/20 bg-card p-5 shadow-sm flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-primary">Analysis Complete</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">The Pilot Review agent has finalized the report.</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider hidden sm:block">Overall Score</p>
+                         {animatedScore > 0 ? (
+                           <ScoreBadge score={animatedScore} size="lg" />
+                         ) : (
+                           <span className="text-xs text-muted-foreground font-medium px-3 py-1 bg-muted/50 rounded-full">N/A</span>
+                         )}
+                      </div>
+                   </div>
+                 </div>
                </div>
             )}
           </>
@@ -549,6 +568,55 @@ function AgentProgressDropdown({ phase, steps }: { phase: string; steps: Collect
   )
 }
 
+function LiveCrawlerPreview({ 
+  portfolioUrl, 
+  githubUsername, 
+  resumeFileName 
+}: { 
+  portfolioUrl?: string; 
+  githubUsername?: string; 
+  resumeFileName?: string;
+}) {
+  const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0)
+  
+  const crawlerPhases = [
+    { action: 'Spidering', label: 'site structure & links' },
+    { action: 'Compiling', label: 'DOM layers & text nodes' },
+    { action: 'Extracting', label: 'semantic metadata' },
+    { action: 'Running', label: 'heuristic algorithms' },
+    { action: 'Finalizing', label: 'Markdown distillation payload' }
+  ]
+
+  useEffect(() => {
+    if (!portfolioUrl) return
+    const interval = setInterval(() => {
+      setCurrentPhaseIndex(prev => (prev + 1) % crawlerPhases.length)
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [portfolioUrl])
+
+  const activePhase = crawlerPhases[currentPhaseIndex]
+  const normalizedUrl = portfolioUrl ? (portfolioUrl.startsWith('http') ? portfolioUrl : `https://${portfolioUrl}`) : ''
+  const baseUrl = normalizedUrl.replace(/\/$/, '')
+
+  return (
+    <div className="w-full flex flex-col space-y-4 animate-in fade-in zoom-in duration-500 p-2">
+      <div className="flex items-center gap-3 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+        <span className="italic text-sm">
+          {portfolioUrl ? (
+            <>{activePhase.action} <span className="font-mono text-primary font-bold">{activePhase.label}</span>...</>
+          ) : githubUsername ? (
+            <>Cloning and analyzing GitHub repositories for <span className="font-mono text-purple-500 font-bold">{githubUsername}</span>...</>
+          ) : (
+            <>Extracting data points from <span className="font-mono text-emerald-500 font-bold">{resumeFileName}</span>...</>
+          )}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [] }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[] }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -557,6 +625,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [portfolioUrl, setPortfolioUrl] = useState(searchParams?.get('portfolio') || '')
   const [githubUsername, setGithubUsername] = useState(searchParams?.get('github') || '')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [analysisId, setAnalysisId] = useState<string>('')
   const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -877,6 +946,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
     // ── Phase 3: Finalizing (save + show results) ──
     setPhase('finalizing')
+    setAnalysisId(Date.now().toString())
 
     try {
       const payload: Record<string, unknown> = {}
@@ -898,9 +968,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
       if (createJson.success) {
         toast.success('Analysis securely stored to history')
-        setPortfolioUrl('')
-        setGithubUsername('')
-        setResumeFile(null)
         setTimeout(() => router.refresh(), 2000)
       } else {
         toast.error('Failed to store analysis in history')
@@ -1348,8 +1415,8 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-64px)] overflow-hidden relative">
       
-      {/* Recents Toggle Button (Only on Form Phase) */}
-      {phase === 'form' && reviews.length > 0 && (
+      {/* Recents Toggle Button (Always visible) */}
+      {reviews.length > 0 && (
          <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-50">
            <Button 
              variant="ghost" 
@@ -1382,23 +1449,12 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
          </div>
       )}
 
-      {phase !== 'form' && (
-        <div className="pb-4 pt-2">
-          <h1 className="text-xl font-bold flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2">
-              <Search className="h-5 w-5 text-primary" />
-            </div>
-            New Review Analysis
-          </h1>
-        </div>
-      )}
 
       <div className={`flex flex-col lg:flex-row flex-1 w-full h-full gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
         <div className={`w-full h-full transition-all duration-700 flex flex-col justify-start relative`}>
-                {(phase === 'form' || phase === 'collecting' || phase === 'finalizing') ? (
-                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-start">
-                     <NeuralChatLanding 
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-start">
+                  <NeuralChatLanding 
                        portfolioUrl={portfolioUrl}
                        setPortfolioUrl={setPortfolioUrl}
                        githubUsername={githubUsername}
@@ -1408,10 +1464,16 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                        onSubmit={handleSubmit}
                        isLoading={isLoading}
                        credits={credits}
+                       analysisId={analysisId}
+                       isScanning={phase === 'collecting' || phase === 'analyzing'}
                        collectingNode={
                          phase === 'collecting' ? (
                            <div className="rounded-2xl border border-border/50 bg-card p-2 shadow-sm w-full max-w-xl">
-                             <AgentProgressDropdown phase={phase} steps={collectingSteps} />
+                             <LiveCrawlerPreview 
+                               portfolioUrl={portfolioUrl} 
+                               githubUsername={githubUsername} 
+                               resumeFileName={resumeFile?.name} 
+                             />
                            </div>
                          ) : null
                        }
@@ -1429,7 +1491,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                        }
                        resultNode={
                          phase === 'finalizing' && results.aiSummary ? (
-                           <div className="w-full mt-6">
                              <StreamingChatBox 
                                result={results.aiSummary} 
                                mismatches={results.mismatches}
@@ -1443,12 +1504,10 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                                  setIsHistoryMode(false)
                                }} 
                              />
-                           </div>
                          ) : null
                        }
                      />
-                   </div>
-                  ) : null}
+                    </div>
               </div>
               
               {/* Right Side: 3D Visual (Removed) */}

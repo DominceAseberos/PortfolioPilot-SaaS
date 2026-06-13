@@ -110,6 +110,55 @@ Use null for missing fields. Empty arrays for missing lists. No markdown.`,
   }
 }
 
+export async function analyzePortfolioWithAI(markdown: string): Promise<Partial<PortfolioAnalysis> | null> {
+  const client = createClient()
+  if (!client) return null
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert web portfolio auditor. Analyze the provided portfolio markdown and return JSON only.
+
+Return this exact structure:
+{
+  "score": 0-100,
+  "strengths": ["..."],
+  "weaknesses": ["..."],
+  "recommendations": ["..."]
+}
+
+Score: 90-100 excellent, 70-89 good, 50-69 average, below 50 needs work.
+Strengths, weaknesses, and recommendations should be tailored specifically to the portfolio content, tech stack, and design. Max 5 items per array. Use empty arrays if nothing applies. No markdown outside of the JSON.`,
+        },
+        {
+          role: 'user',
+          content: markdown.slice(0, 10000), // Protect against massive documents
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 1000,
+      response_format: { type: 'json_object' },
+    })
+
+    const content = response.choices?.[0]?.message?.content
+    if (!content) return null
+
+    const parsed = JSON.parse(content)
+    return {
+      score: parsed.score ?? 50,
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+      weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
+      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+    }
+  } catch (error) {
+    logger.error('AI portfolio analysis failed', { error: String(error) })
+    return null
+  }
+}
+
 export function computeFallbackSummary(
   portfolio?: PortfolioAnalysis,
   github?: GitHubAnalysis,

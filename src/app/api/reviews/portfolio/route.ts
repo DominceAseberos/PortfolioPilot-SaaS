@@ -5,7 +5,9 @@ import { successResponse, errorResponse } from '@/utils/api'
 import { createClient } from '@/lib/supabase/server'
 import { creditRepository } from '@/features/credits/repositories/credit.repository'
 
-const CREDIT_COST = 2 // Deep UI Portfolio Analysis
+import { getAnalysisCost } from '@/config/pricing'
+
+const CREDIT_COST = getAnalysisCost('portfolio')
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,5 +1,7 @@
 import type { PortfolioAnalysis, PortfolioCheck, PortfolioDetails } from '@/types'
 import { logger } from '@/lib/logger'
+import TurndownService from 'turndown'
+import { analyzePortfolioWithAI } from '@/features/ai/services/ai.service'
 
 interface ExtractedContent {
   headings: string[]
@@ -11,6 +13,7 @@ interface ExtractedContent {
   socialLinks: string[]
   projectLinks: string[]
   authorName: string
+  markdown?: string
 }
 
 function extractContent(html: string): ExtractedContent {
@@ -68,7 +71,18 @@ function extractContent(html: string): ExtractedContent {
   const images = (html.match(/<img[^>]+>/gi) || []).length
   const imagesNoAlt = (html.match(/<img(?![^>]*\salt=)[^>]*>/gi) || []).length
 
-  return { headings, paragraphs, links, images, brokenLinks, imagesNoAlt, socialLinks, projectLinks, authorName }
+  const turndownService = new TurndownService({ headingStyle: 'atx' })
+  // Strip out irrelevant script and style tags before markdown conversion
+  const cleanHtmlForMarkdown = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                                   .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+  let markdown = ''
+  try {
+    markdown = turndownService.turndown(cleanHtmlForMarkdown)
+  } catch (e) {
+    logger.warn('Turndown conversion failed', { error: String(e) })
+  }
+
+  return { headings, paragraphs, links, images, brokenLinks, imagesNoAlt, socialLinks, projectLinks, authorName, markdown }
 }
 
 function countTags(html: string, tag: string): number {
@@ -111,6 +125,36 @@ export class PortfolioService {
       }
 
       const content = extractContent(html)
+      let allMarkdown = content.markdown || ''
+
+      // LAYER 2 DEEP CRAWLER
+      // Collect up to 3 internal sub-pages (e.g. /about, /projects)
+      const internalLinks = content.links.filter(href => {
+         if (href === '/' || href === '#' || href.startsWith('mailto:')) return false
+         return href.startsWith('/') || href.startsWith(portfolioUrl)
+      })
+      const uniqueInternal = Array.from(new Set(internalLinks)).slice(0, 3)
+
+      if (uniqueInternal.length > 0 && process.env.SCRAPINGANT_API_KEY) {
+        logger.info(`Spidering internal pages for ${portfolioUrl}`, { pages: uniqueInternal })
+        const promises = uniqueInternal.map(async (link) => {
+          const absoluteUrl = link.startsWith('/') ? portfolioUrl.replace(/\/$/, '') + link : link
+          const subUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(absoluteUrl)}&browser=true`
+          try {
+            const subRes = await fetch(subUrl, { headers, signal: AbortSignal.timeout(15000) })
+            const subHtml = await subRes.text()
+            const subContent = extractContent(subHtml)
+            if (subContent.markdown) {
+               return `\n\n### Page: ${absoluteUrl}\n\n${subContent.markdown}`
+            }
+          } catch(e) {
+            logger.warn(`Failed to spider internal page: ${absoluteUrl}`, { error: String(e) })
+          }
+          return ''
+        })
+        const subMarkdowns = await Promise.all(promises)
+        allMarkdown += subMarkdowns.join('')
+      }
 
       const usesClientFramework = this.detectsClientFramework(html)
       const isSparse = content.headings.length < 2 && content.paragraphs.length < 3
@@ -337,17 +381,32 @@ export class PortfolioService {
       }
 
       const details: PortfolioDetails = {
-        url: portfolioUrl,
-        checks,
-        contentHeadings: content.headings.slice(0, 10),
-        contentParagraphs: content.paragraphs.slice(0, 5).map((p) => p.slice(0, 200)),
-        contentLinkCount: content.links.length,
-        contentImageCount: content.images,
-        hasPlaceholderText,
-        isTemplate,
-        authorName: content.authorName,
-        socialLinks: content.socialLinks,
-        projectLinks: content.projectLinks,
+          url: portfolioUrl,
+          checks,
+          contentHeadings: content.headings.slice(0, 10),
+          contentParagraphs: content.paragraphs.slice(0, 5),
+          contentLinkCount: content.links.length,
+          contentImageCount: content.images,
+          hasPlaceholderText,
+          isTemplate,
+          authorName: content.authorName,
+          socialLinks: content.socialLinks,
+          projectLinks: content.projectLinks,
+          markdown: allMarkdown,
+        }
+
+      if (allMarkdown) {
+        logger.info(`Running Layer 2 AI Distillation for ${portfolioUrl}`)
+        const aiResult = await analyzePortfolioWithAI(allMarkdown)
+        if (aiResult) {
+          return {
+            score: aiResult.score ?? score,
+            strengths: aiResult.strengths?.length ? aiResult.strengths : strengths,
+            weaknesses: aiResult.weaknesses?.length ? aiResult.weaknesses : weaknesses,
+            recommendations: aiResult.recommendations?.length ? aiResult.recommendations : recommendations,
+            details,
+          }
+        }
       }
 
       return { score, strengths, weaknesses, recommendations, details }
@@ -375,25 +434,10 @@ export class PortfolioService {
   }
 
   private isLikelyPortfolio(html: string): boolean {
-    const textContent = html.replace(/<[^>]+>/g, ' ').toLowerCase()
-    
-    const keywords = [
-      'portfolio', 'resume', 'projects', 'experience', 
-      'about me', 'contact', 'developer', 'engineer', 
-      'designer', 'freelance', 'work', 'skills', 
-      'education', 'hire', 'about', 'services', 'cv'
-    ]
-    
-    let matchCount = 0
-    for (const kw of keywords) {
-      if (new RegExp(`\\b${kw}\\b`).test(textContent)) {
-        matchCount++
-      }
-    }
-    
-    // We require at least 2 distinct portfolio keywords to proceed
-    // This filters out generic websites, search engines, and random SaaS pages
-    return matchCount >= 2
+    // We are migrating to Layer 2 AI Extraction. 
+    // We no longer strictly block based on simple keyword regex heuristics
+    // as it frequently produces false negatives for minimalist portfolios.
+    return true
   }
 
   private getRecommendation(checkName: string): string {

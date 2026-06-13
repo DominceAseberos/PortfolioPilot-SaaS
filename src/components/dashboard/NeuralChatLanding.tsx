@@ -18,28 +18,62 @@ interface ChatMessage {
   role: 'system' | 'user'
   content: React.ReactNode
   fullWidth?: boolean
+  naked?: boolean
 }
 
 const DynamicProceedContext = React.createContext<{
   portfolioUrl: string
   githubUsername: string
   resumeFile: File | null
+  isScanning: boolean
 }>({
   portfolioUrl: '',
   githubUsername: '',
-  resumeFile: null
+  resumeFile: null,
+  isScanning: false
 })
 
 function SmartPortfolioPreview({ url, originalInput }: { url: string, originalInput: string }) {
-  const { portfolioUrl } = React.useContext(DynamicProceedContext)
+  const { portfolioUrl, isScanning } = React.useContext(DynamicProceedContext)
   const isActive = originalInput === portfolioUrl
   if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/> Previous Preview Dismissed</div>
   const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
   return (
     <div className="mt-4 relative w-full h-[300px] sm:h-[400px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes inline-scan-line {
+          0% { top: -30%; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
+        }
+      `}} />
       <div className="absolute top-0 left-0 w-[200%] h-[200%] origin-top-left scale-50">
-         <iframe src={normalizedUrl} className="w-full h-full border-0 bg-background" title="Portfolio Live Preview" sandbox="allow-scripts allow-same-origin" />
+         <iframe src={normalizedUrl} className="w-full h-full border-0 bg-background custom-scrollbar" title="Portfolio Live Preview" sandbox="allow-scripts allow-same-origin" />
       </div>
+      {isScanning && isActive && (
+         <>
+           <div className="absolute inset-0 z-10 bg-primary/10 mix-blend-overlay pointer-events-none transition-opacity duration-1000" />
+           {/* High-Tech Radar Sweep */}
+           <div 
+             className="absolute left-0 right-0 z-20 pointer-events-none border-b border-green-500 shadow-[0_4px_15px_rgba(34,197,94,0.4)]" 
+             style={{ 
+               height: '30%',
+               background: 'linear-gradient(to bottom, transparent 0%, rgba(34, 197, 94, 0.02) 50%, rgba(34, 197, 94, 0.15) 100%)',
+               animation: 'inline-scan-line 3s linear infinite' 
+             }}
+           />
+           {/* Scanning Reticle Overlays */}
+           <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-green-500/50 z-20 pointer-events-none" />
+           <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-green-500/50 z-20 pointer-events-none" />
+           <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-green-500/50 z-20 pointer-events-none" />
+           
+           <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-md px-3 py-2 rounded-md text-[10px] sm:text-xs font-mono text-muted-foreground border border-border/50 shadow-sm flex items-center gap-2 z-20">
+             <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
+             <span className="uppercase tracking-wider font-bold">Layer 2 Extractor Active</span>
+           </div>
+         </>
+      )}
     </div>
   )
 }
@@ -105,7 +139,9 @@ interface NeuralChatLandingProps {
   collectingNode?: React.ReactNode
   errorNode?: React.ReactNode
   resultNode?: React.ReactNode
+  analysisId?: string
   credits?: number
+  isScanning?: boolean
 }
 
 export function NeuralChatLanding({
@@ -120,7 +156,9 @@ export function NeuralChatLanding({
   collectingNode,
   errorNode,
   resultNode,
-  credits = 0
+  analysisId,
+  credits = 0,
+  isScanning
 }: NeuralChatLandingProps) {
   const [chatLog, setChatLog] = useState<ChatMessage[]>([
     {
@@ -157,7 +195,34 @@ export function NeuralChatLanding({
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
     }
-  }, [chatLog, isChatProcessing])
+  }, [chatLog, isChatProcessing, resultNode])
+
+  // Append resultNode to chatLog for continuous session history
+  useEffect(() => {
+    if (resultNode && analysisId) {
+      setChatLog(prev => {
+        const resultId = `result-${analysisId}`
+        if (prev.find(m => m.id === resultId)) return prev
+        
+        // Wrap the resultNode to override its isHistory prop so the button hides on old results
+        const storedNode = (
+          <div className="w-full mt-6">
+            {React.isValidElement(resultNode) 
+              ? React.cloneElement(resultNode as React.ReactElement, { isHistory: true }) 
+              : resultNode}
+          </div>
+        )
+        
+        return [...prev, {
+          id: resultId,
+          role: 'system',
+          fullWidth: true,
+          naked: true,
+          content: storedNode
+        }]
+      })
+    }
+  }, [resultNode, analysisId])
 
   const stripGitHubUrl = (input: string): string => {
     const match = input
@@ -485,7 +550,7 @@ export function NeuralChatLanding({
   }
 
   return (
-    <DynamicProceedContext.Provider value={{ portfolioUrl, githubUsername, resumeFile }}>
+    <DynamicProceedContext.Provider value={{ portfolioUrl, githubUsername, resumeFile, isScanning: isScanning ?? false }}>
       <div className="flex flex-col h-full w-full mx-auto relative pt-4">
       {/* Messages */}
       <div 
@@ -511,15 +576,40 @@ export function NeuralChatLanding({
                     <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
                )}
-               <div className={`${msg.fullWidth ? 'w-full' : 'max-w-[85%] sm:max-w-[75%]'} rounded-[1.5rem] px-5 py-4 shadow-sm ${msg.role === 'user' ? 'bg-foreground text-background rounded-tr-sm' : 'bg-card border border-border/50 text-foreground rounded-tl-sm'}`}>
+               <div className={`${msg.fullWidth ? 'w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${msg.naked ? '' : `rounded-[1.5rem] px-5 py-4 shadow-sm ${msg.role === 'user' ? 'bg-foreground text-background rounded-tr-sm' : 'bg-card border border-border/50 text-foreground rounded-tl-sm'}`}`}>
                  {msg.content}
                </div>
              </div>
           ))}
+
+          {collectingNode && (
+             <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+               <div className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 mr-3 sm:mr-4 mt-1">
+                 <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+               </div>
+               <div className="w-full max-w-[85%] sm:max-w-[75%]">
+                 {collectingNode}
+               </div>
+             </div>
+          )}
+
+          {errorNode && (
+             <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+               <div className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 mr-3 sm:mr-4 mt-1">
+                 <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+               </div>
+               <div className="w-full max-w-[85%] sm:max-w-[75%]">
+                 {errorNode}
+               </div>
+             </div>
+          )}
+
+
+
         </div>
       </div>
 
-      {/* Input Bar Overlay */}
+      {/* Input Bar Overlay (Always visible for continuous session) */}
       <div className="absolute bottom-0 left-0 right-0 pt-4 pb-6 px-4 sm:px-6 z-20 pointer-events-none">
          <div className="w-full max-w-3xl lg:w-1/2 lg:min-w-[600px] mx-auto flex flex-col gap-3 pointer-events-auto">
             
@@ -617,12 +707,6 @@ export function NeuralChatLanding({
             </p>
          </div>
       </div>
-      
-      {resultNode && (
-        <div className="mt-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-          {resultNode}
-        </div>
-      )}
       
       </div>
     </DynamicProceedContext.Provider>
