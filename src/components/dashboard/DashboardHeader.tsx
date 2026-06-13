@@ -3,16 +3,19 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
+import { useCredits } from '@/hooks/useCredits'
 import { authService } from '@/features/auth/services/auth.service'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { Button } from '@/components/common/Button'
-import { LogOut, Settings, CreditCard, LayoutDashboard, User as UserIcon, History } from 'lucide-react'
+import { LogOut, Settings, CreditCard, LayoutDashboard, User as UserIcon, History, Coins } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { ROUTES } from '@/constants'
+import { INITIAL_FREE_TOKENS } from '@/config/pricing'
 
 export function DashboardHeader() {
   const { user } = useAuth()
+  const credits = useCredits(user?.id)
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -56,6 +59,10 @@ export function DashboardHeader() {
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-3 focus:outline-none hover:bg-muted/50 p-1.5 pr-3 rounded-full transition-colors border border-transparent hover:border-border/50"
             >
+              <div className="flex items-center gap-2 mr-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+                <Coins className="h-4 w-4 text-primary" />
+                <span className="text-sm font-bold text-primary">{credits !== null ? credits : INITIAL_FREE_TOKENS}</span>
+              </div>
               <Avatar size="sm" className="ring-2 ring-transparent ring-offset-2 hover:ring-primary/20 transition-all">
                 <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email || ''} />
                 <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
@@ -102,13 +109,17 @@ export function DashboardHeader() {
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" className="font-medium" onClick={() => router.push('/login')}>
-              Log in
-            </Button>
-            <Button className="font-bold rounded-full px-6" onClick={() => router.push('/register')}>
-              Sign up
-            </Button>
+          <div className="flex items-center gap-4">
+            <Link href={ROUTES.login} className="hidden sm:block">
+              <span className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Sign In
+              </span>
+            </Link>
+            <Link href="/dashboard/reviews">
+              <Button size="sm" className="rounded-full px-5 font-bold shadow-sm hover:shadow-md transition-all">
+                Get Started
+              </Button>
+            </Link>
           </div>
         )}
       </div>

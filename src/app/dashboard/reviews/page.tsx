@@ -12,7 +12,7 @@ export default async function ReviewsPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return <ReviewsPageClient isGuest={true} reviewCount={0} credits={0} reviews={[]} />
+    return <ReviewsPageClient isGuest={true} reviewCount={0} credits={5} reviews={[]} />
   }
 
   const isGuest = user.is_anonymous === true

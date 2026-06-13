@@ -11,6 +11,7 @@ import { Badge } from '@/components/common/Badge'
 import { ScoreBadge } from '@/components/common/ScoreBadge'
 import { ReviewHistory } from '@/components/dashboard/ReviewHistory'
 import { NeuralChatLanding } from '@/components/dashboard/NeuralChatLanding'
+import { getAnalysisCost } from '@/config/pricing'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import type {
   PortfolioAnalysis,
@@ -148,7 +149,7 @@ function StreamingChatBox({
       <div className="flex items-center justify-between mb-6 pb-6 border-b border-border/50">
         <div>
            <h3 className="text-xl font-bold">Analysis Complete</h3>
-           <p className="text-sm text-muted-foreground">The Neural Core has finished its review.</p>
+           <p className="text-sm text-muted-foreground">The Pilot Review agent has finished its analysis.</p>
         </div>
         <div className="flex flex-col items-end">
            {animatedScore > 0 ? (
@@ -171,7 +172,7 @@ function StreamingChatBox({
            </div>
            <div className="flex-1 space-y-2">
              <div className="flex items-center gap-2">
-               <span className="font-bold text-sm">Neural Core</span>
+               <span className="font-bold text-sm">Pilot Agent</span>
                <span className="text-xs text-muted-foreground">Just now</span>
              </div>
              <div className="rounded-2xl rounded-tl-none bg-muted/30 border border-border/50 p-5 text-sm leading-relaxed text-foreground/90 font-medium shadow-sm">
@@ -694,29 +695,41 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       return
     }
 
-    if (isGuest) {
-      if (reviewCount >= 1) {
-        toast.error('Guest limit reached')
-        setError('You have reached your free guest review limit! Please sign up for a free account to run more analyses.')
-        setIsLoading(false)
-        return
-      }
+    let totalCost = 0
+    if (cleanPortfolio) totalCost += getAnalysisCost('portfolio')
+    if (cleanGithub) totalCost += getAnalysisCost('github')
+    if (resumeFile) totalCost += getAnalysisCost('resume')
+    
+    if (credits < totalCost) {
+      toast.error('Insufficient Credits')
+      setError(isGuest 
+        ? `This analysis requires ${totalCost} credits, but you only have ${credits} left of your free tokens. Please sign up to get more.`
+        : `This analysis requires ${totalCost} credits, but you only have ${credits} available. Please upgrade your plan to continue.`
+      )
+      setIsLoading(false)
+      return
+    }
 
+    if (isGuest) {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        const { error: authError } = await supabase.auth.signInAnonymously()
+        const { data, error: authError } = await supabase.auth.signInAnonymously()
         if (authError) {
           toast.error('Authentication failed')
           setError('Failed to initialize session. Please try again.')
           setIsLoading(false)
           return
         }
+        // Initialize the new guest with 5 free credits
+        if (data?.user) {
+           await supabase.rpc('add_credits', { p_user_id: data.user.id, p_amount: 5 })
+        }
       }
     }
 
-    toast.success('Initiating Neural Scan...')
+    toast.success('Initiating Pilot Review...')
 
     // ── Phase 1: Collect sources sequentially ──
     setPhase('collecting')
@@ -741,11 +754,11 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
     // Only resumes need heavy semantic extraction
     if (resumeFile) {
-      initialSteps.push({ id: 'resume-parse', label: 'Semantic Token Extraction', source: 'Neural Pipeline', status: 'pending' })
+      initialSteps.push({ id: 'resume-parse', label: 'Semantic Token Extraction', source: 'Pilot Pipeline', status: 'pending' })
     }
     
     const synthesizeLabel = sources.length > 1 ? 'Synthesizing Cross-Source AI Summary' : 'Synthesizing AI Analysis'
-    initialSteps.push({ id: 'synthesize', label: synthesizeLabel, source: 'Neural Core', status: 'pending' })
+    initialSteps.push({ id: 'synthesize', label: synthesizeLabel, source: 'Pilot Agent', status: 'pending' })
     
     setCollectingSteps(initialSteps)
 
@@ -1333,11 +1346,11 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
   // ── Main render ────────────────────────────────────────
   return (
-    <div className="w-full flex flex-col 2xl:max-w-screen-2xl mx-auto min-h-[calc(100vh-100px)] py-12 px-4 sm:px-8 lg:px-12 relative">
+    <div className="w-full flex flex-col h-[calc(100vh-64px)] overflow-hidden relative">
       
       {/* Recents Toggle Button (Only on Form Phase) */}
       {phase === 'form' && reviews.length > 0 && (
-         <div className="absolute top-4 left-0 sm:top-8 sm:left-0 z-50">
+         <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-50">
            <Button 
              variant="ghost" 
              className="font-bold gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-xl px-4 py-6" 
@@ -1380,9 +1393,9 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
         </div>
       )}
 
-      <div className={`flex flex-col lg:flex-row flex-1 w-full min-h-[600px] gap-8 lg:gap-12`}>
+      <div className={`flex flex-col lg:flex-row flex-1 w-full h-full gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
-        <div className={`w-full py-6 sm:py-10 transition-all duration-700 max-w-5xl mx-auto flex flex-col justify-start h-full`}>
+        <div className={`w-full h-full transition-all duration-700 flex flex-col justify-start relative`}>
                 {(phase === 'form' || phase === 'collecting' || phase === 'finalizing') ? (
                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-start">
                      <NeuralChatLanding 
@@ -1394,6 +1407,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                        setResumeFile={setResumeFile}
                        onSubmit={handleSubmit}
                        isLoading={isLoading}
+                       credits={credits}
                        collectingNode={
                          phase === 'collecting' ? (
                            <div className="rounded-2xl border border-border/50 bg-card p-2 shadow-sm w-full max-w-xl">
@@ -1502,7 +1516,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                   <div className="flex items-center gap-3">
                     <div className={`h-2 w-2 rounded-full ${error ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'} dark:${error ? 'shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'shadow-[0_0_10px_rgba(34,197,94,0.8)]'} ${phase !== 'form' && !error && phase !== 'finalizing' ? 'animate-ping' : 'animate-pulse'}`} />
                     <p className={`text-sm font-medium ${error ? 'text-red-500' : 'text-slate-800 dark:text-white/90'}`}>
-                      {error ? 'Analysis Terminated' : phase === 'finalizing' ? 'Analysis Complete' : phase === 'form' ? 'Neural Core Standing By' : 'Processing Telemetry...'}
+                      {error ? 'Analysis Terminated' : phase === 'finalizing' ? 'Analysis Complete' : phase === 'form' ? 'Pilot Agent Standing By' : 'Processing Telemetry...'}
                     </p>
                   </div>
                 </div>
