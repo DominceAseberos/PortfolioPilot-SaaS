@@ -11,13 +11,6 @@ interface ChatMessage {
   role: 'system' | 'user'
   content: React.ReactNode
   fullWidth?: boolean
-}
-
-interface ChatMessage {
-  id: string
-  role: 'system' | 'user'
-  content: React.ReactNode
-  fullWidth?: boolean
   naked?: boolean
 }
 
@@ -208,7 +201,7 @@ export function NeuralChatLanding({
         const storedNode = (
           <div className="w-full mt-6">
             {React.isValidElement(resultNode) 
-              ? React.cloneElement(resultNode as React.ReactElement, { isHistory: true }) 
+              ? React.cloneElement(resultNode as React.ReactElement, { isHistory: true } as any) 
               : resultNode}
           </div>
         )
