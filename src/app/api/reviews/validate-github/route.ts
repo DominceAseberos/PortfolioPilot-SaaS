@@ -5,11 +5,7 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { session } } = await supabase.auth.getSession()
-
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
-    }
-
+    // Validation is allowed for guests, so we don't return 401 if !session
     const { username } = await req.json()
 
     if (!username) {

@@ -221,6 +221,24 @@ export interface AISourceBreakdown {
   summary: string
 }
 
+export interface AINormalFeedback {
+  overallScore: number
+  summary: string
+  topStrengths: string[]
+}
+
+export interface AIDeepFeedback {
+  topWeaknesses: string[]
+  topRecommendations: string[]
+  radar: {
+    presentation: number
+    openSource: number
+    experience: number
+    techStack: number
+    consistency: number
+  }
+}
+
 export interface AISummaryResult {
   overallScore: number
   summary: string
@@ -239,6 +257,8 @@ export interface AISummaryResult {
     techStack: number
     consistency: number
   }
+  normalFeedback?: AINormalFeedback
+  deepFeedback?: AIDeepFeedback
 }
 
 export interface DashboardMetrics {

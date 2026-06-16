@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 import { INITIAL_FREE_TOKENS } from '@/config/pricing'
 
 export function LandingHeader() {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const credits = useCredits(user?.id)
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = useState(false)
@@ -60,7 +60,7 @@ export function LandingHeader() {
         </div>
         
         <div className="flex items-center gap-4">
-          {user ? (
+          {isAuthenticated ? (
             <div className="relative" ref={dropdownRef}>
               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -71,11 +71,11 @@ export function LandingHeader() {
                   <span className="text-sm font-bold text-primary">{credits !== null ? credits : INITIAL_FREE_TOKENS}</span>
                 </div>
                 <Avatar size="sm" className="ring-2 ring-transparent ring-offset-2 hover:ring-primary/20 transition-all">
-                  <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email || ''} />
+                  <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.email || ''} />
                   <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="hidden text-left sm:block">
-                  <p className="text-sm font-medium leading-none">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
+                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || user?.email?.split('@')[0]}</p>
                 </div>
               </button>
 

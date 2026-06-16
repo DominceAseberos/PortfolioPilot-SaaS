@@ -1,6 +1,8 @@
 import type { ResumeAnalysis, ResumeSkill, ResumeSection } from '@/types'
 import { logger } from '@/lib/logger'
 import { analyzeResumeWithAI } from '@/features/ai/services/ai.service'
+import { portfolioService } from '@/features/reviews/services/portfolio.service'
+import { gitHubService } from '@/features/github/services/github.service'
 
 export class ResumeService {
   async analyze(fileBuffer: Buffer, fileName: string): Promise<ResumeAnalysis> {
@@ -20,7 +22,25 @@ export class ResumeService {
         throw new Error('NOT_A_RESUME')
       }
 
-      const aiResult = await analyzeResumeWithAI(text)
+      const portfolioMatch = text.match(/https?:\/\/(?!github\.com|linkedin\.com)[^\s]+|www\.[^\s]+/i)
+      const githubMatch = text.match(/github\.com\/[A-Za-z0-9-]+/i)
+
+      let scrapedContext = ''
+      
+      if (portfolioMatch || githubMatch) {
+         try {
+           const promises = []
+           if (portfolioMatch) promises.push(portfolioService.analyze(portfolioMatch[0]).then(res => `Portfolio Analysis (${portfolioMatch[0]}):\nStrengths: ${res.strengths.join(', ')}\nWeaknesses: ${res.weaknesses.join(', ')}`).catch(() => null))
+           if (githubMatch) promises.push(gitHubService.analyze(githubMatch[0]).then(res => `GitHub Analysis (${githubMatch[0]}):\nRepos: ${res.details?.repos?.map(r=>r.name).join(', ')}\nStrengths: ${res.strengths.join(', ')}\nWeaknesses: ${res.weaknesses.join(', ')}`).catch(() => null))
+           
+           const results = await Promise.all(promises)
+           scrapedContext = results.filter(Boolean).join('\n\n')
+         } catch (e) {
+           logger.warn('Failed to scrape context for resume', { error: String(e) })
+         }
+      }
+
+      const aiResult = await analyzeResumeWithAI(text, scrapedContext)
       const ruleResult = this.ruleBasedAnalyze(text)
 
       if (aiResult) {
@@ -106,26 +126,66 @@ export class ResumeService {
     }
   }
 
-  private isLikelyResume(text: string): boolean {
+  public validateResumeContent(text: string): { isValid: boolean; reason?: string } {
     const content = text.toLowerCase()
     
-    const keywords = [
-      'resume', 'cv', 'curriculum vitae',
-      'experience', 'employment', 'work history',
-      'education', 'university', 'college', 'degree', 'bachelor', 'master',
-      'skills', 'technologies', 'proficiencies',
-      'projects', 'certifications', 'summary', 'objective', 'profile'
-    ]
-    
-    let matchCount = 0
-    for (const kw of keywords) {
-      if (new RegExp(`\\b${kw}\\b`).test(content)) {
-        matchCount++
-      }
+    // 0. Word Count Check
+    const wordCount = content.split(/\s+/).length
+    if (wordCount < 30) {
+      return { isValid: false, reason: 'Document contains too little text to be a Resume/CV.' }
     }
     
-    // We require at least 3 distinct resume sections/keywords to proceed
-    return matchCount >= 3
+    // 1. Negative Filters
+    const academicKeywords = ['abstract', 'methodology', 'conclusion', 'table of contents', 'literature review', 'hypothesis', 'chapter']
+    const invoiceKeywords = ['invoice', 'receipt', 'balance due', 'payment due', 'shipping', 'tax', 'amount due', 'billing', 'subtotal']
+    const legalKeywords = ['hereby', 'whereas', 'jurisdiction', 'parties', 'agreement', 'terms and conditions', 'liability', 'warranties']
+
+    const checkNegative = (keywords: string[]) => keywords.filter(kw => new RegExp(`\\b${kw}\\b`).test(content)).length
+
+    if (checkNegative(academicKeywords) >= 2) {
+      return { isValid: false, reason: 'Document appears to be an academic paper or report, not a Resume/CV.' }
+    }
+    if (checkNegative(invoiceKeywords) >= 2) {
+      return { isValid: false, reason: 'Document appears to be a receipt, invoice, or financial document, not a Resume/CV.' }
+    }
+    if (checkNegative(legalKeywords) >= 3) {
+      return { isValid: false, reason: 'Document appears to be a legal contract or agreement, not a Resume/CV.' }
+    }
+
+    // 2. Positive Scoring System
+    let score = 0
+    
+    // Dates (Resumes almost always have years like 201X, 202X, or Present)
+    if (/\b(199\d|200\d|201\d|202\d|present|current)\b/.test(content)) score += 2
+
+    // Contact Info
+    const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/.test(content)
+    const hasPhone = /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(content) || /\+\d{1,3}\s?\d{4,10}/.test(content)
+    const hasLinks = /github\.com/i.test(content) || /linkedin\.com/i.test(content) || /portfolio/i.test(content)
+    
+    if (hasEmail) score += 2
+    if (hasPhone) score += 1
+    if (hasLinks) score += 1
+
+    // Structural Categories
+    if (/\b(experience|employment|work history|career|professional background)\b/.test(content)) score += 2
+    if (/\b(education|university|college|degree|bachelor|master|phd|academic)\b/.test(content)) score += 2
+    if (/\b(skills|technologies|proficiencies|expertise|tools)\b/.test(content)) score += 2
+    if (/\b(resume|cv|curriculum vitae)\b/.test(content)) score += 1
+
+    // Require a minimum score of 5 to pass
+    if (score >= 5) {
+      return { isValid: true }
+    }
+    
+    return { 
+      isValid: false, 
+      reason: 'Document lacks standard resume indicators (e.g., Dates, Contact Info, Experience, Education).' 
+    }
+  }
+
+  private isLikelyResume(text: string): boolean {
+    return this.validateResumeContent(text).isValid
   }
 
   private ruleBasedAnalyze(text: string): ResumeAnalysis {
@@ -343,7 +403,7 @@ export class ResumeService {
     return entries.slice(0, 10)
   }
 
-  private async extractText(buffer: Buffer): Promise<string> {
+  public async extractText(buffer: Buffer): Promise<string> {
     try {
       const { extractText } = await import('unpdf')
       const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)

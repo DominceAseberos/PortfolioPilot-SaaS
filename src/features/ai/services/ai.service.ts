@@ -38,7 +38,7 @@ function createClient(): OpenAI | null {
   return new OpenAI({ apiKey, baseURL: GROQ_BASE_URL })
 }
 
-export async function analyzeResumeWithAI(text: string): Promise<AIAnalysisResult | null> {
+export async function analyzeResumeWithAI(text: string, scrapedContext?: string): Promise<AIAnalysisResult | null> {
   const client = createClient()
   if (!client) return null
 
@@ -48,7 +48,7 @@ export async function analyzeResumeWithAI(text: string): Promise<AIAnalysisResul
       messages: [
         {
           role: 'system',
-          content: `You are a resume parser. Analyze the resume text and return JSON only.
+          content: `You are a resume parser. Analyze the resume text (and optionally cross-reference with provided scraped context from their portfolio/github) and return JSON only.
 
 Return this exact structure:
 {
@@ -70,11 +70,12 @@ Return this exact structure:
 }
 
 Score: 90-100 excellent, 70-89 good, 50-69 average, below 50 needs work.
+Strengths, weaknesses, and recommendations should be highly personalized and incorporate any mismatches or powerful insights from the scraped context if provided.
 Use null for missing fields. Empty arrays for missing lists. No markdown.`,
         },
         {
           role: 'user',
-          content: text,
+          content: scrapedContext ? `${text}\n\n=== SCRAPED CONTEXT (Portfolio/GitHub) ===\n${scrapedContext}` : text,
         },
       ],
       temperature: 0.3,
@@ -214,6 +215,22 @@ export function computeFallbackSummary(
       techStack: fallbackScore, 
       consistency: fallbackScore 
     },
+    normalFeedback: {
+      overallScore: fallbackScore,
+      summary: `Portfolio scored ${portfolio?.score ?? 'N/A'}, GitHub scored ${github?.score ?? 'N/A'}, Resume scored ${resume?.score ?? 'N/A'}.`,
+      topStrengths: allStrengths.slice(0, 5),
+    },
+    deepFeedback: {
+      topWeaknesses: allWeaknesses.slice(0, 5),
+      topRecommendations: allRecommendations.slice(0, 5),
+      radar: { 
+        presentation: portfolio ? portfolio.score : 0, 
+        openSource: github ? github.score : 0, 
+        experience: resume ? resume.score : 0, 
+        techStack: fallbackScore, 
+        consistency: fallbackScore 
+      },
+    }
   }
 }
 
@@ -360,6 +377,22 @@ Return this JSON structure:
         techStack: parsed.radar?.techStack ?? 50,
         consistency: parsed.radar?.consistency ?? 50,
       },
+      normalFeedback: {
+        overallScore: typeof parsed.overallScore === 'number' ? parsed.overallScore : computeFallbackSummary(portfolio, github, resume).overallScore,
+        summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+        topStrengths: toStrArr(parsed.topStrengths),
+      },
+      deepFeedback: {
+        topWeaknesses: toStrArr(parsed.topWeaknesses),
+        topRecommendations: toStrArr(parsed.topRecommendations),
+        radar: {
+          presentation: parsed.radar?.presentation ?? 50,
+          openSource: parsed.radar?.openSource ?? 50,
+          experience: parsed.radar?.experience ?? 50,
+          techStack: parsed.radar?.techStack ?? 50,
+          consistency: parsed.radar?.consistency ?? 50,
+        },
+      }
     }
   } catch (error) {
     logger.error('AI overall summary failed', { error: String(error) })

@@ -4,6 +4,7 @@ import { Badge } from '@/components/common/Badge'
 import { Globe, GitBranch, FileText, Upload, ArrowRight, Loader2, Sparkles, AlertTriangle, Users, Folder, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAnalysisCost } from '@/config/pricing'
+import { FILE_UPLOAD } from '@/constants'
 import CURATED_BANNED_WORDS from '@/constants/curated-banned-words.json'
 
 interface ChatMessage {
@@ -268,10 +269,28 @@ export function NeuralChatLanding({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file && file.type === 'application/pdf') {
+       if (file.size > FILE_UPLOAD.maxFileSize) {
+         const maxMb = FILE_UPLOAD.maxFileSize / (1024 * 1024)
+         setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: file.name }])
+         setChatLog(prev => [...prev, { 
+            id: Date.now().toString() + '-sys', 
+            role: 'system', 
+            content: (
+              <div className="flex items-center gap-3 animate-in fade-in text-red-500">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span className="text-sm font-medium">Upload Failed: File is too large. Maximum size is {maxMb}MB.</span>
+              </div>
+            ) 
+         }])
+         toast.error(`File is too large. Maximum size is ${maxMb}MB.`)
+         if (fileInputRef.current) fileInputRef.current.value = ''
+         return
+       }
        addChatFlow(file.name, 'resume', file)
     } else if (file) {
        toast.error('Please upload a PDF file.')
     }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const addChatFlow = async (value: string, mode: 'portfolio' | 'github' | 'resume', fileObj?: File) => {
@@ -494,19 +513,68 @@ export function NeuralChatLanding({
           ) 
         }])
         
-        await delay(1200)
+        await delay(800)
+
+        setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
+          ...msg,
+          content: (
+            <div className="flex items-center gap-3 animate-in fade-in text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">Scanning document contents...</span>
+            </div>
+          )
+        } : msg))
+
+        if (fileObj) {
+          try {
+            const formData = new FormData()
+            formData.append('file', fileObj)
+
+            const res = await fetch('/api/reviews/validate-resume', {
+              method: 'POST',
+              body: formData
+            })
+            const data = await res.json()
+
+            if (!data.success) {
+              setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
+                ...msg,
+                content: (
+                  <div className="flex items-center gap-3 animate-in fade-in text-red-500">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span className="text-sm font-medium">Validation Failed: {data.message}</span>
+                  </div>
+                )
+              } : msg))
+              setIsChatProcessing(false)
+              return
+            }
+          } catch (e) {
+            setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
+              ...msg,
+              content: (
+                <div className="flex items-center gap-3 animate-in fade-in text-red-500">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span className="text-sm font-medium">Validation Failed: Could not analyze document.</span>
+                </div>
+              )
+            } : msg))
+            setIsChatProcessing(false)
+            return
+          }
+        }
 
         setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
           ...msg,
           content: (
             <div className="flex items-center gap-3 animate-in fade-in text-emerald-500">
               <FileText className="h-4 w-4" />
-              <span className="text-sm font-medium">Signature valid. Rendering document preview...</span>
+              <span className="text-sm font-medium">Document validated. Rendering preview...</span>
             </div>
           )
         } : msg))
 
-        await delay(1500)
+        await delay(1000)
         
         setResumeFile(fileObj || null)
         const pdfPreviewUrl = fileObj ? URL.createObjectURL(fileObj) : null
@@ -672,7 +740,7 @@ export function NeuralChatLanding({
                   <div className="flex-1 px-3 h-10 sm:h-12 flex items-center bg-transparent border-none focus:outline-none">
                      <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
                      <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors h-full w-full justify-start text-left">
-                       <Upload className="h-4 w-4" /> Drop your PDF here or click to browse...
+                       <Upload className="h-4 w-4" /> Drop your PDF here or click to browse... (Max {FILE_UPLOAD.maxFileSize / (1024 * 1024)}MB)
                      </button>
                   </div>
                ) : (

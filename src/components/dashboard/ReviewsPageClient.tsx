@@ -13,6 +13,9 @@ import { ReviewHistory } from '@/components/dashboard/ReviewHistory'
 import { NeuralChatLanding } from '@/components/dashboard/NeuralChatLanding'
 import { getAnalysisCost } from '@/config/pricing'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
+import { jsPDF } from 'jspdf'
+import html2canvas from 'html2canvas'
+import { ReportTemplate } from '@/components/pdf/ReportTemplate'
 import type {
   PortfolioAnalysis,
   GitHubAnalysis,
@@ -104,9 +107,47 @@ function StreamingChatBox({
   renderSourceDetails: (id: 'portfolio' | 'github' | 'resume', label: string) => React.ReactNode
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
-  const [animatedScore, setAnimatedScore] = useState(isHistory ? result.overallScore : 0)
-  const [displayedText, setDisplayedText] = useState(isHistory ? result.summary : '')
+  const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
+  const [displayedText, setDisplayedText] = useState(isHistory ? (result.normalFeedback?.summary ?? result.summary) : '')
   const [showModal, setShowModal] = useState(false)
+  const pdfRef = useRef<HTMLDivElement>(null)
+
+  const handleGeneratePDF = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (isGuest) {
+      window.location.href = '/register?next=/dashboard/reviews/latest'
+      return
+    }
+    
+    if (!pdfRef.current) return
+    
+    toast.loading('Generating PDF...', { id: 'pdf-gen' })
+    try {
+      const canvas = await html2canvas(pdfRef.current, { scale: 2 })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: 'a4',
+      })
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      pdf.save('PilotReview_Report.pdf')
+      toast.success('PDF Generated successfully!', { id: 'pdf-gen' })
+    } catch (error) {
+      toast.error('Failed to generate PDF', { id: 'pdf-gen' })
+    }
+  }
+
+  const handleGenerateImprovedResume = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (isGuest) {
+      window.location.href = '/register?next=/dashboard/reviews/latest'
+      return
+    }
+    toast.success('Improved Resume generation coming soon!')
+  }
 
   const radarData = [
     { subject: 'Presentation', A: result.radar?.presentation || 0, fullMark: 100 },
@@ -120,8 +161,8 @@ function StreamingChatBox({
     if (isHistory) return
 
     let i = 0
-    const text = result.summary
-    const targetScore = result.overallScore
+    const text = result.normalFeedback?.summary ?? result.summary
+    const targetScore = result.normalFeedback?.overallScore ?? result.overallScore
     setDisplayedText('')
 
     const thinkTimeout = setTimeout(() => {
@@ -146,9 +187,9 @@ function StreamingChatBox({
     }, 1500) // 1.5 seconds thinking delay
 
     return () => clearTimeout(thinkTimeout)
-  }, [result.summary, result.overallScore, isHistory])
+  }, [result.summary, result.overallScore, result.normalFeedback, isHistory])
 
-  const isDoneTyping = isHistory || (!isThinking && displayedText.length >= result.summary.length)
+  const isDoneTyping = isHistory || (!isThinking && displayedText.length >= (result.normalFeedback?.summary ?? result.summary).length)
   const activeSourceCount = [result.sourceBreakdown.portfolio, result.sourceBreakdown.github, result.sourceBreakdown.resume].filter(Boolean).length
 
   return (
@@ -228,7 +269,7 @@ function StreamingChatBox({
         )}
         
         {/* Strengths Bubble (Appears after typing) */}
-        {isDoneTyping && result.topStrengths.length > 0 && (
+        {isDoneTyping && (result.normalFeedback?.topStrengths ?? result.topStrengths).length > 0 && (
            <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
              <div className="h-10 w-10 shrink-0 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
                <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -239,7 +280,7 @@ function StreamingChatBox({
                </div>
                <div className="rounded-2xl rounded-tl-none border border-green-500/20 bg-green-500/5 p-5 shadow-sm">
                  <ul className="space-y-3">
-                   {result.topStrengths.map((s, i) => (
+                   {(result.normalFeedback?.topStrengths ?? result.topStrengths).map((s, i) => (
                      <li key={i} className="text-sm flex items-start gap-3">
                        <div className="mt-1 h-1.5 w-1.5 rounded-full bg-green-500 shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                        <span className="text-foreground/80 leading-relaxed font-medium">{s}</span>
@@ -310,8 +351,28 @@ function StreamingChatBox({
           </div>
         ) : (
           <>
-            {/* Weaknesses Bubble */}
-            {isDoneTyping && result.topWeaknesses.length > 0 && (
+            {/* DEEP ANALYSIS GUEST LOCK CONTAINER */}
+            <div className="relative">
+              {isDoneTyping && isGuest && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/40 backdrop-blur-[2px] rounded-2xl border border-white/10 p-6 animate-in fade-in duration-1000 delay-500">
+                  <div className="bg-card border border-border shadow-2xl rounded-2xl p-6 text-center max-w-sm">
+                    <div className="h-12 w-12 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/20">
+                      <Target className="h-6 w-6 text-indigo-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground mb-2">Unlock Deep Analysis</h3>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Create a free account to view your personalized actionable recommendations, detailed weaknesses, and cross-reference checks.
+                    </p>
+                    <Button onClick={() => window.location.href = '/register?next=/dashboard/reviews/latest'} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25">
+                      Sign Up Free
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              <div className={isGuest && isDoneTyping ? 'blur-sm opacity-60 pointer-events-none select-none transition-all duration-1000 delay-500' : ''}>
+                {/* Weaknesses Bubble */}
+                {isDoneTyping && (result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length > 0 && (
                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
                    <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -322,7 +383,7 @@ function StreamingChatBox({
                    </div>
                    <div className="rounded-2xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-5 shadow-sm">
                      <ul className="space-y-3">
-                       {result.topWeaknesses.map((w, i) => (
+                       {(result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).map((w, i) => (
                          <li key={i} className="text-sm flex items-start gap-3">
                            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
                            <span className="text-foreground/80 leading-relaxed font-medium">{w}</span>
@@ -345,9 +406,9 @@ function StreamingChatBox({
                      <span className="font-bold text-sm">Actionable Recommendations</span>
                    </div>
                    <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 p-5 shadow-sm">
-                     {result.topRecommendations.length > 0 ? (
+                     {(result.deepFeedback?.topRecommendations ?? result.topRecommendations).length > 0 ? (
                        <ul className="space-y-3">
-                         {result.topRecommendations.map((r, i) => (
+                         {(result.deepFeedback?.topRecommendations ?? result.topRecommendations).map((r, i) => (
                            <li key={i} className="text-sm flex items-start gap-3">
                              <span className="text-blue-500 font-bold bg-blue-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{i + 1}</span>
                              <span className="text-foreground/80 leading-relaxed font-medium">{r}</span>
@@ -434,8 +495,12 @@ function StreamingChatBox({
                  </div>
                </div>
             )}
+            
+            {/* END DEEP ANALYSIS GUEST LOCK CONTAINER */}
+            </div>
+          </div>
 
-            {/* Final Overall Score Bubble */}
+          {/* Final Overall Score Bubble */}
             {isDoneTyping && (
                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1200ms] mt-4">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -462,9 +527,25 @@ function StreamingChatBox({
                  </div>
                </div>
             )}
+            
+            {/* NEW: Action Buttons */}
+            {isDoneTyping && (
+              <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1400ms] mt-8 justify-center">
+                 <Button onClick={handleGeneratePDF} className="shadow-lg hover:scale-105 transition-transform bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                    <FileText className="w-4 h-4" /> Generate PDF Report
+                 </Button>
+                 {result.sourceBreakdown.resume && (
+                   <Button onClick={handleGenerateImprovedResume} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <Sparkles className="w-4 h-4" /> Generate Improved Resume
+                   </Button>
+                 )}
+              </div>
+            )}
           </>
         )}
       </div>
+
+      <ReportTemplate ref={pdfRef} result={result} mismatches={mismatches} />
 
       {/* Telemetry Modal */}
       {showModal && (
@@ -587,15 +668,23 @@ function LiveCrawlerPreview({
     { action: 'Finalizing', label: 'Markdown distillation payload' }
   ]
 
-  useEffect(() => {
-    if (!portfolioUrl) return
-    const interval = setInterval(() => {
-      setCurrentPhaseIndex(prev => (prev + 1) % crawlerPhases.length)
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [portfolioUrl])
+  const resumePhases = [
+    { action: 'Parsing', label: 'PDF structure & layout' },
+    { action: 'Extracting', label: 'embedded URLs & text nodes' },
+    { action: 'Cross-referencing', label: 'discovered Portfolio & GitHub profiles' },
+    { action: 'Compiling', label: 'unified multi-source data points' },
+    { action: 'Finalizing', label: 'Deep Resume distillation payload' }
+  ]
 
-  const activePhase = crawlerPhases[currentPhaseIndex]
+  useEffect(() => {
+    if (!portfolioUrl && !resumeFileName) return
+    const interval = setInterval(() => {
+      setCurrentPhaseIndex(prev => (prev + 1) % (portfolioUrl ? crawlerPhases.length : resumePhases.length))
+    }, 2500)
+    return () => clearInterval(interval)
+  }, [portfolioUrl, resumeFileName])
+
+  const activePhase = portfolioUrl ? crawlerPhases[currentPhaseIndex] : (resumeFileName ? resumePhases[currentPhaseIndex] : crawlerPhases[0])
   const normalizedUrl = portfolioUrl ? (portfolioUrl.startsWith('http') ? portfolioUrl : `https://${portfolioUrl}`) : ''
   const baseUrl = normalizedUrl.replace(/\/$/, '')
 
@@ -609,7 +698,7 @@ function LiveCrawlerPreview({
           ) : githubUsername ? (
             <>Cloning and analyzing GitHub repositories for <span className="font-mono text-purple-500 font-bold">{githubUsername}</span>...</>
           ) : (
-            <>Extracting data points from <span className="font-mono text-emerald-500 font-bold">{resumeFileName}</span>...</>
+            <>{activePhase.action} <span className="font-mono text-emerald-500 font-bold">{activePhase.label}</span> for <span className="font-mono text-emerald-500 font-bold">{resumeFileName}</span>...</>
           )}
         </span>
       </div>

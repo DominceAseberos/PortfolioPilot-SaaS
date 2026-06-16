@@ -25,5 +25,8 @@ export function useAuth() {
     return () => subscription.unsubscribe()
   }, [supabase.auth])
 
-  return { user, loading }
+  const isGuest = user?.is_anonymous ?? false
+  const isAuthenticated = !!user && !isGuest
+
+  return { user, loading, isAuthenticated, isGuest }
 }
