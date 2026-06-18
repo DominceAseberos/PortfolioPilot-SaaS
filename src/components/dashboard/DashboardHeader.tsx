@@ -61,7 +61,7 @@ export function DashboardHeader() {
             >
               <div className="flex items-center gap-2 mr-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
                 <Coins className="h-4 w-4 text-primary" />
-                <span className="text-sm font-bold text-primary">{credits !== null ? credits : INITIAL_FREE_TOKENS}</span>
+                <span className="text-sm font-bold text-primary">{credits !== null ? credits : INITIAL_FREE_TOKENS} Credit{(credits !== null ? credits : INITIAL_FREE_TOKENS) === 1 ? '' : 's'}</span>
               </div>
               <Avatar size="sm" className="ring-2 ring-transparent ring-offset-2 hover:ring-primary/20 transition-all">
                 <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.email || ''} />
@@ -109,13 +109,15 @@ export function DashboardHeader() {
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-4">
-            <Link href={ROUTES.login} className="hidden sm:block">
-              <span className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Sign In
-              </span>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 mr-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20" title="Guest passes available">
+              <Coins className="h-4 w-4 text-primary" />
+              <span className="text-sm font-bold text-primary">{credits !== null ? credits : INITIAL_FREE_TOKENS} Credit{(credits !== null ? credits : INITIAL_FREE_TOKENS) === 1 ? '' : 's'}</span>
+            </div>
+            <Link href={ROUTES.login} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mr-2">
+              Sign In
             </Link>
-            <Link href="/dashboard/reviews">
+            <Link href={ROUTES.register}>
               <Button size="sm" className="rounded-full px-5 font-bold shadow-sm hover:shadow-md transition-all">
                 Get Started
               </Button>

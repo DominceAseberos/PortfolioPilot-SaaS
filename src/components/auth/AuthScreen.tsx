@@ -13,6 +13,8 @@ import { Input } from '@/components/common/Input'
 import { AlertCircle, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { TermsModal } from '@/components/legal/TermsModal'
+import { PrivacyModal } from '@/components/legal/PrivacyModal'
 
 interface AuthScreenProps {
   initialMode: 'login' | 'register'
@@ -36,6 +38,10 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [isRegisterLoading, setIsRegisterLoading] = useState(false)
   const [registerSuccess, setRegisterSuccess] = useState(false)
+
+  // Modals
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
 
   // Sync state if user uses browser back/forward buttons
   useEffect(() => {
@@ -145,15 +151,18 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background flex items-center justify-center text-foreground">
       
-      {/* Background Mesh (Global) */}
-      <div className="absolute inset-0 -z-10 bg-background overflow-hidden">
-         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-40 mix-blend-screen pointer-events-none transition-transform duration-1000 ease-in-out">
+      {/* Premium Background Engine */}
+      <div className="absolute inset-0 -z-10 bg-slate-50 dark:bg-[#0B0F19] overflow-hidden">
+         {/* SVG Grid Lines */}
+         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080801a_1px,transparent_1px),linear-gradient(to_bottom,#8080801a_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)]"></div>
+         
+         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-70 mix-blend-multiply dark:mix-blend-screen pointer-events-none transition-transform duration-1000 ease-in-out">
             <div className={cn(
-              "absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.3)_0%,transparent_50%)] blur-[80px] transition-all duration-1000",
+              "absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.35)_0%,transparent_50%)] blur-[80px] transition-all duration-1000",
               isLogin ? "translate-x-1/4 scale-110" : "-translate-x-1/4 scale-90"
             )} />
             <div className={cn(
-              "absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.3)_0%,transparent_50%)] blur-[80px] transition-all duration-1000 delay-100",
+              "absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.35)_0%,transparent_50%)] blur-[80px] transition-all duration-1000 delay-100",
               isLogin ? "-translate-x-1/4 translate-y-1/4 scale-90" : "translate-x-1/4 -translate-y-1/4 scale-110"
             )} />
          </div>
@@ -226,7 +235,7 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
         )}>
           <div className="w-full max-w-sm mx-auto">
             <div className="text-center md:text-left mb-8">
-              <h2 className="text-3xl font-bold text-foreground mb-2">Sign in to Pilot</h2>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Sign in to PortfolioPilot</h2>
               <p className="text-muted-foreground">Welcome back! Please enter your details.</p>
             </div>
 
@@ -327,6 +336,35 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
                 />
               </div>
 
+              <div className="flex items-start gap-2 pt-2 pb-1">
+                <div className="flex h-5 items-center">
+                  <input
+                    id="acceptTerms"
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border text-purple-600 focus:ring-purple-600 focus:ring-offset-background bg-background"
+                    {...registerForm.register('acceptTerms')}
+                  />
+                </div>
+                <div className="text-sm text-muted-foreground leading-tight">
+                  <label htmlFor="acceptTerms">
+                    I agree to the{' '}
+                  </label>
+                  <button type="button" onClick={() => setShowTermsModal(true)} className="text-purple-600 dark:text-purple-400 font-medium hover:underline">
+                    Terms of Service
+                  </button>
+                  {' '}and{' '}
+                  <button type="button" onClick={() => setShowPrivacyModal(true)} className="text-purple-600 dark:text-purple-400 font-medium hover:underline">
+                    Privacy Policy
+                  </button>
+                  .
+                </div>
+              </div>
+              {registerForm.formState.errors.acceptTerms && (
+                <p className="text-sm font-medium text-red-500 mt-[-8px]">
+                  {registerForm.formState.errors.acceptTerms.message}
+                </p>
+              )}
+
               {registerError && (
                 <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400 mt-2">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -356,6 +394,9 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
         </div>
 
       </div>
+
+      <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
+      <PrivacyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
     </div>
   )
 }

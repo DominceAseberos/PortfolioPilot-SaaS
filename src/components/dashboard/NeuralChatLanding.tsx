@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
-import { Globe, GitBranch, FileText, Upload, ArrowRight, Loader2, Sparkles, AlertTriangle, Users, Folder, ExternalLink } from 'lucide-react'
+import { Globe, GitBranch, FileText, Upload, ArrowRight, Loader2, Sparkles, AlertTriangle, Users, Folder, ExternalLink, CheckCircle2, XCircle, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAnalysisCost } from '@/config/pricing'
 import { FILE_UPLOAD } from '@/constants'
 import CURATED_BANNED_WORDS from '@/constants/curated-banned-words.json'
+import { normalizeGitHubUsername } from '@/utils/source-normalizers'
 
 interface ChatMessage {
   id: string
@@ -13,6 +14,31 @@ interface ChatMessage {
   content: React.ReactNode
   fullWidth?: boolean
   naked?: boolean
+}
+
+interface ValidatedDetectedLink {
+  url: string
+  normalized: string
+  isValid: boolean
+  message?: string
+}
+
+interface ValidatedGitHubLink extends ValidatedDetectedLink {
+  username: string
+  profile?: {
+    login: string
+    name: string
+    avatarUrl?: string
+    bio?: string
+    publicRepos?: number
+    followers?: number
+  }
+}
+
+interface ResumeValidatedLinks {
+  github: ValidatedGitHubLink[]
+  linkedin: { url: string; normalized: string }[]
+  portfolioCandidates: ValidatedDetectedLink[]
 }
 
 const DynamicProceedContext = React.createContext<{
@@ -161,20 +187,21 @@ export function NeuralChatLanding({
       content: (
         <div className="space-y-4">
           <p className="text-base font-medium">Pilot Review agent standing by.</p>
-          <p className="text-sm">Drop your Portfolio URL, GitHub username, or Resume PDF to trigger an autonomous, AI-driven technical assessment.</p>
+          <p className="text-sm">Upload your Resume/CV first. I’ll detect portfolio, GitHub, and LinkedIn links, then you choose which sources to include.</p>
         </div>
       )
     }
   ])
 
-  const [activeInputMode, setActiveInputMode] = useState<'portfolio' | 'github' | 'resume'>('portfolio')
+  const [activeInputMode, setActiveInputMode] = useState<'portfolio' | 'github' | 'resume'>('resume')
   const [chatInputValue, setChatInputValue] = useState('')
   const [isChatProcessing, setIsChatProcessing] = useState(false)
   const submitLock = useRef(false)
   
-  const totalCost = (portfolioUrl ? getAnalysisCost('portfolio') : 0) + 
-                    (githubUsername ? getAnalysisCost('github') : 0) + 
+  const sourceCost = (portfolioUrl ? getAnalysisCost('portfolio') : 0) +
+                    (githubUsername ? getAnalysisCost('github') : 0) +
                     (resumeFile ? getAnalysisCost('resume') : 0)
+  const totalCost = sourceCost > 0 ? sourceCost + 1 : 0
 
   const onSubmitRef = useRef(onSubmit)
   useEffect(() => {
@@ -184,11 +211,22 @@ export function NeuralChatLanding({
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-scroll chat to bottom
+  // Auto-scroll chat to bottom, including internal typing/skeleton updates.
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+    const node = chatScrollRef.current
+    if (!node) return
+
+    const scrollToLatest = () => {
+      requestAnimationFrame(() => {
+        node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
+      })
     }
+
+    scrollToLatest()
+    const observer = new MutationObserver(scrollToLatest)
+    observer.observe(node, { childList: true, subtree: true, characterData: true })
+
+    return () => observer.disconnect()
   }, [chatLog, isChatProcessing, resultNode])
 
   // Append resultNode to chatLog for continuous session history
@@ -198,12 +236,9 @@ export function NeuralChatLanding({
         const resultId = `result-${analysisId}`
         if (prev.find(m => m.id === resultId)) return prev
         
-        // Wrap the resultNode to override its isHistory prop so the button hides on old results
         const storedNode = (
           <div className="w-full mt-6">
-            {React.isValidElement(resultNode) 
-              ? React.cloneElement(resultNode as React.ReactElement, { isHistory: true } as any) 
-              : resultNode}
+            {resultNode}
           </div>
         )
         
@@ -218,11 +253,108 @@ export function NeuralChatLanding({
     }
   }, [resultNode, analysisId])
 
-  const stripGitHubUrl = (input: string): string => {
-    const match = input
-      .trim()
-      .match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_-]+)(?:\/.*)?$/i)
-    return match ? match[1] : input.trim()
+  const addDetectedSource = (
+    type: 'portfolio' | 'github',
+    value: string
+  ) => {
+    if (type === 'portfolio') {
+      setPortfolioUrl(value)
+      toast.success('Portfolio added to analysis')
+    } else {
+      setGithubUsername(value)
+      toast.success('GitHub profile added to analysis')
+    }
+  }
+
+  const renderDetectedLinks = (links: ResumeValidatedLinks | undefined) => {
+    if (!links) return null
+
+    const hasLinks =
+      links.github.length > 0 ||
+      links.portfolioCandidates.length > 0 ||
+      links.linkedin.length > 0
+
+    if (!hasLinks) {
+      return (
+        <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm text-muted-foreground">
+          No portfolio, GitHub, or LinkedIn links were detected in this resume.
+        </div>
+      )
+    }
+
+    return (
+      <div className="rounded-2xl border border-border/50 bg-background/80 p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold">
+          <Link2 className="h-4 w-4 text-primary" />
+          Detected resume links
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {links.github.map((link) => {
+            return (
+              <Badge
+                key={link.username}
+                variant="secondary"
+                className={`gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold ${
+                  link.isValid ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'
+                }`}
+              >
+                {link.isValid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                GitHub: {link.username}
+                {link.isValid ? (
+                  <button
+                    type="button"
+                    className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
+                    onClick={() => addDetectedSource('github', link.username)}
+                  >
+                    Include
+                  </button>
+                ) : (
+                  <span className="ml-1 opacity-80">{link.message || 'Invalid'}</span>
+                )}
+              </Badge>
+            )
+          })}
+
+          {links.portfolioCandidates.map((link) => {
+            return (
+              <Badge
+                key={link.normalized}
+                variant="secondary"
+                className={`gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold ${
+                  link.isValid ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'
+                }`}
+              >
+                {link.isValid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                Portfolio: {link.normalized.replace(/^https?:\/\//, '').slice(0, 32)}
+                {link.isValid ? (
+                  <button
+                    type="button"
+                    className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
+                    onClick={() => addDetectedSource('portfolio', link.normalized)}
+                  >
+                    Include
+                  </button>
+                ) : (
+                  <span className="ml-1 opacity-80">{link.message || 'Invalid'}</span>
+                )}
+              </Badge>
+            )
+          })}
+
+          {links.linkedin.map((link) => (
+            <Badge
+              key={link.normalized}
+              variant="secondary"
+              className="gap-1.5 bg-sky-500/10 text-sky-600 border-sky-500/20 py-1.5 px-3 rounded-full text-xs font-semibold"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              LinkedIn detected
+              <span className="ml-1 opacity-80">Report-only</span>
+            </Badge>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   const handleChatSubmit = (e: React.FormEvent) => {
@@ -232,7 +364,9 @@ export function NeuralChatLanding({
     submitLock.current = true
     setTimeout(() => { submitLock.current = false }, 1000) // Unlock after 1s (isChatProcessing handles the rest)
 
-    if (activeInputMode === 'portfolio' && chatInputValue.trim()) {
+    if (activeInputMode === 'resume') {
+       fileInputRef.current?.click()
+    } else if (activeInputMode === 'portfolio' && chatInputValue.trim()) {
        const val = chatInputValue.trim()
        
        // Strict URL validation
@@ -260,7 +394,7 @@ export function NeuralChatLanding({
        setChatInputValue('')
        addChatFlow(val, 'portfolio')
     } else if (activeInputMode === 'github' && chatInputValue.trim()) {
-       const val = stripGitHubUrl(chatInputValue.trim())
+       const val = normalizeGitHubUsername(chatInputValue.trim())
        setChatInputValue('')
        addChatFlow(val, 'github')
     }
@@ -549,6 +683,23 @@ export function NeuralChatLanding({
               setIsChatProcessing(false)
               return
             }
+
+            const detectedLinks = data.data?.detectedLinks as ResumeValidatedLinks | undefined
+            if (detectedLinks) {
+              setChatLog(prev => [...prev, {
+                id: Date.now().toString() + '-detected-links',
+                role: 'system',
+                fullWidth: true,
+                content: (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 w-full">
+                    {renderDetectedLinks(detectedLinks)}
+                    <p className="text-xs text-muted-foreground px-1">
+                      Detected links are not charged or analyzed until you choose Include.
+                    </p>
+                  </div>
+                )
+              }])
+            }
           } catch (e) {
             setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
               ...msg,
@@ -632,7 +783,7 @@ export function NeuralChatLanding({
 
           {chatLog.map((msg) => (
              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-4 duration-500 w-full`}>
-               {msg.role === 'system' && (
+               {msg.role === 'system' && !msg.naked && (
                   <div className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 mr-3 sm:mr-4 mt-1">
                     <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
@@ -740,7 +891,7 @@ export function NeuralChatLanding({
                   <div className="flex-1 px-3 h-10 sm:h-12 flex items-center bg-transparent border-none focus:outline-none">
                      <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
                      <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors h-full w-full justify-start text-left">
-                       <Upload className="h-4 w-4" /> Drop your PDF here or click to browse... (Max {FILE_UPLOAD.maxFileSize / (1024 * 1024)}MB)
+                       <Upload className="h-4 w-4" /> Upload your Resume/CV PDF first... (Max {FILE_UPLOAD.maxFileSize / (1024 * 1024)}MB)
                      </button>
                   </div>
                ) : (
@@ -764,7 +915,7 @@ export function NeuralChatLanding({
             </form>
             
             <p className="text-center text-xs font-medium text-muted-foreground/60 mt-1">
-              Pilot Review uses autonomous validation. Press enter to check input.
+              Resume-first review. Portfolio and GitHub are optional confirmed sources.
             </p>
          </div>
       </div>

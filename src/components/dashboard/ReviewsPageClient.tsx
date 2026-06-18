@@ -12,6 +12,7 @@ import { ScoreBadge } from '@/components/common/ScoreBadge'
 import { ReviewHistory } from '@/components/dashboard/ReviewHistory'
 import { NeuralChatLanding } from '@/components/dashboard/NeuralChatLanding'
 import { getAnalysisCost } from '@/config/pricing'
+import { normalizeGitHubUsername } from '@/utils/source-normalizers'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -49,6 +50,114 @@ import {
   X,
   BarChart2,
 } from 'lucide-react'
+
+function TypingText({ text, speed = 12, onComplete, isHistory }: { text: string; speed?: number; onComplete?: () => void; isHistory?: boolean }) {
+  const [shown, setShown] = useState(isHistory ? text : '')
+  const onCompleteRef = useRef(onComplete)
+  
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
+
+  useEffect(() => {
+    if (isHistory) {
+      if (onCompleteRef.current) onCompleteRef.current()
+      return
+    }
+
+    setShown('')
+    let index = 0
+    let completed = false
+    const interval = setInterval(() => {
+      index += 2
+      setShown(text.slice(0, index))
+      if (index >= text.length && !completed) {
+        clearInterval(interval)
+        completed = true
+        if (onCompleteRef.current) {
+          setTimeout(() => {
+            if (onCompleteRef.current) onCompleteRef.current()
+          }, 300)
+        }
+      }
+    }, speed)
+
+    return () => {
+      clearInterval(interval)
+      completed = true
+    }
+  }, [text, speed, isHistory])
+
+  return (
+    <>
+      {shown}
+      {shown.length < text.length && !isHistory && (
+        <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary animate-pulse" />
+      )}
+    </>
+  )
+}
+
+function TypingList({ items, speed = 12, onComplete, isHistory, renderPrefix }: { items: string[]; speed?: number; onComplete?: () => void; isHistory?: boolean; renderPrefix?: (i: number) => React.ReactNode }) {
+  const [currentIndex, setCurrentIndex] = useState(isHistory ? items.length : 0)
+  const onCompleteRef = useRef(onComplete)
+  
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
+
+  useEffect(() => {
+    if (isHistory) {
+      if (onCompleteRef.current) onCompleteRef.current()
+    }
+  }, [isHistory])
+
+  const handleComplete = useCallback(() => {
+    setCurrentIndex(prev => {
+      const next = prev + 1
+      if (next >= items.length) {
+        if (onCompleteRef.current) {
+          setTimeout(() => {
+            if (onCompleteRef.current) onCompleteRef.current()
+          }, 300)
+        }
+      }
+      return next
+    })
+  }, [items.length])
+
+  return (
+    <ul className="space-y-3">
+      {items.map((item, i) => (
+        i <= currentIndex && (
+          <li key={i} className="text-sm flex items-start gap-3">
+            {renderPrefix && renderPrefix(i)}
+            <span className="text-foreground/80 leading-relaxed font-medium">
+               {isHistory ? item : <TypingText text={item} speed={speed} isHistory={isHistory} onComplete={i === currentIndex ? handleComplete : undefined} />}
+            </span>
+          </li>
+        )
+      ))}
+    </ul>
+  )
+}
+
+function BubbleSkeleton({ tone = 'primary', height = 'h-32' }: { tone?: 'primary' | 'green' | 'red' | 'blue' | 'orange'; height?: string }) {
+  const toneClass =
+    tone === 'green' ? 'bg-green-500/10 border-green-500/20' :
+    tone === 'red' ? 'bg-red-500/10 border-red-500/20' :
+    tone === 'blue' ? 'bg-blue-500/10 border-blue-500/20' :
+    tone === 'orange' ? 'bg-orange-500/10 border-orange-500/20' :
+    'bg-primary/10 border-primary/20'
+
+  return (
+    <div className={`rounded-2xl rounded-tl-none border p-5 shadow-sm ${toneClass} ${height} animate-pulse`}>
+      <div className="h-3 w-2/3 rounded bg-foreground/10 mb-4" />
+      <div className="h-3 w-full rounded bg-foreground/10 mb-3" />
+      <div className="h-3 w-5/6 rounded bg-foreground/10" />
+    </div>
+  )
+}
 
 interface ReviewHistoryItem {
   id: string
@@ -91,6 +200,75 @@ const sourceColors: Record<string, string> = {
   resume: 'from-emerald-500/20 to-emerald-600/5 border-emerald-500/30',
 }
 
+function buildFallbackSummary(results: AnalysisResults, reason?: string): AISummaryResult {
+  const scores = [results.portfolio?.score, results.github?.score, results.resume?.score].filter(
+    (score): score is number => typeof score === 'number'
+  )
+  const fallbackScore = scores.length
+    ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+    : 0
+  const topStrengths = [
+    ...(results.portfolio?.strengths ?? []),
+    ...(results.github?.strengths ?? []),
+    ...(results.resume?.strengths ?? []),
+  ].slice(0, 5)
+  const topWeaknesses = [
+    ...(results.portfolio?.weaknesses ?? []),
+    ...(results.github?.weaknesses ?? []),
+    ...(results.resume?.weaknesses ?? []),
+  ].slice(0, 5)
+  const topRecommendations = [
+    ...(results.portfolio?.recommendations ?? []),
+    ...(results.github?.recommendations ?? []),
+    ...(results.resume?.recommendations ?? []),
+  ].slice(0, 5)
+  const summary =
+    reason ||
+    `Source analysis completed. Portfolio scored ${results.portfolio?.score ?? 'N/A'}, GitHub scored ${results.github?.score ?? 'N/A'}, and Resume scored ${results.resume?.score ?? 'N/A'}.`
+
+  return {
+    overallScore: fallbackScore,
+    summary,
+    topStrengths,
+    topWeaknesses,
+    topRecommendations,
+    sourceBreakdown: {
+      portfolio: results.portfolio
+        ? { score: results.portfolio.score, summary: results.portfolio.strengths.slice(0, 2).join('; ') || 'Analyzed' }
+        : null,
+      github: results.github
+        ? { score: results.github.score, summary: results.github.strengths.slice(0, 2).join('; ') || 'Analyzed' }
+        : null,
+      resume: results.resume
+        ? { score: results.resume.score, summary: results.resume.strengths.slice(0, 2).join('; ') || 'Analyzed' }
+        : null,
+    },
+    radar: {
+      presentation: results.portfolio?.score ?? 0,
+      openSource: results.github?.score ?? 0,
+      experience: results.resume?.score ?? 0,
+      techStack: fallbackScore,
+      consistency: fallbackScore,
+    },
+    normalFeedback: {
+      overallScore: fallbackScore,
+      summary,
+      topStrengths,
+    },
+    deepFeedback: {
+      topWeaknesses,
+      topRecommendations,
+      radar: {
+        presentation: results.portfolio?.score ?? 0,
+        openSource: results.github?.score ?? 0,
+        experience: results.resume?.score ?? 0,
+        techStack: fallbackScore,
+        consistency: fallbackScore,
+      },
+    },
+  }
+}
+
 function StreamingChatBox({
   result,
   mismatches,
@@ -109,8 +287,14 @@ function StreamingChatBox({
   const [isThinking, setIsThinking] = useState(!isHistory)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
   const [displayedText, setDisplayedText] = useState(isHistory ? (result.normalFeedback?.summary ?? result.summary) : '')
+  const [visibleStep, setVisibleStep] = useState(isHistory ? 99 : 0)
   const [showModal, setShowModal] = useState(false)
+  const [showRadarChart, setShowRadarChart] = useState(isHistory)
   const pdfRef = useRef<HTMLDivElement>(null)
+
+  const advanceStep = useCallback(() => {
+    setVisibleStep(prev => prev + 1)
+  }, [])
 
   const handleGeneratePDF = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -161,18 +345,22 @@ function StreamingChatBox({
     if (isHistory) return
 
     let i = 0
+    let interval: ReturnType<typeof setInterval> | undefined
     const text = result.normalFeedback?.summary ?? result.summary
     const targetScore = result.normalFeedback?.overallScore ?? result.overallScore
     setDisplayedText('')
+    setVisibleStep(0)
+    setShowRadarChart(false)
 
     const thinkTimeout = setTimeout(() => {
       setIsThinking(false)
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         i += 2 // Type 2 chars at a time
         if (i > text.length) {
           setDisplayedText(text)
           setAnimatedScore(targetScore)
-          clearInterval(interval)
+          if (interval) clearInterval(interval)
+          setTimeout(advanceStep, 500)
           return
         }
         setDisplayedText(text.slice(0, i))
@@ -182,15 +370,72 @@ function StreamingChatBox({
         setAnimatedScore(Math.floor(progress * targetScore))
         
       }, 15)
-      // Cleanup inner interval on unmount
-      return () => clearInterval(interval)
     }, 1500) // 1.5 seconds thinking delay
 
-    return () => clearTimeout(thinkTimeout)
-  }, [result.summary, result.overallScore, result.normalFeedback, isHistory])
+    return () => {
+      clearTimeout(thinkTimeout)
+      if (interval) clearInterval(interval)
+    }
+  }, [result.summary, result.overallScore, result.normalFeedback, isHistory, advanceStep])
+
+  const activeSourceCount = [result.sourceBreakdown.portfolio, result.sourceBreakdown.github, result.sourceBreakdown.resume].filter(Boolean).length
+
+  useEffect(() => {
+    if (isHistory) return
+    
+    // Auto-advance logic for non-typing steps
+    if (visibleStep === 1) {
+      if (activeSourceCount > 1) {
+        const t = setTimeout(advanceStep, 1500)
+        return () => clearTimeout(t)
+      } else {
+        advanceStep()
+      }
+    }
+    
+    // Auto-skip empty list steps
+    if (visibleStep === 2 && (result.normalFeedback?.topStrengths ?? result.topStrengths).length === 0) {
+      advanceStep()
+    }
+    
+    // Guest jump logic (guests only see up to step 2 visually typing, then it blurs out and jumps to 8)
+    if (visibleStep === 3) {
+      if (isGuest) {
+        setVisibleStep(8)
+      } else if ((result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length === 0) {
+        advanceStep()
+      }
+    }
+    
+    if (visibleStep === 4 && (result.deepFeedback?.topRecommendations ?? result.topRecommendations).length === 0) {
+      // Recommendations actually uses a "No major areas" text if empty, so we don't auto-skip
+    }
+    
+    if (visibleStep === 5 && (!mismatches || mismatches.length === 0)) {
+      advanceStep()
+    }
+    
+    if (visibleStep === 6) {
+      if (result.radar && result.overallScore > 0) {
+        const t = setTimeout(() => {
+          setShowRadarChart(true)
+          setTimeout(advanceStep, 1000)
+        }, 2500)
+        return () => clearTimeout(t)
+      } else {
+        advanceStep()
+      }
+    }
+    
+    if (visibleStep === 7) {
+      const t = setTimeout(advanceStep, 1500)
+      return () => clearTimeout(t)
+    }
+    
+  }, [visibleStep, isHistory, activeSourceCount, result, mismatches, isGuest, advanceStep])
 
   const isDoneTyping = isHistory || (!isThinking && displayedText.length >= (result.normalFeedback?.summary ?? result.summary).length)
-  const activeSourceCount = [result.sourceBreakdown.portfolio, result.sourceBreakdown.github, result.sourceBreakdown.resume].filter(Boolean).length
+  const showStep = (step: number) => isHistory || (isDoneTyping && visibleStep >= step)
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -225,9 +470,8 @@ function StreamingChatBox({
            </div>
         </div>
         
-        {/* Individual Scores Bubble */}
-        {isDoneTyping && activeSourceCount > 1 && (
-           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+        {showStep(1) && activeSourceCount > 1 && (
+           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
                <BarChart2 className="h-5 w-5 text-indigo-500" />
              </div>
@@ -268,9 +512,9 @@ function StreamingChatBox({
            </div>
         )}
         
-        {/* Strengths Bubble (Appears after typing) */}
-        {isDoneTyping && (result.normalFeedback?.topStrengths ?? result.topStrengths).length > 0 && (
-           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* Strengths Bubble */}
+        {showStep(2) && (result.normalFeedback?.topStrengths ?? result.topStrengths).length > 0 && (
+           <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="h-10 w-10 shrink-0 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
                <CheckCircle2 className="h-5 w-5 text-green-500" />
              </div>
@@ -279,14 +523,12 @@ function StreamingChatBox({
                  <span className="font-bold text-sm">Strengths Identified</span>
                </div>
                <div className="rounded-2xl rounded-tl-none border border-green-500/20 bg-green-500/5 p-5 shadow-sm">
-                 <ul className="space-y-3">
-                   {(result.normalFeedback?.topStrengths ?? result.topStrengths).map((s, i) => (
-                     <li key={i} className="text-sm flex items-start gap-3">
-                       <div className="mt-1 h-1.5 w-1.5 rounded-full bg-green-500 shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                       <span className="text-foreground/80 leading-relaxed font-medium">{s}</span>
-                     </li>
-                   ))}
-                 </ul>
+                 <TypingList 
+                   items={result.normalFeedback?.topStrengths ?? result.topStrengths} 
+                   onComplete={advanceStep} 
+                   isHistory={isHistory}
+                   renderPrefix={() => <div className="mt-1 h-1.5 w-1.5 rounded-full bg-green-500 shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
+                 />
                </div>
              </div>
            </div>
@@ -372,8 +614,9 @@ function StreamingChatBox({
               
               <div className={isGuest && isDoneTyping ? 'blur-sm opacity-60 pointer-events-none select-none transition-all duration-1000 delay-500' : ''}>
                 {/* Weaknesses Bubble */}
-                {isDoneTyping && (result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length > 0 && (
-               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                {/* Weaknesses Bubble */}
+                {showStep(3) && (result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length > 0 && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
                    <AlertTriangle className="h-5 w-5 text-red-500" />
                  </div>
@@ -382,22 +625,20 @@ function StreamingChatBox({
                      <span className="font-bold text-sm">Areas for Improvement</span>
                    </div>
                    <div className="rounded-2xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-5 shadow-sm">
-                     <ul className="space-y-3">
-                       {(result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).map((w, i) => (
-                         <li key={i} className="text-sm flex items-start gap-3">
-                           <div className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-                           <span className="text-foreground/80 leading-relaxed font-medium">{w}</span>
-                         </li>
-                       ))}
-                     </ul>
+                     <TypingList 
+                       items={result.deepFeedback?.topWeaknesses ?? result.topWeaknesses} 
+                       onComplete={advanceStep} 
+                       isHistory={isHistory}
+                       renderPrefix={() => <div className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />}
+                     />
                    </div>
                  </div>
                </div>
             )}
 
             {/* Recommendations Bubble */}
-            {isDoneTyping && (
-               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500">
+            {showStep(4) && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                    <Target className="h-5 w-5 text-blue-500" />
                  </div>
@@ -407,16 +648,14 @@ function StreamingChatBox({
                    </div>
                    <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 p-5 shadow-sm">
                      {(result.deepFeedback?.topRecommendations ?? result.topRecommendations).length > 0 ? (
-                       <ul className="space-y-3">
-                         {(result.deepFeedback?.topRecommendations ?? result.topRecommendations).map((r, i) => (
-                           <li key={i} className="text-sm flex items-start gap-3">
-                             <span className="text-blue-500 font-bold bg-blue-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{i + 1}</span>
-                             <span className="text-foreground/80 leading-relaxed font-medium">{r}</span>
-                           </li>
-                         ))}
-                       </ul>
+                       <TypingList 
+                         items={result.deepFeedback?.topRecommendations ?? result.topRecommendations} 
+                         onComplete={advanceStep} 
+                         isHistory={isHistory}
+                         renderPrefix={(i) => <span className="text-blue-500 font-bold bg-blue-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{i + 1}</span>}
+                       />
                      ) : (
-                       <p className="text-sm text-foreground/80 leading-relaxed font-medium">No major areas of improvement found. Excellent profile!</p>
+                       <p className="text-sm text-foreground/80 leading-relaxed font-medium"><TypingText text="No major areas of improvement found. Excellent profile!" onComplete={advanceStep} isHistory={isHistory} /></p>
                      )}
                    </div>
                  </div>
@@ -424,8 +663,8 @@ function StreamingChatBox({
             )}
 
             {/* Mismatches Bubble */}
-            {isDoneTyping && mismatches && mismatches.length > 0 && (
-               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[600ms]">
+            {showStep(5) && mismatches && mismatches.length > 0 && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
                    <AlertTriangle className="h-5 w-5 text-orange-500" />
                  </div>
@@ -434,22 +673,33 @@ function StreamingChatBox({
                      <span className="font-bold text-sm">Cross-Reference Discrepancies</span>
                    </div>
                    <div className="rounded-2xl rounded-tl-none border border-orange-500/20 bg-orange-500/5 p-5 shadow-sm">
-                     <ul className="space-y-3">
-                       {mismatches.map((m, i) => (
-                         <li key={i} className="text-sm flex items-start gap-3">
-                           <span className="text-orange-500 font-bold bg-orange-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{m.sources.join(' ⚡ ')}</span>
-                           <span className="text-foreground/80 leading-relaxed font-medium">{m.description}</span>
-                         </li>
-                       ))}
-                     </ul>
+                     <TypingList 
+                       items={mismatches.map(m => m.description)} 
+                       onComplete={advanceStep} 
+                       isHistory={isHistory}
+                       renderPrefix={(i) => <span className="text-orange-500 font-bold bg-orange-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{mismatches[i].sources.join(' ⚡ ')}</span>}
+                     />
                    </div>
                  </div>
                </div>
             )}
 
             {/* Radar Chart Bubble */}
-            {isDoneTyping && result.radar && result.overallScore > 0 && (
-               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[800ms]">
+            {isDoneTyping && result.radar && result.overallScore > 0 && visibleStep === 6 && !showRadarChart && (
+              <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center"><Target className="h-5 w-5 text-primary opacity-50" /></div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm">Competency Radar</span>
+                    <span className="text-xs text-muted-foreground animate-pulse ml-2">Visualizing...</span>
+                  </div>
+                  <BubbleSkeleton height="h-72" />
+                </div>
+              </div>
+            )}
+
+            {showStep(6) && showRadarChart && result.radar && result.overallScore > 0 && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                    <Target className="h-5 w-5 text-primary" />
                  </div>
@@ -471,8 +721,8 @@ function StreamingChatBox({
             )}
 
             {/* Telemetry Attachment Bubble */}
-            {isDoneTyping && (
-               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1000ms]">
+            {showStep(7) && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-muted/50 flex items-center justify-center border border-border/50">
                    <FileCode2 className="h-5 w-5 text-muted-foreground" />
                  </div>
@@ -501,8 +751,8 @@ function StreamingChatBox({
           </div>
 
           {/* Final Overall Score Bubble */}
-            {isDoneTyping && (
-               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1200ms] mt-4">
+            {showStep(8) && (
+               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-4">
                  <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                    <Sparkles className="h-5 w-5 text-primary" />
                  </div>
@@ -529,8 +779,8 @@ function StreamingChatBox({
             )}
             
             {/* NEW: Action Buttons */}
-            {isDoneTyping && (
-              <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[1400ms] mt-8 justify-center">
+            {showStep(8) && (
+              <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[600ms] mt-8 justify-center">
                  <Button onClick={handleGeneratePDF} className="shadow-lg hover:scale-105 transition-transform bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
                     <FileText className="w-4 h-4" /> Generate PDF Report
                  </Button>
@@ -787,13 +1037,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
     setShowDetails((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const stripGitHubUrl = (input: string): string => {
-    const match = input
-      .trim()
-      .match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_-]+)(?:\/.*)?$/i)
-    return match ? match[1] : input.trim()
-  }
-
   const hasDetails = useCallback((result: Record<string, unknown>, id: string): boolean => {
     if (id === 'portfolio') return Array.isArray(result.checks) && result.checks.length > 0
     if (id === 'github') return !!result.profile || !!result.repos
@@ -829,7 +1072,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       setActiveIframeUrl(null)
     }
 
-    const cleanGithub = githubUsername ? stripGitHubUrl(githubUsername) : ''
+    const cleanGithub = githubUsername ? normalizeGitHubUsername(githubUsername) : ''
     if (cleanGithub) {
       // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen. Max 39 chars.
       if (!/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/i.test(cleanGithub)) {
@@ -857,12 +1100,13 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
     if (cleanPortfolio) totalCost += getAnalysisCost('portfolio')
     if (cleanGithub) totalCost += getAnalysisCost('github')
     if (resumeFile) totalCost += getAnalysisCost('resume')
+    if (totalCost > 0) totalCost += 1
     
     if (credits < totalCost) {
       toast.error('Insufficient Credits')
       setError(isGuest 
-        ? `This analysis requires ${totalCost} credits, but you only have ${credits} left of your free tokens. Please sign up to get more.`
-        : `This analysis requires ${totalCost} credits, but you only have ${credits} available. Please upgrade your plan to continue.`
+        ? `Oops! You're out of credits. To proceed, please sign up to get more. Credits left: ${credits}, Needed: ${totalCost}`
+        : `Oops! You're out of credits. To proceed, please top up your credits. Credits left: ${credits}, Needed: ${totalCost}`
       )
       setIsLoading(false)
       return
@@ -1028,8 +1272,26 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
         collected.aiSummary = aiRes.data.summary
         collected.mismatches = aiRes.data.mismatches
         setResults({ ...collected })
+        setCollectingSteps(prev => prev.map(s => s.id === 'synthesize' ? { ...s, status: 'success' } : s))
+      } else {
+        const message = typeof aiRes.message === 'string' ? aiRes.message : ''
+        const fallbackReason = message.toLowerCase().includes('insufficient')
+          ? 'AI synthesis could not run because there are not enough credits for the final summary. Showing typed source-level results instead.'
+          : 'AI synthesis could not complete. Showing typed source-level results instead.'
+        collected.aiSummary = buildFallbackSummary(collected, fallbackReason)
+        collected.mismatches = []
+        setResults({ ...collected })
+        setCollectingSteps(prev => prev.map(s => s.id === 'synthesize' ? { ...s, status: 'success' } : s))
+        if (message) toast.error(message)
       }
     } catch {
+      collected.aiSummary = buildFallbackSummary(
+        collected,
+        'AI synthesis could not be reached. Showing typed source-level results instead.'
+      )
+      collected.mismatches = []
+      setResults({ ...collected })
+      setCollectingSteps(prev => prev.map(s => s.id === 'synthesize' ? { ...s, status: 'success' } : s))
       // AI summary failed — results still shown without AI
     }
 
@@ -1556,13 +1818,16 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                        analysisId={analysisId}
                        isScanning={phase === 'collecting' || phase === 'analyzing'}
                        collectingNode={
-                         phase === 'collecting' ? (
-                           <div className="rounded-2xl border border-border/50 bg-card p-2 shadow-sm w-full max-w-xl">
-                             <LiveCrawlerPreview 
-                               portfolioUrl={portfolioUrl} 
-                               githubUsername={githubUsername} 
-                               resumeFileName={resumeFile?.name} 
-                             />
+                         phase === 'collecting' || phase === 'analyzing' ? (
+                           <div className="w-full max-w-xl space-y-3">
+                             <div className="rounded-2xl border border-border/50 bg-card p-2 shadow-sm">
+                               <LiveCrawlerPreview 
+                                 portfolioUrl={portfolioUrl} 
+                                 githubUsername={githubUsername} 
+                                 resumeFileName={resumeFile?.name} 
+                               />
+                             </div>
+                             <AgentProgressDropdown phase={phase} steps={collectingSteps} />
                            </div>
                          ) : null
                        }
@@ -1570,7 +1835,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                          error ? (
                            <div className="flex flex-col items-center justify-center p-6 mt-4 rounded-[1.5rem] border-2 border-red-500/20 bg-red-500/5 text-center relative overflow-hidden w-full max-w-xl">
                              <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />
-                             <h3 className="text-lg font-extrabold text-red-600 mb-1">Analysis Terminated</h3>
+                             <h3 className="text-lg font-extrabold text-red-600 mb-1">{error?.includes('Oops!') ? 'Out of Credits' : 'Analysis Terminated'}</h3>
                              <p className="text-sm text-red-500/80 mb-4">{error}</p>
                              <Button onClick={() => setPhase('form')} size="sm" variant="outline" className="border-red-500/30 text-red-600 hover:bg-red-500/10">
                                Re-initialize Scan
@@ -1664,7 +1929,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                   <div className="flex items-center gap-3">
                     <div className={`h-2 w-2 rounded-full ${error ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'} dark:${error ? 'shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'shadow-[0_0_10px_rgba(34,197,94,0.8)]'} ${phase !== 'form' && !error && phase !== 'finalizing' ? 'animate-ping' : 'animate-pulse'}`} />
                     <p className={`text-sm font-medium ${error ? 'text-red-500' : 'text-slate-800 dark:text-white/90'}`}>
-                      {error ? 'Analysis Terminated' : phase === 'finalizing' ? 'Analysis Complete' : phase === 'form' ? 'Pilot Agent Standing By' : 'Processing Telemetry...'}
+                      {error ? (error.includes('Oops!') ? 'Insufficient Credits' : 'Analysis Terminated') : phase === 'finalizing' ? 'Analysis Complete' : phase === 'form' ? 'Pilot Agent Standing By' : 'Processing Telemetry...'}
                     </p>
                   </div>
                 </div>
