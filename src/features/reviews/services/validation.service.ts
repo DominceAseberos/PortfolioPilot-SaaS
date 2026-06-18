@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'
+import { normalizePortfolioUrl } from '@/utils/source-normalizers'
 
 /**
  * URLValidationService
@@ -30,13 +31,14 @@ export class URLValidationService {
    */
   public async validatePortfolioUrl(url: string): Promise<{ isValid: boolean; message?: string; isClientRendered?: boolean }> {
     try {
+      const normalizedUrl = normalizePortfolioUrl(url)
       // 1. Blacklist Check
-      if (this.isBlacklisted(url)) {
+      if (this.isBlacklisted(normalizedUrl)) {
         return { isValid: false, message: 'This domain is blacklisted and cannot be used as a personal portfolio.' };
       }
 
       // 2. Fetch the HTML
-      const response = await this.fetchWithTimeout(url);
+      const response = await this.fetchWithTimeout(normalizedUrl);
 
       // 3. Content-Type Check (Ensure it's a webpage, not an image/pdf)
       const contentType = response.headers.get('content-type') || '';
@@ -60,7 +62,7 @@ export class URLValidationService {
 
       return { isValid: true, isClientRendered };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Fast URL validation failed', { error: String(error), url });
       return { 
         isValid: false, 

@@ -1,8 +1,7 @@
 import type { ResumeAnalysis, ResumeSkill, ResumeSection } from '@/types'
 import { logger } from '@/lib/logger'
 import { analyzeResumeWithAI } from '@/features/ai/services/ai.service'
-import { portfolioService } from '@/features/reviews/services/portfolio.service'
-import { gitHubService } from '@/features/github/services/github.service'
+import { resumeLinkExtractionService } from './resume-link-extraction.service'
 
 export class ResumeService {
   async analyze(fileBuffer: Buffer, fileName: string): Promise<ResumeAnalysis> {
@@ -22,25 +21,11 @@ export class ResumeService {
         throw new Error('NOT_A_RESUME')
       }
 
-      const portfolioMatch = text.match(/https?:\/\/(?!github\.com|linkedin\.com)[^\s]+|www\.[^\s]+/i)
-      const githubMatch = text.match(/github\.com\/[A-Za-z0-9-]+/i)
+      const detectedLinks = resumeLinkExtractionService.extract(text)
+      const detectedGithub = detectedLinks.github[0]?.normalized ?? null
+      const detectedLinkedIn = detectedLinks.linkedin[0]?.normalized ?? null
 
-      let scrapedContext = ''
-      
-      if (portfolioMatch || githubMatch) {
-         try {
-           const promises = []
-           if (portfolioMatch) promises.push(portfolioService.analyze(portfolioMatch[0]).then(res => `Portfolio Analysis (${portfolioMatch[0]}):\nStrengths: ${res.strengths.join(', ')}\nWeaknesses: ${res.weaknesses.join(', ')}`).catch(() => null))
-           if (githubMatch) promises.push(gitHubService.analyze(githubMatch[0]).then(res => `GitHub Analysis (${githubMatch[0]}):\nRepos: ${res.details?.repos?.map(r=>r.name).join(', ')}\nStrengths: ${res.strengths.join(', ')}\nWeaknesses: ${res.weaknesses.join(', ')}`).catch(() => null))
-           
-           const results = await Promise.all(promises)
-           scrapedContext = results.filter(Boolean).join('\n\n')
-         } catch (e) {
-           logger.warn('Failed to scrape context for resume', { error: String(e) })
-         }
-      }
-
-      const aiResult = await analyzeResumeWithAI(text, scrapedContext)
+      const aiResult = await analyzeResumeWithAI(text)
       const ruleResult = this.ruleBasedAnalyze(text)
 
       if (aiResult) {
@@ -55,8 +40,8 @@ export class ResumeService {
           details: {
             name: aiResult.name || ruleResult.details?.name || null,
             email: aiResult.email || ruleResult.details?.email || null,
-            linkedin: aiResult.linkedin || ruleResult.details?.linkedin || null,
-            github: aiResult.github || ruleResult.details?.github || null,
+            linkedin: aiResult.linkedin || detectedLinkedIn || ruleResult.details?.linkedin || null,
+            github: aiResult.github || detectedGithub || ruleResult.details?.github || null,
             workEntries:
               aiResult.workEntries.length > 0
                 ? aiResult.workEntries
@@ -87,8 +72,8 @@ export class ResumeService {
                 : ruleResult.details?.sections || [],
             wordCount: text.split(/\s+/).length,
             hasEmail: !!(aiResult.email || ruleResult.details?.email),
-            hasLinkedIn: !!(aiResult.linkedin || ruleResult.details?.linkedin),
-            hasGithub: !!(aiResult.github || ruleResult.details?.github),
+            hasLinkedIn: !!(aiResult.linkedin || detectedLinkedIn || ruleResult.details?.linkedin),
+            hasGithub: !!(aiResult.github || detectedGithub || ruleResult.details?.github),
             hasMetrics:
               /\d+%|\d+x|\$\d+|[0-9]+ (users|customers|clients|revenue|growth|improvement)/i.test(
                 text
@@ -356,13 +341,11 @@ export class ResumeService {
   }
 
   private extractLinkedIn(text: string): string | null {
-    const match = text.match(/linkedin\.com\/in\/[A-Za-z0-9%-]+/i)
-    return match ? match[0] : null
+    return resumeLinkExtractionService.extract(text).linkedin[0]?.normalized ?? null
   }
 
   private extractGithub(text: string): string | null {
-    const match = text.match(/github\.com\/[A-Za-z0-9-]+/i)
-    return match ? match[0] : null
+    return resumeLinkExtractionService.extract(text).github[0]?.normalized ?? null
   }
 
   private extractWorkEntries(text: string): string[] {

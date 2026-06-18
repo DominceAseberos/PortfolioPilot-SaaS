@@ -1,17 +1,10 @@
 import type { GitHubAnalysis, GitHubProfile, GitHubRepo, GitHubDetails, GitHubContributions } from '@/types'
 import { logger } from '@/lib/logger'
-
-function stripGitHubUrl(input: string): string {
-  const trimmed = input.trim()
-  const match = trimmed.match(
-    /(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_-]+)(?:\/.*)?$/i
-  )
-  return match ? match[1] : trimmed
-}
+import { normalizeGitHubUsername } from '@/utils/source-normalizers'
 
 export class GitHubService {
   async analyze(rawUsername: string): Promise<GitHubAnalysis> {
-    const username = stripGitHubUrl(rawUsername)
+    const username = normalizeGitHubUsername(rawUsername)
     try {
       const headers: Record<string, string> = {
         Accept: 'application/vnd.github.v3+json',
