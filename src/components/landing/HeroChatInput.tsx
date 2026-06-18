@@ -8,7 +8,7 @@ type InputType = 'portfolio' | 'github' | 'resume'
 
 export function HeroChatInput() {
   const router = useRouter()
-  const [inputType, setInputType] = useState<InputType>('portfolio')
+  const [inputType, setInputType] = useState<InputType>('resume')
   const [inputValue, setInputValue] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -44,7 +44,7 @@ export function HeroChatInput() {
     switch (inputType) {
       case 'portfolio': return 'Analyze your portfolio URL...'
       case 'github': return 'Analyze your GitHub username...'
-      case 'resume': return 'Head to dashboard to upload resume PDF...'
+      case 'resume': return 'Upload your resume first...'
     }
   }
 

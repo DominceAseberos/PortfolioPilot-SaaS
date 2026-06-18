@@ -11,11 +11,11 @@ export function LandingPricing() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       <div className="container mx-auto px-4 relative z-10">
-        <ScrollReveal animation="blur-in" duration={1000}>
-          <div className="mx-auto max-w-3xl text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">Simple, Transparent Pricing</h2>
-            <p className="text-foreground/80 text-lg md:text-[1.15rem] leading-relaxed font-medium">
-              Start free and unlock the full orchestration engine when you're ready.
+        <ScrollReveal animation="fade-up" delay={100}>
+          <div className="mx-auto max-w-3xl text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">Pay As You Go Flexibility</h2>
+            <p className="text-foreground/80 text-lg">
+              Start with a free review, then simply top up credits as you need them. Zero subscriptions. Zero commitments.
             </p>
           </div>
         </ScrollReveal>
