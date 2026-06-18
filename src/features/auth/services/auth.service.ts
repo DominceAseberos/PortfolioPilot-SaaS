@@ -49,11 +49,6 @@ export class AuthService {
   }
 
   async signIn(email: string, password: string) {
-    const { data: { user } } = await this.supabase.auth.getUser()
-    if (user?.is_anonymous) {
-      document.cookie = `portfolio_guest_id=${user.id}; path=/; max-age=3600`
-    }
-
     const { data, error } = await this.supabase.auth.signInWithPassword({
       email,
       password,
@@ -66,13 +61,7 @@ export class AuthService {
   }
 
   async signInWithGoogle(nextPath?: string) {
-    const { data: { user } } = await this.supabase.auth.getUser()
-    const isAnonymous = user?.is_anonymous === true
     const redirectUrl = `${window.location.origin}/api/auth/callback${nextPath ? `?next=${nextPath}` : ''}`
-
-    if (isAnonymous) {
-      document.cookie = `portfolio_guest_id=${user.id}; path=/; max-age=3600`
-    }
 
     const { data, error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -88,13 +77,7 @@ export class AuthService {
   }
 
   async signInWithGithub(nextPath?: string) {
-    const { data: { user } } = await this.supabase.auth.getUser()
-    const isAnonymous = user?.is_anonymous === true
     const redirectUrl = `${window.location.origin}/api/auth/callback${nextPath ? `?next=${nextPath}` : ''}`
-
-    if (isAnonymous) {
-      document.cookie = `portfolio_guest_id=${user.id}; path=/; max-age=3600`
-    }
 
     const { data, error } = await this.supabase.auth.signInWithOAuth({
       provider: 'github',

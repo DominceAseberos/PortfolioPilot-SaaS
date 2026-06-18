@@ -1,9 +1,7 @@
 import { type NextRequest } from 'next/server'
-import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { reviewService } from '@/features/reviews/services/review.service'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/utils/api'
-import crypto from 'crypto'
 import type {
   PortfolioAnalysis,
   GitHubAnalysis,
@@ -46,14 +44,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (!userId) {
-        // Guest mode: do not save to DB, just return the data so UI works
-        return successResponse({
-          id: 'guest_review_' + Date.now(),
-          user_id: 'guest',
-          overall_score: aiSummary?.overallScore ?? 0,
-          created_at: new Date().toISOString(),
-          full_results: { portfolio, github, resume, aiSummary, mismatches }
-        }, 'Review processed successfully (Guest mode)')
+        return errorResponse('No session found. Please refresh and try again.', 401)
       }
 
       const review = await reviewService.saveReviewWithResults(userId, {
@@ -107,20 +98,12 @@ export async function GET() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    
-    let userId = user?.id
 
-    if (!userId) {
-      const cookieStore = await cookies()
-      const guestCookie = cookieStore.get('portfolio_guest_id')
-      if (guestCookie?.value) {
-        userId = guestCookie.value
-      } else {
-        return unauthorizedResponse('Not logged in and no guest session found')
-      }
+    if (!user?.id) {
+      return unauthorizedResponse('No active session found')
     }
 
-    const reviews = await reviewService.getUserReviews(userId)
+    const reviews = await reviewService.getUserReviews(user.id)
     return successResponse(reviews, 'Reviews fetched successfully')
   } catch {
     return errorResponse('Failed to fetch reviews', 500)
