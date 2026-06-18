@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resumeService } from '@/features/resume/services/resume.service'
+import { resumeLinkExtractionService } from '@/features/resume/services/resume-link-extraction.service'
 import { FILE_UPLOAD } from '@/constants'
 
 export async function POST(req: Request) {
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     let text = ''
     try {
       text = await resumeService.extractText(buffer)
-    } catch (e) {
+    } catch {
       return NextResponse.json(
         { success: false, message: 'Could not extract text from the PDF. It may be a scanned image or protected.' },
         { status: 400 }
@@ -60,9 +61,11 @@ export async function POST(req: Request) {
       })
     }
 
-    return NextResponse.json({ success: true })
+    const detectedLinks = await resumeLinkExtractionService.validate(text)
 
-  } catch (error: any) {
+    return NextResponse.json({ success: true, data: { detectedLinks } })
+
+  } catch (error: unknown) {
     console.error('Validation route error:', error)
     return NextResponse.json(
       { success: false, message: 'An unexpected error occurred while verifying the document.' },

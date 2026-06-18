@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isValidGitHubUsername, normalizeGitHubUsername } from '@/utils/source-normalizers'
 
 export async function POST(req: Request) {
   try {
@@ -12,10 +13,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'GitHub username is required' }, { status: 400 })
     }
 
-    // Clean username (in case they pasted a URL instead of just the username)
-    let cleanUsername = username.trim()
-    if (cleanUsername.includes('github.com/')) {
-       cleanUsername = cleanUsername.split('github.com/')[1].split('/')[0]
+    const cleanUsername = normalizeGitHubUsername(username)
+    if (!isValidGitHubUsername(cleanUsername)) {
+      return NextResponse.json({ success: false, message: 'Please provide a valid GitHub username.' }, { status: 400 })
     }
 
     const headers: Record<string, string> = {
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       }
     })
 
-  } catch (error: any) {
+  } catch {
     return NextResponse.json(
       { success: false, message: 'An unexpected error occurred while verifying the GitHub profile.' },
       { status: 500 }
