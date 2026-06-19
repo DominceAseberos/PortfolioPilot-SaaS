@@ -1,3 +1,5 @@
+import { find as linkifyFind } from 'linkifyjs'
+import { parse as parseTld } from 'tldts'
 import { normalizeGitHubUsername, normalizePortfolioUrl } from '@/utils/source-normalizers'
 import { urlValidationService } from '@/features/reviews/services/validation.service'
 
@@ -40,8 +42,27 @@ export interface ResumeValidatedLinks {
   portfolioCandidates: ValidatedDetectedLink[]
 }
 
-const URL_PATTERN =
-  /(?:https?:\/\/|www\.)[^\s<>"']+|(?:github\.com|linkedin\.com)\/[^\s<>"']+|\b(?:[a-zA-Z0-9-]+\.)+(?:com|org|net|dev|me|io|co|app|site)\b(?:\/[^\s<>"']*)?|\b[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}\b/gi
+// Domains we explicitly never want to classify as a personal portfolio
+const IGNORED_DOMAINS = new Set([
+  'github.com',
+  'linkedin.com',
+  'githubusercontent.com',
+  'google.com',
+  'youtube.com',
+  'facebook.com',
+  'twitter.com',
+  'instagram.com',
+  'npmjs.com',
+  'npmjs.org',
+  'nodejs.org',
+  'pypi.org',
+  'docs.python.org',
+  'developer.mozilla.org',
+  'stackoverflow.com',
+  'medium.com',
+  'dev.to',
+  'notion.so',
+])
 
 function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
   const seen = new Set<string>()
@@ -53,60 +74,78 @@ function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
   })
 }
 
-function cleanUrl(raw: string): string {
-  return raw.trim().replace(/^[([<{]+/g, '').replace(/[)\].,;:}>]+$/g, '')
-}
-
-function isLikelyCodeToken(url: string): boolean {
-  return /\.(js|jsx|ts|tsx|css|html|json|yml|yaml|md)$/i.test(url) && !url.includes('/')
-}
-
 function withProtocol(url: string): string {
   if (/^https?:\/\//i.test(url)) return url
   return `https://${url}`
 }
 
+/**
+ * Uses tldts to confirm the hostname contains a real, ICANN-registered public TLD.
+ * This is the key guard: it rejects things like `self.env`, `simpy.Resource`,
+ * or any other code token that accidentally looks like a domain.
+ * - `self.env`      → isIcann: false  ✗ rejected
+ * - `simpy.Resource`→ isIcann: false  ✗ rejected
+ * - `johnsmith.dev` → isIcann: true   ✓ accepted
+ */
+function hasRealTLD(href: string): boolean {
+  try {
+    const { hostname } = new URL(href)
+    const result = parseTld(hostname)
+    return result.isIcann === true
+  } catch {
+    return false
+  }
+}
+
 export class ResumeLinkExtractionService {
   extract(text: string): ResumeDetectedLinks {
-    const rawLinks = text.match(URL_PATTERN) ?? []
+    // linkifyjs finds URLs and emails using ICANN TLD data — no false positives from code text
+    const found = linkifyFind(text, { defaultProtocol: 'https' })
+
     const github: DetectedGitHubLink[] = []
     const linkedin: DetectedLink[] = []
     const portfolioCandidates: DetectedLink[] = []
 
-    for (const raw of rawLinks) {
-      const url = cleanUrl(raw)
-      
-      // Ignore things that look like code files or pure email addresses
-      if (isLikelyCodeToken(url) || url.includes('@')) continue
+    for (const item of found) {
+      // Skip emails — they are not portfolio/github links
+      if (item.type === 'email') continue
 
-      const normalized = withProtocol(url)
+      const raw = item.value
+      const normalized = withProtocol(item.href)
       const lower = normalized.toLowerCase()
+
+      // Secondary guard: ensure the TLD is real via tldts (eliminates any remaining false positives)
+      if (!hasRealTLD(normalized)) continue
+
+      // --- Route to the correct bucket ---
 
       if (lower.includes('github.com/')) {
         const username = normalizeGitHubUsername(normalized)
-        github.push({ url, normalized: `https://github.com/${username}`, username })
+        // Ignore github.com with no username path (bare domain link)
+        if (!username) continue
+        github.push({ url: raw, normalized: `https://github.com/${username}`, username })
         continue
       }
 
       if (lower.includes('linkedin.com/in/')) {
-        linkedin.push({ url, normalized })
+        linkedin.push({ url: raw, normalized })
         continue
       }
 
+      // Any other valid link is a portfolio candidate, unless it's on the ignored list
       try {
         const parsed = new URL(normalized)
         const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '')
-        const isIgnoredHost =
-          hostname === 'github.com' ||
-          hostname === 'linkedin.com' ||
-          hostname === 'mailto' ||
-          hostname.endsWith('githubusercontent.com')
 
-        if (!isIgnoredHost) {
-          portfolioCandidates.push({ url, normalized: normalizePortfolioUrl(normalized) })
+        const isIgnored = [...IGNORED_DOMAINS].some(
+          (d) => hostname === d || hostname.endsWith(`.${d}`)
+        )
+
+        if (!isIgnored) {
+          portfolioCandidates.push({ url: raw, normalized: normalizePortfolioUrl(normalized) })
         }
       } catch {
-        // Ignore malformed links found in extracted PDF text.
+        // Malformed URL — skip
       }
     }
 

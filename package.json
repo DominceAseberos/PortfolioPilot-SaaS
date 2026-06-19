@@ -24,6 +24,7 @@
     "date-fns": "^4.4.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "linkifyjs": "^4.3.3",
     "lucide-react": "^1.17.0",
     "next": "16.2.9",
     "openai": "^6.42.0",
@@ -35,6 +36,7 @@
     "sonner": "^2.0.7",
     "stripe": "^22.2.0",
     "tailwind-merge": "^3.6.0",
+    "tldts": "^7.4.3",
     "turndown": "^7.2.4",
     "unpdf": "^1.6.2",
     "zod": "^4.4.3"
