@@ -23,7 +23,7 @@ export function useCredits(userId: string | undefined) {
         .from('user_credits')
         .select('credits')
         .eq('user_id', uid)
-        .single()
+        .maybeSingle()
 
       setCredits(data?.credits ?? 0)
     }

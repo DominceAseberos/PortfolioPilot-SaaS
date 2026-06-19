@@ -39,7 +39,7 @@ BEGIN
   END IF;
 END $$;
 
--- Allow any authenticated user (including anonymous) to select their own reviews
+-- Allow any authenticated user (including anonymous) to select their own reviewsm 
 DO $$
 BEGIN
   IF NOT EXISTS (
