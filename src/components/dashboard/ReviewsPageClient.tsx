@@ -1413,8 +1413,8 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       if (!session) {
         const { data, error: authError } = await supabase.auth.signInAnonymously()
         if (authError) {
-          toast.error('Authentication failed')
-          setError('Failed to initialize session. Please try again.')
+          toast.error('Guest access unavailable')
+          setError('Guest sessions are currently unavailable. Please create a free account to continue your analysis.')
           setIsLoading(false)
           return
         }
