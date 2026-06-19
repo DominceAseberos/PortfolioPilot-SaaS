@@ -41,7 +41,7 @@ export interface ResumeValidatedLinks {
 }
 
 const URL_PATTERN =
-  /(?:https?:\/\/|www\.)[^\s<>"']+|(?:github\.com|linkedin\.com)\/[^\s<>"']+|\b(?![\w.+-]+@)(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi
+  /(?:https?:\/\/|www\.)[^\s<>"']+|(?:github\.com|linkedin\.com)\/[^\s<>"']+|\b(?![\w.+-]+@)(?:[a-z0-9-]+\.)+(?:com|org|net|io|co|me|dev|app|site|page|design|tech|info|link|xyz|cv|in)(?:\/[^\s<>"']*)?/gi
 
 function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
   const seen = new Set<string>()
