@@ -1418,10 +1418,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
           setIsLoading(false)
           return
         }
-        // Initialize the new guest with 5 free credits
-        if (data?.user) {
-           await supabase.rpc('add_credits', { p_user_id: data.user.id, p_amount: 5 })
-        }
+        // Database trigger handle_new_user automatically assigns initial credits
       }
     }
 

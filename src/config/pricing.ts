@@ -4,7 +4,7 @@ export const ANALYSIS_COSTS = {
   RESUME: 1,
 } as const;
 
-export const INITIAL_FREE_TOKENS = 3;
+export const INITIAL_FREE_TOKENS = 5;
 
 // You can fetch this from a database or API in the future
 export const getAnalysisCost = (mode: 'portfolio' | 'github' | 'resume') => {
