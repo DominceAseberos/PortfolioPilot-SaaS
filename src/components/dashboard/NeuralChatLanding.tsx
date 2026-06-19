@@ -55,8 +55,9 @@ const DynamicProceedContext = React.createContext<{
 
 function SmartPortfolioPreview({ url, originalInput }: { url: string, originalInput: string }) {
   const { portfolioUrl, isScanning } = React.useContext(DynamicProceedContext)
-  const isActive = originalInput === portfolioUrl
-  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/>Previous Preview Dismissed</div>
+  const isSelected = originalInput === portfolioUrl
+  const isDismissed = portfolioUrl && !isSelected
+  if (isDismissed) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/>Previous Preview Dismissed</div>
   const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
   return (
     <div className="mt-4 relative w-full h-[300px] sm:h-[400px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
@@ -71,7 +72,7 @@ function SmartPortfolioPreview({ url, originalInput }: { url: string, originalIn
       <div className="absolute top-0 left-0 w-[200%] h-[200%] origin-top-left scale-50">
          <iframe src={normalizedUrl} className="w-full h-full border-0 bg-background custom-scrollbar" title="Portfolio Live Preview" sandbox="allow-scripts allow-same-origin" />
       </div>
-      {isScanning && isActive && (
+      {isScanning && isSelected && (
          <>
            <div className="absolute inset-0 z-10 bg-primary/10 mix-blend-overlay pointer-events-none transition-opacity duration-1000" />
            <div 
@@ -98,8 +99,9 @@ function SmartPortfolioPreview({ url, originalInput }: { url: string, originalIn
 
 function SmartGithubPreview({ profile, username }: { profile: any, username: string }) {
   const { githubUsername } = React.useContext(DynamicProceedContext)
-  const isActive = username === githubUsername
-  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><GitBranch className="h-4 w-4 opacity-50"/>Previous Profile Dismissed</div>
+  const isSelected = username === githubUsername
+  const isDismissed = githubUsername && !isSelected
+  if (isDismissed) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><GitBranch className="h-4 w-4 opacity-50"/>Previous Profile Dismissed</div>
   return (
     <div className="mt-4 w-full rounded-2xl border border-border/50 bg-muted/20 p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm relative overflow-hidden group">
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 blur-[60px] rounded-full group-hover:bg-purple-500/20 transition-colors pointer-events-none" />
@@ -125,8 +127,9 @@ function SmartGithubPreview({ profile, username }: { profile: any, username: str
 
 function SmartResumePreview({ pdfUrl, fileObj, fileName }: { pdfUrl: string | null, fileObj: File | null, fileName: string }) {
   const { resumeFile } = React.useContext(DynamicProceedContext)
-  const isActive = resumeFile && fileObj && resumeFile.name === fileName && resumeFile.size === fileObj.size
-  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><FileText className="h-4 w-4 opacity-50"/>Previous Resume Dismissed</div>
+  const isSelected = resumeFile && fileObj && resumeFile.name === fileName && resumeFile.size === fileObj.size
+  const isDismissed = resumeFile && !isSelected
+  if (isDismissed) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><FileText className="h-4 w-4 opacity-50"/>Previous Resume Dismissed</div>
   return (
     <div className="mt-4 w-full rounded-2xl border border-border/50 bg-muted/20 p-4 shadow-sm relative overflow-hidden flex flex-col">
       <div className="flex items-center gap-3 mb-4 p-3 bg-background rounded-xl border border-border/50">
