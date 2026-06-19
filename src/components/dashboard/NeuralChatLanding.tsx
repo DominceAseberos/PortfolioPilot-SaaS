@@ -269,15 +269,15 @@ export function NeuralChatLanding({
   const renderDetectedLinks = (links: ResumeValidatedLinks | undefined) => {
     if (!links) return null
 
-    const hasLinks =
-      links.github.length > 0 ||
-      links.portfolioCandidates.length > 0 ||
-      links.linkedin.length > 0
+    // Only surface links that actually passed validation — silently drop the rest
+    const validGithub = links.github.filter((l) => l.isValid)
+    const validPortfolios = links.portfolioCandidates.filter((l) => l.isValid)
+    const hasLinks = validGithub.length > 0 || validPortfolios.length > 0 || links.linkedin.length > 0
 
     if (!hasLinks) {
       return (
         <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm text-muted-foreground">
-          No portfolio, GitHub, or LinkedIn links were detected in this resume.
+          No valid portfolio or GitHub URL was detected in this resume.
         </div>
       )
     }
@@ -289,57 +289,41 @@ export function NeuralChatLanding({
           Detected resume links
         </div>
         <div className="flex flex-wrap gap-2">
-          {links.github.map((link) => {
-            return (
-              <Badge
-                key={link.username}
-                variant="secondary"
-                className={`gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold ${
-                  link.isValid ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'
-                }`}
+          {validGithub.map((link) => (
+            <Badge
+              key={link.username}
+              variant="secondary"
+              className="gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 border-purple-500/20"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              GitHub: {link.username}
+              <button
+                type="button"
+                className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
+                onClick={() => addDetectedSource('github', link.username)}
               >
-                {link.isValid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                GitHub: {link.username}
-                {link.isValid ? (
-                  <button
-                    type="button"
-                    className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
-                    onClick={() => addDetectedSource('github', link.username)}
-                  >
-                    Include
-                  </button>
-                ) : (
-                  <span className="ml-1 opacity-80">{link.message || 'Invalid'}</span>
-                )}
-              </Badge>
-            )
-          })}
+                Include
+              </button>
+            </Badge>
+          ))}
 
-          {links.portfolioCandidates.map((link) => {
-            return (
-              <Badge
-                key={link.normalized}
-                variant="secondary"
-                className={`gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold ${
-                  link.isValid ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'
-                }`}
+          {validPortfolios.map((link) => (
+            <Badge
+              key={link.normalized}
+              variant="secondary"
+              className="gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 border-blue-500/20"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Portfolio: {link.normalized.replace(/^https?:\/\//, '').slice(0, 32)}
+              <button
+                type="button"
+                className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
+                onClick={() => addDetectedSource('portfolio', link.normalized)}
               >
-                {link.isValid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                Portfolio: {link.normalized.replace(/^https?:\/\//, '').slice(0, 32)}
-                {link.isValid ? (
-                  <button
-                    type="button"
-                    className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
-                    onClick={() => addDetectedSource('portfolio', link.normalized)}
-                  >
-                    Include
-                  </button>
-                ) : (
-                  <span className="ml-1 opacity-80">{link.message || 'Invalid'}</span>
-                )}
-              </Badge>
-            )
-          })}
+                Include
+              </button>
+            </Badge>
+          ))}
 
           {links.linkedin.map((link) => (
             <Badge
@@ -356,6 +340,7 @@ export function NeuralChatLanding({
       </div>
     )
   }
+
 
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault()
