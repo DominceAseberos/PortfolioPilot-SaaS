@@ -41,7 +41,7 @@ export interface ResumeValidatedLinks {
 }
 
 const URL_PATTERN =
-  /(?:https?:\/\/|www\.)[^\s<>"']+|(?:github\.com|linkedin\.com)\/[^\s<>"']+|\b(?![\w.+-]+@)(?:[a-z0-9-]+\.)+(?:com|org|net|io|co|me|dev|app|site|page|design|tech|info|link|xyz|cv|in)(?:\/[^\s<>"']*)?/gi
+  /(?:https?:\/\/|www\.)[^\s<>"']+|(?:github\.com|linkedin\.com)\/[^\s<>"']+|\b(?:[a-zA-Z0-9-]+\.)+(?:com|org|net|dev|me|io|co|app|site)\b(?:\/[^\s<>"']*)?|\b[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}\b/gi
 
 function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
   const seen = new Set<string>()
@@ -58,7 +58,7 @@ function cleanUrl(raw: string): string {
 }
 
 function isLikelyCodeToken(url: string): boolean {
-  return /\.(js|jsx|ts|tsx|css|html)$/i.test(url) && !url.includes('/')
+  return /\.(js|jsx|ts|tsx|css|html|json|yml|yaml|md)$/i.test(url) && !url.includes('/')
 }
 
 function withProtocol(url: string): string {
@@ -75,7 +75,9 @@ export class ResumeLinkExtractionService {
 
     for (const raw of rawLinks) {
       const url = cleanUrl(raw)
-      if (isLikelyCodeToken(url)) continue
+      
+      // Ignore things that look like code files or pure email addresses
+      if (isLikelyCodeToken(url) || url.includes('@')) continue
 
       const normalized = withProtocol(url)
       const lower = normalized.toLowerCase()
