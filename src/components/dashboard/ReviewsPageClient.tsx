@@ -17,6 +17,10 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { ReportTemplate } from '@/components/pdf/ReportTemplate'
+import dynamic from 'next/dynamic'
+import type { ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
+
+const ImprovedResumeModal = dynamic(() => import('./ImprovedResumeModal'), { ssr: false })
 import type {
   PortfolioAnalysis,
   GitHubAnalysis,
@@ -276,6 +280,12 @@ function StreamingChatBox({
   isHistory = false,
   onReset,
   renderSourceDetails,
+  portfolioAnalysis,
+  githubAnalysis,
+  resumeAnalysis,
+  portfolioUrl,
+  githubUsername,
+  resumeFile,
 }: {
   result: AISummaryResult
   mismatches?: AIMismatch[]
@@ -283,12 +293,20 @@ function StreamingChatBox({
   isHistory?: boolean
   onReset: () => void
   renderSourceDetails: (id: 'portfolio' | 'github' | 'resume', label: string) => React.ReactNode
+  portfolioAnalysis?: PortfolioAnalysis | null
+  githubAnalysis?: GitHubAnalysis | null
+  resumeAnalysis?: ResumeAnalysis | null
+  portfolioUrl?: string
+  githubUsername?: string
+  resumeFile?: File | null
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
   const [displayedText, setDisplayedText] = useState(isHistory ? (result.normalFeedback?.summary ?? result.summary) : '')
   const [visibleStep, setVisibleStep] = useState(isHistory ? 99 : 0)
   const [showModal, setShowModal] = useState(false)
+  const [showResumeModal, setShowResumeModal] = useState(false)
+  const [resumeData, setResumeData] = useState<ImprovedResumeData | null>(null)
   const [showRadarChart, setShowRadarChart] = useState(isHistory)
   const pdfRef = useRef<HTMLDivElement>(null)
 
@@ -330,7 +348,48 @@ function StreamingChatBox({
       window.location.href = '/register?next=/dashboard/reviews/latest'
       return
     }
-    toast.success('Improved Resume generation coming soon!')
+    
+    const details = resumeAnalysis?.details
+    const existingSkillNames = new Set((details?.skills ?? []).filter(s => s.found).map(s => s.name.toLowerCase()))
+    const githubLanguages = Array.from(new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))).filter(lang => !existingSkillNames.has(lang.toLowerCase()))
+    
+    const improvedSkills = [
+      ...(details?.skills ?? []).filter(s => s.found).map(s => s.name),
+      ...githubLanguages.slice(0, 5)
+    ]
+
+    const resumeProjectNames = new Set((details?.projects ?? []).map(p => p.name?.toLowerCase() ?? ''))
+    const newProjects = (githubAnalysis?.details?.repos ?? [])
+      .filter(r => r.stars > 0 && !resumeProjectNames.has(r.name.toLowerCase()))
+      .sort((a, b) => b.stars - a.stars)
+      .slice(0, 3)
+      .map(r => ({
+        name: r.name,
+        link: githubUsername ? `https://github.com/${githubUsername}/${r.name}` : '',
+        description: r.description ?? `${r.language ?? 'Open source'} project with ${r.stars} stars`,
+        isNew: true
+      }))
+
+    const initialData: ImprovedResumeData = {
+      name: details?.name ?? '',
+      email: details?.email ?? '',
+      phone: '',
+      linkedin: details?.linkedin ?? '',
+      github: details?.github ?? (githubUsername ? `https://github.com/${githubUsername}` : ''),
+      website: portfolioUrl ?? '',
+      summary: result.summary,
+      skills: improvedSkills,
+      workEntries: (details?.workEntries ?? []).map((w: any) => typeof w === 'string' ? { company: '', role: w, dates: '', description: '' } : w),
+      projects: [
+        ...(details?.projects ?? []).map((p: any) => ({ ...p, name: p.name ?? '', link: p.link ?? '', description: p.description ?? '' })),
+        ...newProjects
+      ],
+      education: (details?.education ?? []).map((e: any) => ({ degree: e.degree ?? '', school: e.school ?? '', dates: e.dates ?? '' })),
+      recommendations: result.topRecommendations
+    }
+
+    setResumeData(initialData)
+    setShowResumeModal(true)
   }
 
   const radarData = [
@@ -511,6 +570,159 @@ function StreamingChatBox({
              </div>
            </div>
         )}
+
+        {/* Step 1.5 — Portfolio Live Snapshot */}
+        {showStep(1) && portfolioAnalysis && portfolioUrl && (
+          <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <Globe className="h-5 w-5 text-blue-500" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm">Live Portfolio Snapshot</span>
+                <a href={portfolioUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 ml-auto">
+                  {portfolioUrl.replace(/^https?:\/\//, '').slice(0, 30)} <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+              <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 overflow-hidden shadow-sm">
+                <div className="relative w-full h-[220px] sm:h-[300px] bg-muted/50">
+                  <div className="absolute top-0 left-0 w-[200%] h-[200%] origin-top-left scale-50">
+                    <iframe
+                      src={portfolioUrl.startsWith('http') ? portfolioUrl : `https://${portfolioUrl}`}
+                      className="w-full h-full border-0 bg-background"
+                      title="Portfolio in Report"
+                      sandbox="allow-scripts allow-same-origin"
+                    />
+                  </div>
+                </div>
+                <div className="px-4 py-3 border-t border-blue-500/10 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Score: <span className="font-bold text-blue-600">{portfolioAnalysis.score}/100</span></span>
+                  <span className="text-xs text-muted-foreground">{portfolioAnalysis.strengths.length} strengths · {portfolioAnalysis.weaknesses.length} areas to improve</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 1.6 — GitHub Activity Metrics */}
+        {showStep(1) && githubAnalysis?.details && (
+          <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="h-10 w-10 shrink-0 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+              <GitBranch className="h-5 w-5 text-purple-500" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm">GitHub Activity</span>
+                {githubUsername && (
+                  <a href={`https://github.com/${githubUsername}`} target="_blank" rel="noreferrer" className="text-xs text-purple-500 hover:underline flex items-center gap-1 ml-auto">
+                    @{githubUsername} <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+              <div className="rounded-2xl rounded-tl-none border border-purple-500/20 bg-purple-500/5 p-5 shadow-sm space-y-4">
+                {/* Metric grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-xl bg-background/60 border border-border/50 p-3 text-center">
+                    <p className="text-xl font-bold">{githubAnalysis.details.profile.followers.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Followers</p>
+                  </div>
+                  <div className="rounded-xl bg-background/60 border border-border/50 p-3 text-center">
+                    <p className="text-xl font-bold">{githubAnalysis.details.profile.public_repos}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Repos</p>
+                  </div>
+                  <div className="rounded-xl bg-background/60 border border-border/50 p-3 text-center">
+                    <p className="text-xl font-bold">{githubAnalysis.details.repos.filter(r => r.stars > 0).length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Starred</p>
+                  </div>
+                  <div className="rounded-xl bg-background/60 border border-border/50 p-3 text-center">
+                    <p className="text-xl font-bold">{new Set(githubAnalysis.details.repos.filter(r => r.language).map(r => r.language)).size}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Languages</p>
+                  </div>
+                </div>
+                {githubAnalysis.details.contributions && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-xl bg-green-500/10 border border-green-500/20 p-3 text-center">
+                      <p className="text-xl font-bold text-green-500">{githubAnalysis.details.contributions.totalContributions.toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Year Contrib.</p>
+                    </div>
+                    <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-center">
+                      <p className="text-xl font-bold text-amber-500">{githubAnalysis.details.contributions.currentStreak}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Day Streak</p>
+                    </div>
+                    <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-center">
+                      <p className="text-xl font-bold text-blue-500">{githubAnalysis.details.contributions.longestStreak}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Best Streak</p>
+                    </div>
+                    <div className="rounded-xl bg-purple-500/10 border border-purple-500/20 p-3 text-center">
+                      <p className="text-xl font-bold text-purple-500">{githubAnalysis.details.contributions.averagePerWeek.toFixed(1)}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Avg/Week</p>
+                    </div>
+                  </div>
+                )}
+                {/* Top repos */}
+                {githubAnalysis.details.repos.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Top Repositories</p>
+                    {githubAnalysis.details.repos.slice(0, 5).map(repo => (
+                      <div key={repo.name} className="flex items-center gap-2 rounded-lg bg-background/60 border border-border/40 px-3 py-2 text-sm">
+                        <span className="font-medium flex-1 truncate">{repo.name}</span>
+                        {repo.language && <Badge variant="outline" className="text-[10px] shrink-0">{repo.language}</Badge>}
+                        {repo.stars > 0 && <span className="flex items-center gap-0.5 text-yellow-600 text-xs shrink-0"><Star className="h-3 w-3" />{repo.stars}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 1.7 — Resume at a Glance */}
+        {showStep(1) && resumeAnalysis?.details && (
+          <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="h-10 w-10 shrink-0 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+              <FileText className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm">Resume at a Glance</span>
+              </div>
+              <div className="rounded-2xl rounded-tl-none border border-emerald-500/20 bg-emerald-500/5 p-5 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  {resumeAnalysis.details.name && <span className="font-bold text-base">{resumeAnalysis.details.name}</span>}
+                  {resumeAnalysis.details.predictedSeniority && (
+                    <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-700 border-emerald-500/20">{resumeAnalysis.details.predictedSeniority}</Badge>
+                  )}
+                  {resumeAnalysis.details.tone && (
+                    <Badge variant="outline" className="text-xs">{resumeAnalysis.details.tone} tone</Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-background/60 border border-border/50 p-3 text-center">
+                    <p className="text-xl font-bold">{resumeAnalysis.details.wordCount}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Words</p>
+                  </div>
+                  <div className="rounded-xl bg-background/60 border border-border/50 p-3 text-center">
+                    <p className="text-xl font-bold">{resumeAnalysis.details.skills.filter(s => s.found).length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Skills</p>
+                  </div>
+                  <div className="rounded-xl bg-background/60 border border-border/50 p-3 text-center">
+                    <p className="text-xl font-bold">{resumeAnalysis.details.workEntries.length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Positions</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {resumeAnalysis.details.skills.filter(s => s.found).slice(0, 8).map(s => (
+                    <Badge key={s.name} variant="secondary" className="text-xs">{s.name}</Badge>
+                  ))}
+                  {resumeAnalysis.details.skills.filter(s => s.found).length > 8 && (
+                    <Badge variant="outline" className="text-xs border-dashed">+{resumeAnalysis.details.skills.filter(s => s.found).length - 8} more</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Strengths Bubble */}
         {showStep(2) && (result.normalFeedback?.topStrengths ?? result.topStrengths).length > 0 && (
@@ -662,27 +874,101 @@ function StreamingChatBox({
                </div>
             )}
 
-            {/* Mismatches Bubble */}
-            {showStep(5) && mismatches && mismatches.length > 0 && (
-               <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                 <div className="h-10 w-10 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
-                   <AlertTriangle className="h-5 w-5 text-orange-500" />
-                 </div>
-                 <div className="flex-1 space-y-2">
-                   <div className="flex items-center gap-2">
-                     <span className="font-bold text-sm">Cross-Reference Discrepancies</span>
-                   </div>
-                   <div className="rounded-2xl rounded-tl-none border border-orange-500/20 bg-orange-500/5 p-5 shadow-sm">
-                     <TypingList 
-                       items={mismatches.map(m => m.description)} 
-                       onComplete={advanceStep} 
-                       isHistory={isHistory}
-                       renderPrefix={(i) => <span className="text-orange-500 font-bold bg-orange-500/10 rounded-md px-1.5 py-0.5 text-xs shrink-0">{mismatches[i].sources.join(' ⚡ ')}</span>}
-                     />
-                   </div>
-                 </div>
-               </div>
-            )}
+            {/* Comparative Analysis Bubble (redesigned mismatches) */}
+            {showStep(5) && (() => {
+              // Compute client-side: which GitHub languages/repos are missing from resume
+              const resumeSkillNames = new Set(
+                (resumeAnalysis?.details?.skills ?? []).filter(s => s.found).map(s => s.name.toLowerCase())
+              )
+              const resumeProjectNames = new Set(
+                (resumeAnalysis?.details?.projects ?? []).map(p => (p.name ?? '').toLowerCase())
+              )
+              const githubLanguages = Array.from(
+                new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))
+              ).filter(lang => !resumeSkillNames.has(lang.toLowerCase()))
+              const githubTopRepos = (githubAnalysis?.details?.repos ?? [])
+                .filter(r => r.stars > 0)
+                .sort((a, b) => b.stars - a.stars)
+                .slice(0, 3)
+                .filter(r => !resumeProjectNames.has(r.name.toLowerCase()))
+
+              const notAligned = mismatches ?? []
+              const missingFromResume: string[] = [
+                ...githubLanguages.slice(0, 3).map(lang => `${lang} appears in your GitHub repos but is not listed in your resume skills`),
+                ...githubTopRepos.map(r => `"${r.name}" (⭐${r.stars}) is a top GitHub project not mentioned in your resume`),
+              ]
+              const canBeAdded: string[] = [
+                ...(githubLanguages.length > 0 ? [`Add ${githubLanguages.slice(0, 3).join(', ')} to your skills section — detected across your GitHub repositories`] : []),
+                ...(githubAnalysis?.details?.contributions && githubAnalysis.details.contributions.totalContributions > 100
+                  ? [`Mention your ${githubAnalysis.details.contributions.totalContributions.toLocaleString()} GitHub contributions this year — a strong signal of activity`]
+                  : []),
+                ...((resumeAnalysis?.details?.hasMetrics === false) ? ['Add quantified metrics to your work experience (e.g. "reduced load time by 30%")'] : []),
+              ]
+
+              const hasAnyData = notAligned.length > 0 || missingFromResume.length > 0 || canBeAdded.length > 0
+              if (!hasAnyData) return null
+
+              return (
+                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="h-10 w-10 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm">Comparative Analysis</span>
+                    </div>
+                    <div className="rounded-2xl rounded-tl-none border border-orange-500/20 bg-orange-500/5 p-5 shadow-sm space-y-5">
+
+                      {notAligned.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-red-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                            Not Aligned
+                          </p>
+                          <TypingList
+                            items={notAligned.map(m => m.description)}
+                            onComplete={advanceStep}
+                            isHistory={isHistory}
+                            renderPrefix={(i) => <span className="text-red-500 font-bold bg-red-500/10 rounded-md px-1.5 py-0.5 text-[11px] shrink-0">{notAligned[i].sources.join(' ↔ ')}</span>}
+                          />
+                        </div>
+                      )}
+
+                      {missingFromResume.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                            Missing from Resume
+                          </p>
+                          <TypingList
+                            items={missingFromResume}
+                            onComplete={notAligned.length === 0 ? advanceStep : undefined}
+                            isHistory={isHistory}
+                            renderPrefix={() => <span className="text-amber-500 shrink-0">↳</span>}
+                          />
+                        </div>
+                      )}
+
+                      {canBeAdded.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                            Can Be Added / Improved
+                          </p>
+                          <TypingList
+                            items={canBeAdded}
+                            onComplete={advanceStep}
+                            isHistory={isHistory}
+                            renderPrefix={(i) => <span className="text-blue-500 font-bold bg-blue-500/10 rounded-md px-1.5 py-0.5 text-[11px] shrink-0">{i + 1}</span>}
+                          />
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Radar Chart Bubble */}
             {isDoneTyping && result.radar && result.overallScore > 0 && visibleStep === 6 && !showRadarChart && (
@@ -820,6 +1106,14 @@ function StreamingChatBox({
             </div>
           </div>
         </div>
+      )}
+
+      {showResumeModal && resumeData && (
+        <ImprovedResumeModal
+          initialData={resumeData}
+          resumeFile={resumeFile ?? null}
+          onClose={() => setShowResumeModal(false)}
+        />
       )}
     </div>
   )
@@ -1851,6 +2145,12 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                                isGuest={isGuest}
                                isHistory={isHistoryMode}
                                renderSourceDetails={renderSourceDetails}
+                               portfolioAnalysis={results.portfolio}
+                               githubAnalysis={results.github}
+                               resumeAnalysis={results.resume}
+                               portfolioUrl={portfolioUrl}
+                               githubUsername={githubUsername}
+                               resumeFile={resumeFile}
                                onReset={() => {
                                  setPhase('form')
                                  setResults({})

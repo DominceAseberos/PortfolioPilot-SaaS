@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
-import { Globe, GitBranch, FileText, Upload, ArrowRight, Loader2, Sparkles, AlertTriangle, Users, Folder, ExternalLink, CheckCircle2, XCircle, Link2 } from 'lucide-react'
+import { Globe, GitBranch, FileText, Upload, ArrowRight, Loader2, Sparkles, AlertTriangle, Users, Folder, ExternalLink, CheckCircle2, XCircle, Link2, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAnalysisCost } from '@/config/pricing'
 import { FILE_UPLOAD } from '@/constants'
@@ -56,7 +56,7 @@ const DynamicProceedContext = React.createContext<{
 function SmartPortfolioPreview({ url, originalInput }: { url: string, originalInput: string }) {
   const { portfolioUrl, isScanning } = React.useContext(DynamicProceedContext)
   const isActive = originalInput === portfolioUrl
-  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/> Previous Preview Dismissed</div>
+  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/>Previous Preview Dismissed</div>
   const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
   return (
     <div className="mt-4 relative w-full h-[300px] sm:h-[400px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
@@ -74,7 +74,6 @@ function SmartPortfolioPreview({ url, originalInput }: { url: string, originalIn
       {isScanning && isActive && (
          <>
            <div className="absolute inset-0 z-10 bg-primary/10 mix-blend-overlay pointer-events-none transition-opacity duration-1000" />
-           {/* High-Tech Radar Sweep */}
            <div 
              className="absolute left-0 right-0 z-20 pointer-events-none border-b border-green-500 shadow-[0_4px_15px_rgba(34,197,94,0.4)]" 
              style={{ 
@@ -83,7 +82,6 @@ function SmartPortfolioPreview({ url, originalInput }: { url: string, originalIn
                animation: 'inline-scan-line 3s linear infinite' 
              }}
            />
-           {/* Scanning Reticle Overlays */}
            <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-green-500/50 z-20 pointer-events-none" />
            <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-green-500/50 z-20 pointer-events-none" />
            <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-green-500/50 z-20 pointer-events-none" />
@@ -101,7 +99,7 @@ function SmartPortfolioPreview({ url, originalInput }: { url: string, originalIn
 function SmartGithubPreview({ profile, username }: { profile: any, username: string }) {
   const { githubUsername } = React.useContext(DynamicProceedContext)
   const isActive = username === githubUsername
-  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><GitBranch className="h-4 w-4 opacity-50"/> Previous Profile Dismissed</div>
+  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><GitBranch className="h-4 w-4 opacity-50"/>Previous Profile Dismissed</div>
   return (
     <div className="mt-4 w-full rounded-2xl border border-border/50 bg-muted/20 p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm relative overflow-hidden group">
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 blur-[60px] rounded-full group-hover:bg-purple-500/20 transition-colors pointer-events-none" />
@@ -128,7 +126,7 @@ function SmartGithubPreview({ profile, username }: { profile: any, username: str
 function SmartResumePreview({ pdfUrl, fileObj, fileName }: { pdfUrl: string | null, fileObj: File | null, fileName: string }) {
   const { resumeFile } = React.useContext(DynamicProceedContext)
   const isActive = resumeFile && fileObj && resumeFile.name === fileName && resumeFile.size === fileObj.size
-  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><FileText className="h-4 w-4 opacity-50"/> Previous Resume Dismissed</div>
+  if (!isActive) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><FileText className="h-4 w-4 opacity-50"/>Previous Resume Dismissed</div>
   return (
     <div className="mt-4 w-full rounded-2xl border border-border/50 bg-muted/20 p-4 shadow-sm relative overflow-hidden flex flex-col">
       <div className="flex items-center gap-3 mb-4 p-3 bg-background rounded-xl border border-border/50">
@@ -146,6 +144,182 @@ function SmartResumePreview({ pdfUrl, fileObj, fileName }: { pdfUrl: string | nu
     </div>
   )
 }
+
+// ── Approval Row Components ──────────────────────────────────────────────────
+
+function PortfolioApprovalRow({
+  initialUrl,
+  onAccept,
+  onReject,
+  onChangeUrl,
+}: {
+  initialUrl: string
+  onAccept: (url: string) => void
+  onReject: () => void
+  onChangeUrl: (url: string) => void
+}) {
+  const [mode, setMode] = useState<'idle' | 'change' | 'accepted' | 'rejected'>('idle')
+  const [input, setInput] = useState(initialUrl.replace(/^https?:\/\//, ''))
+
+  if (mode === 'accepted') {
+    return (
+      <div className="flex items-center gap-2 text-sm font-semibold text-blue-500 mt-3 pt-3 border-t border-border/30">
+        <CheckCircle2 className="h-4 w-4" /> Portfolio added to analysis
+      </div>
+    )
+  }
+
+  if (mode === 'rejected') {
+    return (
+      <p className="text-xs text-muted-foreground italic mt-3 pt-3 border-t border-border/30">
+        Portfolio skipped. You can still add one manually via the input bar.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/30 space-y-2 animate-in fade-in duration-300">
+      {mode === 'change' ? (
+        <div className="flex gap-2 items-center">
+          <Globe className="h-4 w-4 text-blue-500 shrink-0" />
+          <input
+            autoFocus
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Enter new portfolio URL..."
+            className="flex-1 text-sm px-3 py-2 rounded-xl border border-border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+          />
+          <button
+            type="button"
+            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shrink-0"
+            onClick={() => {
+              const newUrl = input.startsWith('http') ? input : `https://${input}`
+              onChangeUrl(newUrl)
+              setMode('accepted')
+            }}
+          >Confirm</button>
+          <button
+            type="button"
+            className="px-3 py-2 rounded-xl border border-border text-xs hover:bg-muted/50 transition-colors shrink-0"
+            onClick={() => setMode('idle')}
+          >Cancel</button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-sm shadow-blue-500/20"
+            onClick={() => { onAccept(initialUrl); setMode('accepted') }}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" /> Use this Portfolio
+          </button>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/20 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+            onClick={() => { onReject(); setMode('rejected') }}
+          >
+            <XCircle className="h-3.5 w-3.5" /> Skip
+          </button>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-muted hover:bg-muted/70 text-foreground border border-border/50 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+            onClick={() => setMode('change')}
+          >
+            <Edit2 className="h-3.5 w-3.5" /> Change URL
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GitHubApprovalRow({
+  initialUsername,
+  onAccept,
+  onReject,
+  onChangeUsername,
+}: {
+  initialUsername: string
+  onAccept: (username: string) => void
+  onReject: () => void
+  onChangeUsername: (username: string) => void
+}) {
+  const [mode, setMode] = useState<'idle' | 'change' | 'accepted' | 'rejected'>('idle')
+  const [input, setInput] = useState(initialUsername)
+
+  if (mode === 'accepted') {
+    return (
+      <div className="flex items-center gap-2 text-sm font-semibold text-purple-500 mt-3 pt-3 border-t border-border/30">
+        <CheckCircle2 className="h-4 w-4" /> GitHub profile added to analysis
+      </div>
+    )
+  }
+
+  if (mode === 'rejected') {
+    return (
+      <p className="text-xs text-muted-foreground italic mt-3 pt-3 border-t border-border/30">
+        GitHub skipped. You can still add one manually via the input bar.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/30 space-y-2 animate-in fade-in duration-300">
+      {mode === 'change' ? (
+        <div className="flex gap-2 items-center">
+          <GitBranch className="h-4 w-4 text-purple-500 shrink-0" />
+          <input
+            autoFocus
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Enter GitHub username..."
+            className="flex-1 text-sm px-3 py-2 rounded-xl border border-border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+          />
+          <button
+            type="button"
+            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shrink-0"
+            onClick={() => {
+              const normalized = normalizeGitHubUsername(input.trim())
+              onChangeUsername(normalized)
+              setMode('accepted')
+            }}
+          >Confirm</button>
+          <button
+            type="button"
+            className="px-3 py-2 rounded-xl border border-border text-xs hover:bg-muted/50 transition-colors shrink-0"
+            onClick={() => setMode('idle')}
+          >Cancel</button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-sm shadow-purple-500/20"
+            onClick={() => { onAccept(initialUsername); setMode('accepted') }}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" /> Use this GitHub Profile
+          </button>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/20 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+            onClick={() => { onReject(); setMode('rejected') }}
+          >
+            <XCircle className="h-3.5 w-3.5" /> Skip
+          </button>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-muted hover:bg-muted/70 text-foreground border border-border/50 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+            onClick={() => setMode('change')}
+          >
+            <Edit2 className="h-3.5 w-3.5" /> Different Username
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface NeuralChatLandingProps {
   portfolioUrl: string
@@ -187,7 +361,7 @@ export function NeuralChatLanding({
       content: (
         <div className="space-y-4">
           <p className="text-base font-medium">Pilot Review agent standing by.</p>
-          <p className="text-sm">Upload your Resume/CV first. I’ll detect portfolio, GitHub, and LinkedIn links, then you choose which sources to include.</p>
+          <p className="text-sm">Upload your Resume/CV. I'll automatically detect your portfolio and GitHub, show you a live preview, and let you approve, reject, or change each one before analysis.</p>
         </div>
       )
     }
@@ -208,10 +382,13 @@ export function NeuralChatLanding({
     onSubmitRef.current = onSubmit
   }, [onSubmit])
 
+  // Stable ref for addChatFlow to avoid stale closures in approval callbacks
+  const addChatFlowRef = useRef<(value: string, mode: 'portfolio' | 'github' | 'resume', fileObj?: File, autoDetected?: boolean) => Promise<void>>(async () => {})
+
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-scroll chat to bottom, including internal typing/skeleton updates.
+  // Auto-scroll chat to bottom
   useEffect(() => {
     const node = chatScrollRef.current
     if (!node) return
@@ -253,108 +430,53 @@ export function NeuralChatLanding({
     }
   }, [resultNode, analysisId])
 
-  const addDetectedSource = (
-    type: 'portfolio' | 'github',
-    value: string
-  ) => {
-    if (type === 'portfolio') {
-      setPortfolioUrl(value)
-      toast.success('Portfolio added to analysis')
-    } else {
-      setGithubUsername(value)
-      toast.success('GitHub profile added to analysis')
-    }
-  }
-
   const renderDetectedLinks = (links: ResumeValidatedLinks | undefined) => {
     if (!links) return null
 
-    // Only surface links that actually passed validation — silently drop the rest
     const validGithub = links.github.filter((l) => l.isValid)
     const validPortfolios = links.portfolioCandidates.filter((l) => l.isValid)
-    const hasLinks = validGithub.length > 0 || validPortfolios.length > 0 || links.linkedin.length > 0
+    const hasLinks = validGithub.length > 0 || validPortfolios.length > 0
 
     if (!hasLinks) {
       return (
-        <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm text-muted-foreground">
-          No valid portfolio or GitHub URL was detected in this resume.
+        <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm text-muted-foreground flex items-center gap-2">
+          <Link2 className="h-4 w-4 shrink-0" />
+          No valid portfolio or GitHub URL was detected in this resume. You can add them manually below.
         </div>
       )
     }
 
+    const items: string[] = []
+    if (validPortfolios.length > 0) items.push(`${validPortfolios.length} portfolio link${validPortfolios.length > 1 ? 's' : ''}`)
+    if (validGithub.length > 0) items.push(`${validGithub.length} GitHub profile${validGithub.length > 1 ? 's' : ''}`)
+    if (links.linkedin.length > 0) items.push('LinkedIn')
+
     return (
-      <div className="rounded-2xl border border-border/50 bg-background/80 p-4 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-bold">
+      <div className="rounded-2xl border border-border/50 bg-background/80 p-4 flex items-center gap-3">
+        <div className="p-2 rounded-full bg-primary/10 border border-primary/20">
           <Link2 className="h-4 w-4 text-primary" />
-          Detected resume links
         </div>
-        <div className="flex flex-wrap gap-2">
-          {validGithub.map((link) => (
-            <Badge
-              key={link.username}
-              variant="secondary"
-              className="gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 border-purple-500/20"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              GitHub: {link.username}
-              <button
-                type="button"
-                className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
-                onClick={() => addDetectedSource('github', link.username)}
-              >
-                Include
-              </button>
-            </Badge>
-          ))}
-
-          {validPortfolios.map((link) => (
-            <Badge
-              key={link.normalized}
-              variant="secondary"
-              className="gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 border-blue-500/20"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Portfolio: {link.normalized.replace(/^https?:\/\//, '').slice(0, 32)}
-              <button
-                type="button"
-                className="ml-1 rounded-full bg-background/80 px-2 py-0.5 text-[11px] hover:bg-background"
-                onClick={() => addDetectedSource('portfolio', link.normalized)}
-              >
-                Include
-              </button>
-            </Badge>
-          ))}
-
-          {links.linkedin.map((link) => (
-            <Badge
-              key={link.normalized}
-              variant="secondary"
-              className="gap-1.5 bg-sky-500/10 text-sky-600 border-sky-500/20 py-1.5 px-3 rounded-full text-xs font-semibold"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              LinkedIn detected
-              <span className="ml-1 opacity-80">Report-only</span>
-            </Badge>
-          ))}
+        <div>
+          <p className="text-sm font-bold">Links detected: {items.join(', ')}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Loading previews for review...</p>
         </div>
+        <Loader2 className="h-4 w-4 animate-spin text-primary ml-auto shrink-0" />
       </div>
     )
   }
-
 
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (isChatProcessing || isLoading || submitLock.current) return
     
     submitLock.current = true
-    setTimeout(() => { submitLock.current = false }, 1000) // Unlock after 1s (isChatProcessing handles the rest)
+    setTimeout(() => { submitLock.current = false }, 1000)
 
     if (activeInputMode === 'resume') {
        fileInputRef.current?.click()
     } else if (activeInputMode === 'portfolio' && chatInputValue.trim()) {
        const val = chatInputValue.trim()
        
-       // Strict URL validation
        const urlPattern = /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(:\d+)?(\/.*)?$/i;
        if (!urlPattern.test(val) || val.includes('github/')) {
           setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: val }])
@@ -412,29 +534,36 @@ export function NeuralChatLanding({
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const addChatFlow = async (value: string, mode: 'portfolio' | 'github' | 'resume', fileObj?: File) => {
-     // Profanity & Banned Word Filter (Pre-Layer 1)
-     const lowerValue = value.toLowerCase()
-     
-     if (CURATED_BANNED_WORDS.some(word => lowerValue.includes(word))) {
-        setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: value }])
-        setChatLog(prev => [...prev, { 
-          id: Date.now().toString() + '-sys', 
-          role: 'system', 
-          content: (
-            <div className="flex items-center gap-3 animate-in fade-in text-red-500">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span className="text-sm font-medium">Input Blocked: Contains restricted keywords. Please maintain professional decorum.</span>
-            </div>
-          ) 
-        }])
-        return
-     }
-
-     setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: value }])
-     setIsChatProcessing(true)
-     
+  const addChatFlow = async (
+    value: string,
+    mode: 'portfolio' | 'github' | 'resume',
+    fileObj?: File,
+    autoDetected = false
+  ) => {
      const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
+
+     // For manual entries: run banned word filter, show user bubble, set processing state
+     if (!autoDetected) {
+       const lowerValue = value.toLowerCase()
+       
+       if (CURATED_BANNED_WORDS.some(word => lowerValue.includes(word))) {
+          setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: value }])
+          setChatLog(prev => [...prev, { 
+            id: Date.now().toString() + '-sys', 
+            role: 'system', 
+            content: (
+              <div className="flex items-center gap-3 animate-in fade-in text-red-500">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span className="text-sm font-medium">Input Blocked: Contains restricted keywords. Please maintain professional decorum.</span>
+              </div>
+            ) 
+          }])
+          return
+       }
+
+       setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: value }])
+       setIsChatProcessing(true)
+     }
 
       if (mode === 'portfolio') {
          const normalizedUrl = value.trim().match(/^https?:\/\//i) ? value.trim() : `https://${value.trim()}`
@@ -451,7 +580,6 @@ export function NeuralChatLanding({
            ) 
          }])
          
-         // Hit our Layer 1 validation endpoint
          try {
            const valRes = await fetch('/api/reviews/validate-portfolio', {
              method: 'POST',
@@ -470,7 +598,7 @@ export function NeuralChatLanding({
                   </div>
                 )
               } : msg))
-              setIsChatProcessing(false)
+              if (!autoDetected) setIsChatProcessing(false)
               return
            }
          } catch (e) {
@@ -483,17 +611,21 @@ export function NeuralChatLanding({
                 </div>
               )
             } : msg))
-            setIsChatProcessing(false)
+            if (!autoDetected) setIsChatProcessing(false)
             return
          }
 
-         setPortfolioUrl(value.trim())
+         // For manual entries, accept immediately. For auto-detected, show approval row.
+         if (!autoDetected) {
+           setPortfolioUrl(value.trim())
+         }
+
          setChatLog(prev => prev.map(msg => {
             if (msg.role === 'system' && msg.id.includes('-sys-portfolio') && msg.id !== stepId) {
                return {
                  ...msg,
                  fullWidth: false,
-                 content: <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/> Previous Preview Dismissed</div>
+                 content: <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/>Previous Preview Dismissed</div>
                }
             }
             if (msg.id === stepId) {
@@ -536,7 +668,22 @@ export function NeuralChatLanding({
                      <Globe className="h-4 w-4 shrink-0" /> Preview ready
                    </p>
                 </div>
-                <SmartPortfolioPreview url={normalizedUrl} originalInput={value} />
+                <SmartPortfolioPreview url={normalizedUrl} originalInput={autoDetected ? normalizedUrl : value} />
+                {autoDetected && (
+                  <PortfolioApprovalRow
+                    initialUrl={normalizedUrl}
+                    onAccept={(url) => {
+                      setPortfolioUrl(url)
+                      toast.success('Portfolio added to analysis')
+                    }}
+                    onReject={() => {
+                      // URL not set — user rejected
+                    }}
+                    onChangeUrl={(newUrl) => {
+                      addChatFlowRef.current(newUrl, 'portfolio', undefined, true)
+                    }}
+                  />
+                )}
              </div>
            )
          } : msg))
@@ -572,19 +719,23 @@ export function NeuralChatLanding({
                   </div>
                 )
               } : msg))
-              setIsChatProcessing(false)
+              if (!autoDetected) setIsChatProcessing(false)
               return
            }
 
            const profile = data.data
-           setGithubUsername(value)
+
+           // For manual entries, accept immediately. For auto-detected, show approval row.
+           if (!autoDetected) {
+             setGithubUsername(value)
+           }
            
            setChatLog(prev => prev.map(msg => {
              if (msg.role === 'system' && msg.id.includes('-sys-github') && msg.id !== stepId) {
                 return {
                   ...msg,
                   fullWidth: false,
-                  content: <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><GitBranch className="h-4 w-4 opacity-50"/> Previous Profile Dismissed</div>
+                  content: <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><GitBranch className="h-4 w-4 opacity-50"/>Previous Profile Dismissed</div>
                 }
              }
              if (msg.id === stepId) {
@@ -599,6 +750,21 @@ export function NeuralChatLanding({
                           </p>
                        </div>
                        <SmartGithubPreview profile={profile} username={value} />
+                       {autoDetected && (
+                         <GitHubApprovalRow
+                           initialUsername={value}
+                           onAccept={(username) => {
+                             setGithubUsername(username)
+                             toast.success('GitHub profile added to analysis')
+                           }}
+                           onReject={() => {
+                             // Username not set — user rejected
+                           }}
+                           onChangeUsername={(newUsername) => {
+                             addChatFlowRef.current(newUsername, 'github', undefined, true)
+                           }}
+                         />
+                       )}
                     </div>
                   )
                 }
@@ -616,10 +782,11 @@ export function NeuralChatLanding({
                 </div>
               )
             } : msg))
-            setIsChatProcessing(false)
+            if (!autoDetected) setIsChatProcessing(false)
             return
          }
      } else {
+         // ── Resume flow ──────────────────────────────────────────────────
          const step1Id = Date.now().toString() + `-sys-resume`
         setChatLog(prev => [...prev, { 
           id: step1Id, 
@@ -643,6 +810,10 @@ export function NeuralChatLanding({
             </div>
           )
         } : msg))
+
+        // Hoist detected links so we can auto-trigger previews after resume display
+        let autoDetectedPortfolio: ValidatedDetectedLink | null = null
+        let autoDetectedGithub: ValidatedGitHubLink | null = null
 
         if (fileObj) {
           try {
@@ -671,6 +842,10 @@ export function NeuralChatLanding({
 
             const detectedLinks = data.data?.detectedLinks as ResumeValidatedLinks | undefined
             if (detectedLinks) {
+              // Pick first valid of each type for auto-preview
+              autoDetectedPortfolio = detectedLinks.portfolioCandidates.filter(l => l.isValid)[0] ?? null
+              autoDetectedGithub = detectedLinks.github.filter(l => l.isValid)[0] ?? null
+
               setChatLog(prev => [...prev, {
                 id: Date.now().toString() + '-detected-links',
                 role: 'system',
@@ -678,9 +853,6 @@ export function NeuralChatLanding({
                 content: (
                   <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 w-full">
                     {renderDetectedLinks(detectedLinks)}
-                    <p className="text-xs text-muted-foreground px-1">
-                      Detected links are not charged or analyzed until you choose Include.
-                    </p>
                   </div>
                 )
               }])
@@ -720,7 +892,7 @@ export function NeuralChatLanding({
                return {
                  ...msg,
                  fullWidth: false,
-                 content: <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><FileText className="h-4 w-4 opacity-50"/> Previous Resume Dismissed</div>
+                 content: <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><FileText className="h-4 w-4 opacity-50"/>Previous Resume Dismissed</div>
                }
             }
             if (msg.id === step1Id) {
@@ -741,10 +913,40 @@ export function NeuralChatLanding({
             }
             return msg
          }))
+
+        // Auto-trigger previews for detected links (with approval rows)
+        if (autoDetectedPortfolio) {
+          await delay(500)
+          await addChatFlowRef.current(autoDetectedPortfolio.normalized, 'portfolio', undefined, true)
+        }
+        if (autoDetectedGithub) {
+          await delay(500)
+          await addChatFlowRef.current(autoDetectedGithub.username, 'github', undefined, true)
+        }
+
+        // If no links detected, show manual add hint
+        if (!autoDetectedPortfolio && !autoDetectedGithub) {
+          await delay(300)
+          setChatLog(prev => [...prev, {
+            id: Date.now().toString() + '-manual-hint',
+            role: 'system',
+            content: (
+              <div className="rounded-xl border border-border/50 bg-muted/10 p-4 text-sm">
+                <p className="font-semibold text-foreground mb-2">No portfolio or GitHub detected in the resume.</p>
+                <p className="text-muted-foreground text-xs">You can still add them manually using the input bar below — switch to Portfolio or GitHub mode using the icon on the left.</p>
+              </div>
+            )
+          }])
+        }
      }
      
-     setIsChatProcessing(false)
+     if (!autoDetected) {
+       setIsChatProcessing(false)
+     }
   }
+
+  // Keep addChatFlowRef always current to avoid stale closures in approval callbacks
+  addChatFlowRef.current = addChatFlow
 
   return (
     <DynamicProceedContext.Provider value={{ portfolioUrl, githubUsername, resumeFile, isScanning: isScanning ?? false }}>
@@ -801,7 +1003,19 @@ export function NeuralChatLanding({
              </div>
           )}
 
-
+          {isChatProcessing && (
+             <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+               <div className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 mr-3 sm:mr-4 mt-1">
+                 <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary animate-pulse" />
+               </div>
+               <div className="max-w-[85%] sm:max-w-[75%] rounded-[1.5rem] rounded-tl-sm px-5 py-4 shadow-sm bg-card border border-border/50 text-foreground">
+                 <div className="flex items-center gap-3 text-muted-foreground">
+                   <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                   <span className="text-sm font-medium animate-pulse">Processing...</span>
+                 </div>
+               </div>
+             </div>
+          )}
 
         </div>
       </div>
@@ -900,7 +1114,7 @@ export function NeuralChatLanding({
             </form>
             
             <p className="text-center text-xs font-medium text-muted-foreground/60 mt-1">
-              Resume-first review. Portfolio and GitHub are optional confirmed sources.
+              Upload your resume — portfolio & GitHub are auto-detected with live previews.
             </p>
          </div>
       </div>
