@@ -79,6 +79,7 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
       toast.success('Signed in successfully')
       if (onSuccess) {
         onSuccess()
+        window.location.reload()
       } else {
         router.push(nextPath || ROUTES.dashboard)
         router.refresh()
@@ -102,6 +103,7 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
         toast.success('Account created successfully')
         if (onSuccess) {
           onSuccess()
+          window.location.reload()
         } else {
           router.push(nextPath || ROUTES.dashboard)
         }
