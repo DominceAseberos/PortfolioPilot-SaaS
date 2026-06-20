@@ -2133,7 +2133,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                 {isSwitchingHistory && (
                   <div className="absolute inset-0 z-[100] bg-background/50 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300 rounded-3xl">
                     <div className="h-12 w-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4 shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
-                    <p className="text-sm font-bold tracking-widest text-primary animate-pulse uppercase">Decrypting Archive...</p>
+                    <p className="text-sm font-bold tracking-widest text-primary animate-pulse uppercase">Retrieving History...</p>
                   </div>
                 )}
 

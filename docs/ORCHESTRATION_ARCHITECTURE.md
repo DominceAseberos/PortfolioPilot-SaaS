@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document maps the end-to-end algorithmic flow of the "Pilot Review" (formerly Neural Scan) feature. It details the precise lifecycle of a user's portfolio, GitHub, or Resume submission—from the initial chat input, through robust multi-layer validation, and ultimately to the AI-driven deep analysis.
+This document maps the end-to-end algorithmic flow of the "Pilot Review"  feature. It details the precise lifecycle of a user's portfolio, GitHub, or Resume submission—from the initial chat input, through robust multi-layer validation, and ultimately to the AI-driven deep analysis.
 
 ---
 
