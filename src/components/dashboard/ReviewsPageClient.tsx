@@ -1233,6 +1233,22 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [portfolioUrl, setPortfolioUrl] = useState(searchParams?.get('portfolio') || '')
   const [githubUsername, setGithubUsername] = useState(searchParams?.get('github') || '')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
+
+  useEffect(() => {
+    if (initialReviewData?.resume_url && initialReviewData.resume_url.includes('/')) {
+      fetch(`/api/storage/resume?path=${encodeURIComponent(initialReviewData.resume_url)}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch')
+          return res.blob()
+        })
+        .then(blob => {
+          const file = new File([blob], 'original_resume.pdf', { type: 'application/pdf' })
+          setResumeFile(file)
+        })
+        .catch(err => console.error('Failed to load history resume PDF:', err))
+    }
+  }, [initialReviewData])
+
   const [analysisId, setAnalysisId] = useState<string>(initialReviewData?.id || '')
   const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(initialReviewData?.portfolio_url || null)
   const [isLoading, setIsLoading] = useState(false)
@@ -1568,10 +1584,27 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
     setAnalysisId(Date.now().toString())
 
     try {
+      let storedResumePath = resumeFile ? resumeFile.name : undefined
+
+      if (resumeFile && !isHistoryMode) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const fileExt = resumeFile.name.split('.').pop()
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+          const filePath = `${user.id}/${fileName}`
+          const { error: uploadError } = await supabase.storage.from('resumes').upload(filePath, resumeFile)
+          if (!uploadError) {
+            storedResumePath = filePath
+          } else {
+            console.error('Failed to upload resume to storage:', uploadError)
+          }
+        }
+      }
+
       const payload: Record<string, unknown> = {}
       if (cleanPortfolio) payload.portfolioUrl = cleanPortfolio
       if (cleanGithub) payload.githubUsername = cleanGithub
-      if (resumeFile) payload.resumeFileName = resumeFile.name
+      if (storedResumePath) payload.resumeFileName = storedResumePath
       if (collected.portfolio) payload.portfolio = collected.portfolio
       if (collected.github) payload.github = collected.github
       if (collected.resume) payload.resume = collected.resume
