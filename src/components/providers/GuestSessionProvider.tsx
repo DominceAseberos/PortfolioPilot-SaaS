@@ -22,8 +22,18 @@ export function GuestSessionProvider({ children }: { children: React.ReactNode }
 
     const bootstrap = async () => {
       const { data: { session } } = await supabase.auth.getSession()
+      
+      const setGuestCookie = (userId: string) => {
+        document.cookie = `portfolio_guest_id=${userId}; path=/; max-age=31536000; SameSite=Lax`
+      }
+
       if (!session) {
-        await supabase.auth.signInAnonymously()
+        const { data } = await supabase.auth.signInAnonymously()
+        if (data?.user?.id) {
+          setGuestCookie(data.user.id)
+        }
+      } else if (session.user.is_anonymous) {
+        setGuestCookie(session.user.id)
       }
     }
 

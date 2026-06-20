@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { ROUTES } from '@/constants'
 
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
@@ -32,7 +34,12 @@ export async function GET(request: NextRequest) {
       // Merge guest session reviews if applicable
       const guestId = request.cookies.get('portfolio_guest_id')?.value
       if (guestId && sessionData.user?.id) {
-        await supabase
+        const supabaseAdmin = createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+
+        await supabaseAdmin
           .from('reviews')
           .update({ user_id: sessionData.user.id })
           .eq('user_id', guestId)
