@@ -2082,7 +2082,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                </div>
              )}
            </div>
-        )}
       <div className={`flex flex-col lg:flex-row flex-1 w-full h-full gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
         <div className={`w-full h-full transition-all duration-700 flex flex-col justify-start relative`}>
