@@ -83,7 +83,6 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   entrySubtitle: {
-    fontStyle: 'italic',
     color: '#4b5563',
   },
   entryDates: {
