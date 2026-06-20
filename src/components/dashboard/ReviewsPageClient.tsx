@@ -2041,38 +2041,43 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       <div className="flex-1 flex flex-col relative h-full overflow-hidden w-full">
         
         {/* ChatGPT-style History Dropdown Button (Always visible) */}
-        {reviews.length > 0 && (
-           <div className="absolute top-4 left-4 z-[60]">
-             <Button 
-               variant="ghost" 
-               className="font-bold gap-2 text-xl bg-transparent hover:bg-muted/30 border-transparent text-foreground rounded-2xl px-4 py-2.5 h-auto transition-all" 
-               onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
-             >
-               PortfolioPilot
-               <span className="text-muted-foreground text-base font-medium opacity-60">v{reviews.length}</span>
-               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${showHistoryDropdown ? 'rotate-180' : ''}`} />
-             </Button>
-             
-             {/* Dropdown Menu */}
-             {showHistoryDropdown && (
+        <div className="absolute top-4 left-4 z-[60]">
+          <Button 
+            variant="ghost" 
+            className="font-bold gap-2 text-xl bg-transparent hover:bg-muted/30 border-transparent text-foreground rounded-2xl px-4 py-2.5 h-auto transition-all" 
+            onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+          >
+            PortfolioPilot
+            {reviews.length > 0 && (
+              <span className="text-muted-foreground text-base font-medium opacity-60">v{reviews.length}</span>
+            )}
+            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${showHistoryDropdown ? 'rotate-180' : ''}`} />
+          </Button>
+          
+          {/* Dropdown Menu */}
+          {showHistoryDropdown && (
                <div className="absolute top-full mt-2 left-0 w-[320px] bg-card/80 backdrop-blur-3xl border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] rounded-3xl max-h-[60vh] overflow-y-auto p-3 animate-in fade-in zoom-in-95 slide-in-from-top-2 z-50 origin-top-left">
                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3 pt-2">Recent Scans</h3>
                  <div className="space-y-1">
-                   {reviews.map(r => (
-                      <button 
-                        key={r.id} 
-                        onClick={() => { setShowHistoryDropdown(false); handleHistorySelect(r.id); }} 
-                        className={`w-full text-left px-3 py-3 rounded-xl transition-colors flex flex-col gap-1 group ${analysisId === r.id ? 'bg-primary/10 text-primary' : 'hover:bg-primary/10 hover:text-primary text-foreground'}`}
-                      >
-                         <div className="flex items-center justify-between w-full">
-                           <span className={`text-sm font-semibold truncate pr-2 ${analysisId !== r.id && 'group-hover:text-primary'}`}>{r.detected_name || (r.portfolio_url ? r.portfolio_url.replace(/^https?:\/\//, '') : 'Unnamed Scan')}</span>
-                           {r.overall_score !== null && <ScoreBadge score={r.overall_score} size="sm" />}
-                         </div>
-                         <span className="text-[10px] opacity-70 truncate w-full">
-                           {new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                         </span>
-                      </button>
-                   ))}
+                   {reviews.length === 0 ? (
+                     <div className="px-3 py-6 text-sm text-muted-foreground text-center italic">No history found.</div>
+                   ) : (
+                     reviews.map(r => (
+                        <button 
+                          key={r.id} 
+                          onClick={() => { setShowHistoryDropdown(false); handleHistorySelect(r.id); }} 
+                          className={`w-full text-left px-3 py-3 rounded-xl transition-colors flex flex-col gap-1 group ${analysisId === r.id ? 'bg-primary/10 text-primary' : 'hover:bg-primary/10 hover:text-primary text-foreground'}`}
+                        >
+                           <div className="flex items-center justify-between w-full">
+                             <span className={`text-sm font-semibold truncate pr-2 ${analysisId !== r.id && 'group-hover:text-primary'}`}>{r.detected_name || (r.portfolio_url ? r.portfolio_url.replace(/^https?:\/\//, '') : 'Unnamed Scan')}</span>
+                             {r.overall_score !== null && <ScoreBadge score={r.overall_score} size="sm" />}
+                           </div>
+                           <span className="text-[10px] opacity-70 truncate w-full">
+                             {new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                           </span>
+                        </button>
+                     ))
+                   )}
                  </div>
                </div>
              )}
