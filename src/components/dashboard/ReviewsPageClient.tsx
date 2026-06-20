@@ -274,6 +274,33 @@ function buildFallbackSummary(results: AnalysisResults, reason?: string): AISumm
   }
 }
 
+function formatTimestamp(isoString?: string): string {
+  if (!isoString) return 'Just now'
+  
+  const date = new Date(isoString)
+  const now = new Date()
+  
+  const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+  
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const isYesterday = date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth() && date.getFullYear() === yesterday.getFullYear()
+  
+  const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  
+  if (isToday) {
+    if (now.getTime() - date.getTime() < 5 * 60 * 1000) return 'Just now'
+    return `Today, ${timeStr}`
+  }
+  
+  if (isYesterday) {
+    return `Yesterday, ${timeStr}`
+  }
+  
+  const dateStr = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+  return `${dateStr}, ${timeStr}`
+}
+
 function StreamingChatBox({
   result,
   mismatches,
@@ -289,6 +316,7 @@ function StreamingChatBox({
   resumeFile,
   isGuestFallback = false,
   setShowAuthModal,
+  createdAt,
 }: {
   result: AISummaryResult
   mismatches?: AIMismatch[]
@@ -304,6 +332,7 @@ function StreamingChatBox({
   resumeFile?: File | null
   isGuestFallback?: boolean
   setShowAuthModal?: (mode: 'login' | 'register') => void
+  createdAt?: string
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
@@ -514,7 +543,7 @@ function StreamingChatBox({
            <div className="flex-1 space-y-2">
              <div className="flex items-center gap-2">
                <span className="font-bold text-sm">Pilot Agent</span>
-               <span className="text-xs text-muted-foreground">Just now</span>
+               <span className="text-xs text-muted-foreground">{formatTimestamp(createdAt)}</span>
              </div>
              <div className="rounded-2xl rounded-tl-none bg-muted/30 border border-border/50 p-5 text-sm leading-relaxed text-foreground/90 font-medium shadow-sm">
                 {isThinking ? (
@@ -2163,6 +2192,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                                resumeFile={resumeFile}
                                isGuestFallback={isGuestFallback}
                                setShowAuthModal={setShowAuthModal}
+                               createdAt={initialReviewData?.created_at}
                                onReset={() => {
                                  setPhase('form')
                                  setResults({})
