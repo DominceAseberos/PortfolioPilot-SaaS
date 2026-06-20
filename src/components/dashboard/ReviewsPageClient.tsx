@@ -2052,9 +2052,9 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
             className="font-bold gap-2 text-xl bg-transparent hover:bg-muted/30 border-transparent text-foreground rounded-2xl px-4 py-2.5 h-auto transition-all" 
             onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
           >
-            PortfolioPilot
+            History
             {historyList.length > 0 && (
-              <span className="text-muted-foreground text-base font-medium opacity-60">v{historyList.length}</span>
+              <span className="text-muted-foreground text-base font-medium opacity-60">({historyList.length})</span>
             )}
             <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${showHistoryDropdown ? 'rotate-180' : ''}`} />
           </Button>
