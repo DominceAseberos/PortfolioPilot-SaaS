@@ -1036,11 +1036,8 @@ function StreamingChatBox({
                    </div>
                  ) : (
                    <>
-                     <Button onClick={handleGeneratePDF} className="shadow-lg hover:scale-105 transition-transform bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-                        <FileText className="w-4 h-4" /> Generate PDF Report
-                     </Button>
                      {result.sourceBreakdown.resume && (
-                       <Button onClick={handleGenerateImprovedResume} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                       <Button onClick={handleGenerateImprovedResume} className="shadow-lg hover:scale-105 transition-transform bg-primary hover:bg-primary/90 text-primary-foreground gap-2">
                           <Sparkles className="w-4 h-4" /> Generate Improved Resume
                        </Button>
                      )}
