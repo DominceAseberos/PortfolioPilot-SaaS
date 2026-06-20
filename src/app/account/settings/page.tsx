@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { User, Shield, Bell } from 'lucide-react'
+import { User, Shield } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 
 export default async function SettingsPage() {
@@ -43,20 +43,6 @@ export default async function SettingsPage() {
             <div className="mt-6 flex justify-end">
               <Button variant="outline" className="rounded-xl px-6 font-semibold shadow-sm">Update Profile</Button>
             </div>
-          </div>
-        </section>
-
-        {/* Preferences Section */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" /> Preferences
-          </h2>
-          <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="font-semibold text-foreground">Email Notifications</h3>
-              <p className="text-sm text-muted-foreground mt-1">Receive updates about your portfolio scans and credit usage.</p>
-            </div>
-            <Button variant="secondary" className="rounded-full px-6 font-semibold shrink-0">Manage</Button>
           </div>
         </section>
       </div>
