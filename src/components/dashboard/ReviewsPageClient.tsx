@@ -2036,55 +2036,24 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   return (
     <div className="w-full flex h-[calc(100vh-64px)] overflow-hidden relative bg-background">
       
-      {/* Desktop History Sidebar */}
-      {reviews.length > 0 && (
-        <div className="hidden md:flex w-64 lg:w-72 border-r border-border/50 bg-muted/10 flex-col h-full overflow-hidden shrink-0 z-10">
-          <div className="p-4 border-b border-border/50 bg-background/50 backdrop-blur shrink-0 flex items-center justify-between">
-            <h2 className="font-bold flex items-center gap-2 text-sm text-foreground">
-              <FileText className="h-4 w-4" /> History
-            </h2>
-            <div className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
-              {reviews.length}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-1.5 scrollbar-thin">
-             {reviews.map(r => (
-               <button 
-                  key={r.id} 
-                  onClick={() => handleHistorySelect(r.id)} 
-                  className={`w-full text-left px-3 py-3 rounded-xl transition-all duration-200 flex flex-col gap-1.5 group ${analysisId === r.id ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'hover:bg-muted text-muted-foreground hover:text-foreground border border-transparent'}`}
-                >
-                   <div className="flex items-center justify-between w-full">
-                     <span className="text-sm font-semibold truncate pr-2">{r.detected_name || (r.portfolio_url ? r.portfolio_url.replace(/^https?:\/\//, '') : 'Unnamed Scan')}</span>
-                     {r.overall_score !== null && <ScoreBadge score={r.overall_score} size="sm" />}
-                   </div>
-                   <span className="text-[10px] opacity-70 truncate w-full flex items-center gap-1.5">
-                     <span className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
-                     {new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                   </span>
-                </button>
-             ))}
-          </div>
-        </div>
-      )}
-
+      {/* The Desktop History Sidebar has been removed in favor of the ChatGPT-style top-left dropdown */}
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col relative h-full overflow-hidden w-full">
         
-        {/* Mobile Recents Toggle Button (Always visible) */}
+        {/* ChatGPT-style History Dropdown Button (Always visible) */}
         {reviews.length > 0 && (
-           <div className="absolute top-4 left-4 z-50 md:hidden">
+           <div className="absolute top-4 left-4 z-[60]">
              <Button 
                variant="ghost" 
-               className="font-bold gap-2 bg-background/80 backdrop-blur-md border border-border/50 text-muted-foreground hover:text-foreground rounded-xl px-4 py-5 shadow-lg" 
+               className="font-bold gap-2 text-lg lg:text-xl bg-transparent hover:bg-muted/50 border-transparent text-foreground rounded-xl px-3 py-6 transition-all" 
                onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
              >
-               <FileText className="h-5 w-5" />
-               History
-               <ChevronDown className={`h-4 w-4 transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
+               PortfolioPilot
+               <span className="text-muted-foreground text-sm font-normal ml-1">v{reviews.length}</span>
+               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
              </Button>
              
-             {/* Mobile Dropdown Menu */}
+             {/* Dropdown Menu */}
              {showHistoryDropdown && (
                <div className="absolute top-full mt-2 left-0 w-[calc(100vw-2rem)] max-w-sm bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl max-h-[60vh] overflow-y-auto p-4 animate-in fade-in slide-in-from-top-2 z-50">
                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Recent Scans</h3>
