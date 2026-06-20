@@ -2045,18 +2045,18 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
            <div className="absolute top-4 left-4 z-[60]">
              <Button 
                variant="ghost" 
-               className="font-bold gap-2 text-lg lg:text-xl bg-transparent hover:bg-muted/50 border-transparent text-foreground rounded-xl px-3 py-6 transition-all" 
+               className="font-bold gap-2 text-xl bg-transparent hover:bg-muted/30 border-transparent text-foreground rounded-2xl px-4 py-2.5 h-auto transition-all" 
                onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
              >
                PortfolioPilot
-               <span className="text-muted-foreground text-sm font-normal ml-1">v{reviews.length}</span>
-               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
+               <span className="text-muted-foreground text-base font-medium opacity-60">v{reviews.length}</span>
+               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${showHistoryDropdown ? 'rotate-180' : ''}`} />
              </Button>
              
              {/* Dropdown Menu */}
              {showHistoryDropdown && (
-               <div className="absolute top-full mt-2 left-0 w-[calc(100vw-2rem)] max-w-sm bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl max-h-[60vh] overflow-y-auto p-4 animate-in fade-in slide-in-from-top-2 z-50">
-                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Recent Scans</h3>
+               <div className="absolute top-full mt-2 left-0 w-[320px] bg-card/80 backdrop-blur-3xl border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] rounded-3xl max-h-[60vh] overflow-y-auto p-3 animate-in fade-in zoom-in-95 slide-in-from-top-2 z-50 origin-top-left">
+                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3 pt-2">Recent Scans</h3>
                  <div className="space-y-1">
                    {reviews.map(r => (
                       <button 

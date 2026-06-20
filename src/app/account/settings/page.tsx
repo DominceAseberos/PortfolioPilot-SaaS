@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { User, Shield } from 'lucide-react'
 import { Button } from '@/components/common/Button'
+import { UpdateProfileForm } from '@/components/account/UpdateProfileForm'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -24,26 +25,7 @@ export default async function SettingsPage() {
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <User className="h-5 w-5 text-primary" /> Profile
           </h2>
-          <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                <div className="p-3 bg-muted/30 rounded-xl border border-border/50 font-medium">
-                  {fullName}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Email Address</label>
-                <div className="p-3 bg-muted/30 rounded-xl border border-border/50 font-medium flex items-center justify-between">
-                  {email}
-                  <Shield className="h-4 w-4 text-green-500" />
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end">
-              <Button variant="outline" className="rounded-xl px-6 font-semibold shadow-sm">Update Profile</Button>
-            </div>
-          </div>
+          <UpdateProfileForm initialName={fullName} email={email || ''} />
         </section>
       </div>
     </div>
