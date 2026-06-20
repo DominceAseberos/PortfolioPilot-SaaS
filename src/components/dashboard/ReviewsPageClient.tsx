@@ -1188,7 +1188,7 @@ function LiveCrawlerPreview({
   )
 }
 
-export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [] }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[] }) {
+export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [], initialReviewData }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[], initialReviewData?: any }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isGuestFallback, setIsGuestFallback] = useState(false)
@@ -1204,17 +1204,18 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [portfolioUrl, setPortfolioUrl] = useState(searchParams?.get('portfolio') || '')
   const [githubUsername, setGithubUsername] = useState(searchParams?.get('github') || '')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
-  const [analysisId, setAnalysisId] = useState<string>('')
-  const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(null)
+  const [analysisId, setAnalysisId] = useState<string>(initialReviewData?.id || '')
+  const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(initialReviewData?.portfolio_url || null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [phase, setPhase] = useState<Phase>('form')
+  const [phase, setPhase] = useState<Phase>(initialReviewData ? 'finalizing' : 'form')
   const [collectingSteps, setCollectingSteps] = useState<CollectingStep[]>([])
-  const [results, setResults] = useState<AnalysisResults>({})
+  const [results, setResults] = useState<AnalysisResults>(initialReviewData?.full_results || {})
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({})
   const [isDragging, setIsDragging] = useState(false)
-  const [isHistoryMode, setIsHistoryMode] = useState(false)
+  const [isHistoryMode, setIsHistoryMode] = useState(!!initialReviewData)
   const [showHistoryDropdown, setShowHistoryDropdown] = useState(false)
+  const [historyList, setHistoryList] = useState<ReviewHistoryItem[]>(reviews)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
@@ -1236,7 +1237,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       setResults(data.full_results)
       setIsHistoryMode(true)
       
-      const selectedReview = reviews.find((r) => r.id === id)
+      const selectedReview = historyList.find((r) => r.id === id)
       if (selectedReview?.portfolio_url) {
         setActiveIframeUrl(selectedReview.portfolio_url)
       } else {
@@ -1555,7 +1556,10 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
       if (createJson.success) {
         toast.success('Analysis securely stored to history')
-        setTimeout(() => router.refresh(), 2000)
+        if (createJson.data) {
+          setHistoryList(prev => [createJson.data, ...prev])
+          window.history.replaceState(null, '', `/dashboard/reviews/${createJson.data.id}`)
+        }
       } else {
         toast.error('Failed to store analysis in history')
       }
@@ -2048,8 +2052,8 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
             onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
           >
             PortfolioPilot
-            {reviews.length > 0 && (
-              <span className="text-muted-foreground text-base font-medium opacity-60">v{reviews.length}</span>
+            {historyList.length > 0 && (
+              <span className="text-muted-foreground text-base font-medium opacity-60">v{historyList.length}</span>
             )}
             <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${showHistoryDropdown ? 'rotate-180' : ''}`} />
           </Button>
@@ -2059,13 +2063,13 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                <div className="absolute top-full mt-2 left-0 w-[320px] bg-card/80 backdrop-blur-3xl border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] rounded-3xl max-h-[60vh] overflow-y-auto p-3 animate-in fade-in zoom-in-95 slide-in-from-top-2 z-50 origin-top-left">
                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3 pt-2">Recent Scans</h3>
                  <div className="space-y-1">
-                   {reviews.length === 0 ? (
+                   {historyList.length === 0 ? (
                      <div className="px-3 py-6 text-sm text-muted-foreground text-center italic">No history found.</div>
                    ) : (
-                     reviews.map(r => (
+                     historyList.map(r => (
                         <button 
                           key={r.id} 
-                          onClick={() => { setShowHistoryDropdown(false); handleHistorySelect(r.id); }} 
+                          onClick={() => { setShowHistoryDropdown(false); router.push(`/dashboard/reviews/${r.id}`) }} 
                           className={`w-full text-left px-3 py-3 rounded-xl transition-colors flex flex-col gap-1 group ${analysisId === r.id ? 'bg-primary/10 text-primary' : 'hover:bg-primary/10 hover:text-primary text-foreground'}`}
                         >
                            <div className="flex items-center justify-between w-full">
