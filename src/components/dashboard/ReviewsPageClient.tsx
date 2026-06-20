@@ -1012,10 +1012,11 @@ function StreamingChatBox({
                           <Sparkles className="w-4 h-4" /> Generate Improved Resume
                        </Button>
                      )}
-                   </>
+                    </>
                  )}
               </div>
             )}
+        </div>
       </div>
 
       <ReportTemplate ref={pdfRef} result={result} mismatches={mismatches} />
@@ -2210,6 +2211,9 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                   </div>
                 </div>
               </div>
+          </div>
+
+
       {/* Email Gate Modal - shows after guest analysis completes */}
       {showEmailGate && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
