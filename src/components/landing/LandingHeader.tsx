@@ -82,13 +82,9 @@ export function LandingHeader() {
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border/50 bg-popover text-popover-foreground shadow-lg shadow-black/5 outline-none animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden">
                   <div className="flex flex-col p-2 space-y-1">
-                    <Link href={ROUTES.account} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                    <Link href={ROUTES.reviews} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                       <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-                      Dashboard
-                    </Link>
-                    <Link href={ROUTES.history} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
-                      <History className="h-4 w-4 text-muted-foreground" />
-                      History
+                      New Review
                     </Link>
                     <Link href={ROUTES.settings} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                       <Settings className="h-4 w-4 text-muted-foreground" />
