@@ -6,11 +6,12 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/common/Button'
 import { ROUTES } from '@/constants'
 import { toast } from 'sonner'
-import { Sparkles, User, Lock, Mail } from 'lucide-react'
+import { Sparkles, User, Lock, Mail, Eye, EyeOff } from 'lucide-react'
 
 export function OnboardingClient({ email }: { email: string }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -99,14 +100,26 @@ export function OnboardingClient({ email }: { email: string }) {
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Create a strong password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-background rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                className="w-full pl-11 pr-12 py-3 bg-background rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
                 required
                 minLength={6}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/50"
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
             </div>
             <p className="text-xs text-muted-foreground ml-1">You can use this password to log in with your email instead of Google next time.</p>
           </div>
