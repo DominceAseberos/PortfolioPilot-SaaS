@@ -18,6 +18,7 @@ import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { ReportTemplate } from '@/components/pdf/ReportTemplate'
 import dynamic from 'next/dynamic'
+import { AuthScreen } from '@/components/auth/AuthScreen'
 import type { ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
 
 const ImprovedResumeModal = dynamic(() => import('./ImprovedResumeModal'), { ssr: false })
@@ -287,6 +288,7 @@ function StreamingChatBox({
   githubUsername,
   resumeFile,
   isGuestFallback = false,
+  setShowAuthModal,
 }: {
   result: AISummaryResult
   mismatches?: AIMismatch[]
@@ -301,6 +303,7 @@ function StreamingChatBox({
   githubUsername?: string
   resumeFile?: File | null
   isGuestFallback?: boolean
+  setShowAuthModal?: (mode: 'login' | 'register') => void
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
@@ -988,17 +991,17 @@ function StreamingChatBox({
             {showStep(8) && (
               <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[600ms] mt-8 justify-center">
                  {isGuest || isGuestFallback ? (
-                   <div className="flex flex-col items-center gap-3 text-center">
+                    <div className="flex flex-col items-center gap-3 text-center">
                      <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
                        <Sparkles className="h-4 w-4 text-primary" />
-                       Your analysis is complete! Create a free account to generate PDF reports and save your history.
+                       Your analysis is complete! Create a free account or link an existing one to generate PDF reports and save your history.
                      </p>
                      <div className="flex gap-3">
-                       <Button onClick={() => window.location.href = '/register?next=/dashboard/reviews'} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/25">
+                       <Button onClick={() => setShowAuthModal?.('register')} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/25">
                          <Sparkles className="w-4 h-4" /> Create Free Account
                        </Button>
-                       <Button variant="outline" onClick={() => window.location.href = '/login'} className="gap-2">
-                         Log In
+                       <Button variant="outline" onClick={() => setShowAuthModal?.('login')} className="gap-2">
+                         Link Existing Account
                        </Button>
                      </div>
                    </div>
@@ -1217,6 +1220,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [showHistoryDropdown, setShowHistoryDropdown] = useState(false)
   const [historyList, setHistoryList] = useState<ReviewHistoryItem[]>(reviews)
   const [isSwitchingHistory, setIsSwitchingHistory] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState<'login' | 'register' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
@@ -2158,6 +2162,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                                githubUsername={githubUsername}
                                resumeFile={resumeFile}
                                isGuestFallback={isGuestFallback}
+                               setShowAuthModal={setShowAuthModal}
                                onReset={() => {
                                  setPhase('form')
                                  setResults({})
@@ -2309,7 +2314,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                 type="button"
                 variant="outline"
                 className="w-full gap-2"
-                onClick={() => window.location.href = '/register?next=/dashboard/reviews'}
+                onClick={() => { setShowEmailGate(false); setShowAuthModal('register') }}
               >
                 <Sparkles className="w-4 h-4" /> Create Free Account
               </Button>
@@ -2323,6 +2328,24 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       )}
 
       </div>
+
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowAuthModal(null)} />
+          <div className="relative z-10 w-full max-w-[1200px] animate-in fade-in zoom-in-95 duration-300">
+            <AuthScreen 
+              initialMode={showAuthModal} 
+              isModal={true} 
+              onClose={() => setShowAuthModal(null)} 
+              onSuccess={() => {
+                setShowAuthModal(null)
+                router.refresh()
+              }} 
+            />
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

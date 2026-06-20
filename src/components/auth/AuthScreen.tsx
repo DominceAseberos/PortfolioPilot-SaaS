@@ -18,9 +18,12 @@ import { PrivacyModal } from '@/components/legal/PrivacyModal'
 
 interface AuthScreenProps {
   initialMode: 'login' | 'register'
+  isModal?: boolean
+  onSuccess?: () => void
+  onClose?: () => void
 }
 
-export function AuthScreen({ initialMode }: AuthScreenProps) {
+export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScreenProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -51,8 +54,10 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
   const handleSwitchMode = () => {
     const newMode = !isLogin
     setIsLogin(newMode)
-    const newUrl = (newMode ? ROUTES.login : ROUTES.register) + (nextPath ? `?next=${nextPath}` : '')
-    window.history.pushState(null, '', newUrl)
+    if (!isModal) {
+      const newUrl = (newMode ? ROUTES.login : ROUTES.register) + (nextPath ? `?next=${nextPath}` : '')
+      window.history.pushState(null, '', newUrl)
+    }
   }
 
   // --- Forms Setup ---
@@ -72,8 +77,12 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
       await authService.signIn(data.email, data.password)
       try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
       toast.success('Signed in successfully')
-      router.push(nextPath || ROUTES.dashboard)
-      router.refresh()
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push(nextPath || ROUTES.dashboard)
+        router.refresh()
+      }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Invalid email or password'
       toast.error(errorMsg)
@@ -91,7 +100,11 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
       if (result?.user) {
         try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
         toast.success('Account created successfully')
-        router.push(nextPath || ROUTES.dashboard)
+        if (onSuccess) {
+          onSuccess()
+        } else {
+          router.push(nextPath || ROUTES.dashboard)
+        }
       } else {
         toast.success('Account created! Check your email to confirm.')
         setRegisterSuccess(true)
@@ -123,11 +136,13 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
 
   if (registerSuccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4 bg-slate-50 dark:bg-slate-950">
-        <Link href="/" className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Home
-        </Link>
+      <div className={cn("flex items-center justify-center px-4", isModal ? "min-h-full bg-transparent" : "min-h-screen bg-slate-50 dark:bg-slate-950")}>
+        {!isModal && (
+          <Link href="/" className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Link>
+        )}
         <div className="w-full max-w-sm text-center space-y-6">
           <div className="flex justify-center">
             <div className="rounded-full bg-emerald-500/10 p-3">
@@ -149,10 +164,10 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-background flex items-center justify-center text-foreground">
+    <div className={cn("relative w-full overflow-hidden flex items-center justify-center text-foreground", isModal ? "min-h-full bg-transparent" : "min-h-screen bg-background")}>
       
       {/* Premium Background Engine */}
-      <div className="absolute inset-0 -z-10 bg-slate-50 dark:bg-[#0B0F19] overflow-hidden">
+      <div className={cn("absolute inset-0 -z-10 overflow-hidden", isModal ? "bg-transparent rounded-[2.5rem]" : "bg-slate-50 dark:bg-[#0B0F19]")}>
          {/* SVG Grid Lines */}
          <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080801a_1px,transparent_1px),linear-gradient(to_bottom,#8080801a_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)]"></div>
          
@@ -168,13 +183,21 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
          </div>
       </div>
 
-      <Link href="/" className="absolute left-6 top-6 z-50 flex items-center text-sm font-medium text-foreground/60 hover:text-foreground transition-colors bg-background/20 backdrop-blur-md px-4 py-2 rounded-full border border-border/50 hover:bg-background/40">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Home
-      </Link>
+      {!isModal && (
+        <Link href="/" className="absolute left-6 top-6 z-50 flex items-center text-sm font-medium text-foreground/60 hover:text-foreground transition-colors bg-background/20 backdrop-blur-md px-4 py-2 rounded-full border border-border/50 hover:bg-background/40">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Home
+        </Link>
+      )}
+
+      {isModal && onClose && (
+        <button onClick={onClose} className="absolute right-6 top-6 z-50 text-foreground/60 hover:text-foreground bg-background/20 backdrop-blur-md p-2 rounded-full border border-border/50 hover:bg-background/40 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      )}
 
       {/* Main Container */}
-      <div className="relative w-full max-w-[1200px] h-[750px] max-h-[90vh] bg-background/60 dark:bg-slate-900/40 backdrop-blur-2xl rounded-3xl border border-border/50 shadow-[0_0_80px_-20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_80px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col md:flex-row mx-4">
+      <div className={cn("relative w-full max-w-[1200px] h-[750px] max-h-[90vh] bg-background/60 dark:bg-slate-900/40 backdrop-blur-2xl rounded-3xl border border-border/50 overflow-hidden flex flex-col md:flex-row mx-4", isModal ? "shadow-none" : "shadow-[0_0_80px_-20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_80px_-20px_rgba(0,0,0,0.5)]")}>
         
         {/* SLIDING OVERLAY PANEL */}
         <div className={cn(
