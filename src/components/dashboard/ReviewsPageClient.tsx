@@ -286,6 +286,7 @@ function StreamingChatBox({
   portfolioUrl,
   githubUsername,
   resumeFile,
+  isGuestFallback = false,
 }: {
   result: AISummaryResult
   mismatches?: AIMismatch[]
@@ -299,6 +300,7 @@ function StreamingChatBox({
   portfolioUrl?: string
   githubUsername?: string
   resumeFile?: File | null
+  isGuestFallback?: boolean
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
@@ -2157,6 +2159,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                                portfolioUrl={portfolioUrl}
                                githubUsername={githubUsername}
                                resumeFile={resumeFile}
+                               isGuestFallback={isGuestFallback}
                                onReset={() => {
                                  setPhase('form')
                                  setResults({})
