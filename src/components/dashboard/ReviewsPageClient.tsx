@@ -1067,13 +1067,22 @@ function StreamingChatBox({
             {/* NEW: Action Buttons */}
             {showStep(8) && (
               <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[600ms] mt-8 justify-center">
-                 <Button onClick={handleGeneratePDF} className="shadow-lg hover:scale-105 transition-transform bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-                    <FileText className="w-4 h-4" /> Generate PDF Report
-                 </Button>
-                 {result.sourceBreakdown.resume && (
-                   <Button onClick={handleGenerateImprovedResume} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      <Sparkles className="w-4 h-4" /> Generate Improved Resume
-                   </Button>
+                 {!isGuestFallback ? (
+                   <>
+                     <Button onClick={handleGeneratePDF} className="shadow-lg hover:scale-105 transition-transform bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                        <FileText className="w-4 h-4" /> Generate PDF Report
+                     </Button>
+                     {result.sourceBreakdown.resume && (
+                       <Button onClick={handleGenerateImprovedResume} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          <Sparkles className="w-4 h-4" /> Generate Improved Resume
+                       </Button>
+                     )}
+                   </>
+                 ) : (
+                   <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                     <AlertTriangle className="h-4 w-4 text-amber-500" />
+                     Please sign up for a free account to generate PDF reports.
+                   </p>
                  )}
               </div>
             )}
@@ -1253,6 +1262,7 @@ function LiveCrawlerPreview({
 export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [] }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[] }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [isGuestFallback, setIsGuestFallback] = useState(false)
 
   // Pre-fill from URL params (used by landing page HeroChatInput)
   const [portfolioUrl, setPortfolioUrl] = useState(searchParams?.get('portfolio') || '')
@@ -1413,10 +1423,9 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       if (!session) {
         const { data, error: authError } = await supabase.auth.signInAnonymously()
         if (authError) {
-          toast.error('Guest access unavailable')
-          setError('Guest sessions are currently unavailable. Please create a free account to continue your analysis.')
-          setIsLoading(false)
-          return
+          toast.warning('Guest sessions unavailable. PDF generation disabled.', { duration: 6000 })
+          setIsGuestFallback(true)
+          // DO NOT return. Proceed with analysis in fallback mode.
         }
         // Database trigger handle_new_user automatically assigns initial credits
       }
