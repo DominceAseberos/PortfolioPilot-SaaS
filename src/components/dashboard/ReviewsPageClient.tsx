@@ -984,10 +984,25 @@ function StreamingChatBox({
                </div>
             )}
             
-            {/* NEW: Action Buttons */}
+             {/* NEW: Action Buttons */}
             {showStep(8) && (
               <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[600ms] mt-8 justify-center">
-                 {!isGuestFallback ? (
+                 {isGuest || isGuestFallback ? (
+                   <div className="flex flex-col items-center gap-3 text-center">
+                     <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                       <Sparkles className="h-4 w-4 text-primary" />
+                       Your analysis is complete! Create a free account to generate PDF reports and save your history.
+                     </p>
+                     <div className="flex gap-3">
+                       <Button onClick={() => window.location.href = '/register?next=/dashboard/reviews'} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/25">
+                         <Sparkles className="w-4 h-4" /> Create Free Account
+                       </Button>
+                       <Button variant="outline" onClick={() => window.location.href = '/login'} className="gap-2">
+                         Log In
+                       </Button>
+                     </div>
+                   </div>
+                 ) : (
                    <>
                      <Button onClick={handleGeneratePDF} className="shadow-lg hover:scale-105 transition-transform bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
                         <FileText className="w-4 h-4" /> Generate PDF Report
@@ -998,11 +1013,6 @@ function StreamingChatBox({
                        </Button>
                      )}
                    </>
-                 ) : (
-                   <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                     Please sign up for a free account to generate PDF reports.
-                   </p>
                  )}
               </div>
             )}
@@ -1181,6 +1191,13 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isGuestFallback, setIsGuestFallback] = useState(false)
+
+  // Guest email gate state
+  const [showEmailGate, setShowEmailGate] = useState(false)
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestEmailSubmitting, setGuestEmailSubmitting] = useState(false)
+  const [guestEmailVerified, setGuestEmailVerified] = useState(false)
+  const [guestEmailError, setGuestEmailError] = useState<string | null>(null)
 
   // Pre-fill from URL params (used by landing page HeroChatInput)
   const [portfolioUrl, setPortfolioUrl] = useState(searchParams?.get('portfolio') || '')
@@ -1546,6 +1563,40 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
     }
 
     setIsLoading(false)
+
+    // Show email gate for guests after analysis
+    if (isGuest || isGuestFallback) {
+      setTimeout(() => setShowEmailGate(true), 2000)
+    }
+  }
+
+  const handleGuestEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setGuestEmailError(null)
+    if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+      setGuestEmailError('Please enter a valid email address.')
+      return
+    }
+    setGuestEmailSubmitting(true)
+    try {
+      const res = await fetch('/api/guest/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: guestEmail }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setGuestEmailError(json.error || 'Failed to verify email.')
+        return
+      }
+      setGuestEmailVerified(true)
+      setShowEmailGate(false)
+      toast.success('Results saved to your email! Create a free account to access them anytime.')
+    } catch {
+      setGuestEmailError('Network error. Please try again.')
+    } finally {
+      setGuestEmailSubmitting(false)
+    }
   }
 
   // ── Results layout ─────────────────────────────────────
@@ -2159,7 +2210,83 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                   </div>
                 </div>
               </div>
-      </div>
+      {/* Email Gate Modal - shows after guest analysis completes */}
+      {showEmailGate && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-card border border-border/60 rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 fade-in duration-300">
+            {/* Dismiss button */}
+            <button
+              onClick={() => setShowEmailGate(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            {/* Icon */}
+            <div className="w-14 h-14 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-5 border border-primary/20">
+              <Sparkles className="h-7 w-7 text-primary" />
+            </div>
+
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold tracking-tight mb-2">Save Your Results</h2>
+              <p className="text-sm text-muted-foreground">
+                Enter your email to save this analysis and get notified about improvements. We&apos;ll never spam you.
+              </p>
+            </div>
+
+            <form onSubmit={handleGuestEmailSubmit} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                className="h-12 text-base"
+                required
+                autoFocus
+              />
+
+              {guestEmailError && (
+                <p className="text-sm text-red-500 font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {guestEmailError}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.5)] bg-primary hover:bg-primary/90"
+                disabled={guestEmailSubmitting}
+              >
+                {guestEmailSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Save My Results'
+                )}
+              </Button>
+
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs">or</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => window.location.href = '/register?next=/dashboard/reviews'}
+              >
+                <Sparkles className="w-4 h-4" /> Create Free Account
+              </Button>
+            </form>
+
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              Free accounts get <strong>unlimited scans</strong>, PDF exports, and review history.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
