@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle } from 'lucide-react'
 import { BlobProvider, PDFDownloadLink } from '@react-pdf/renderer'
 import { ImprovedResumeTemplate, ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
@@ -221,7 +222,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     </div>
   )
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in slide-in-from-bottom-8 duration-300">
       
       {/* Header */}
@@ -313,6 +316,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
