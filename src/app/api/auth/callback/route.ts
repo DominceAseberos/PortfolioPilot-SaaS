@@ -40,6 +40,15 @@ export async function GET(request: NextRequest) {
         response.cookies.delete('portfolio_guest_id')
       }
       
+      const hasUsername = !!sessionData.user?.user_metadata?.username
+      
+      if (!hasUsername && next.includes('/dashboard')) {
+        const onboardingResponse = NextResponse.redirect(`${origin}/onboarding`)
+        // Copy cookies set by exchangeCodeForSession to the new response
+        response.cookies.getAll().forEach(c => onboardingResponse.cookies.set(c.name, c.value))
+        return onboardingResponse
+      }
+      
       return response
     }
   }
