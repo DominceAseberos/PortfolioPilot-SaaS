@@ -3,8 +3,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('resumes', 'resumes', false)
 ON CONFLICT (id) DO NOTHING;
 
--- Enable RLS on the storage.objects table if not already enabled (usually enabled by default)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- RLS is enabled by default on storage.objects in Supabase.
 
 -- Allow authenticated users to upload to their own folder in the 'resumes' bucket
 CREATE POLICY "Users can upload their own resumes"
