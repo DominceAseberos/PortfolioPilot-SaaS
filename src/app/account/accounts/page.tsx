@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { GitBranch, Globe, ShieldAlert, Link2 } from 'lucide-react'
 import { ConnectProviderButton } from '@/components/account/ConnectProviderButton'
+import { DisconnectProviderButton } from '@/components/account/DisconnectProviderButton'
 
 export default async function AccountsPage() {
   const supabase = await createClient()
@@ -8,10 +9,20 @@ export default async function AccountsPage() {
   
   if (!user) return null
 
-  // Check providers
-  const providers = user.app_metadata?.providers || []
-  const hasGithub = providers.includes('github')
-  const hasGoogle = providers.includes('google')
+  // Check providers and identities
+  const identities = user.identities || []
+  const githubIdentity = identities.find(id => id.provider === 'github')
+  const googleIdentity = identities.find(id => id.provider === 'google')
+  
+  const hasGithub = !!githubIdentity
+  const hasGoogle = !!googleIdentity
+  
+  // Extract connected names/emails
+  const githubName = githubIdentity?.identity_data?.preferred_username || githubIdentity?.identity_data?.user_name || githubIdentity?.identity_data?.name || githubIdentity?.identity_data?.email
+  const googleName = googleIdentity?.identity_data?.email || googleIdentity?.identity_data?.name
+  
+  // A user must have at least one identity to log in, so we disable disconnect if only one exists
+  const canDisconnect = identities.length > 1
 
   return (
     <div className="space-y-8 max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -32,10 +43,15 @@ export default async function AccountsPage() {
               <p className="text-sm text-muted-foreground mt-0.5">Used to deep-scan your repositories and generate code feedback.</p>
             </div>
           </div>
-          {hasGithub ? (
-            <div className="flex items-center gap-2 bg-green-500/10 px-4 py-2 rounded-xl shrink-0">
+          {githubIdentity ? (
+            <div className="flex items-center gap-2 bg-green-500/10 pl-4 pr-2 py-2 rounded-xl shrink-0">
               <Link2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <span className="text-sm font-bold text-green-600 dark:text-green-400">Connected</span>
+              <div className="flex flex-col mx-2">
+                <span className="text-sm font-bold text-green-600 dark:text-green-400 leading-none">Connected</span>
+                {githubName && <span className="text-xs text-green-600/80 dark:text-green-400/80 mt-1 truncate max-w-[150px]">{githubName}</span>}
+              </div>
+              <div className="w-px h-8 bg-green-600/20 mx-1" />
+              <DisconnectProviderButton identity={githubIdentity} disabled={!canDisconnect} />
             </div>
           ) : (
             <ConnectProviderButton provider="github" label="Connect GitHub" />
@@ -53,10 +69,15 @@ export default async function AccountsPage() {
               <p className="text-sm text-muted-foreground mt-0.5">Used for quick sign-in and identity verification.</p>
             </div>
           </div>
-          {hasGoogle ? (
-            <div className="flex items-center gap-2 bg-green-500/10 px-4 py-2 rounded-xl shrink-0">
+          {googleIdentity ? (
+            <div className="flex items-center gap-2 bg-green-500/10 pl-4 pr-2 py-2 rounded-xl shrink-0">
               <Link2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <span className="text-sm font-bold text-green-600 dark:text-green-400">Connected</span>
+              <div className="flex flex-col mx-2">
+                <span className="text-sm font-bold text-green-600 dark:text-green-400 leading-none">Connected</span>
+                {googleName && <span className="text-xs text-green-600/80 dark:text-green-400/80 mt-1 truncate max-w-[150px]">{googleName}</span>}
+              </div>
+              <div className="w-px h-8 bg-green-600/20 mx-1" />
+              <DisconnectProviderButton identity={googleIdentity} disabled={!canDisconnect} />
             </div>
           ) : (
             <ConnectProviderButton provider="google" label="Connect Google" />
