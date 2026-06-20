@@ -118,6 +118,7 @@ export interface GitHubRepo {
   updated_at: string
   hasReadme?: boolean
   readmeLength?: number
+  readmeSummary?: string | null
 }
 
 export interface GitHubProfile {

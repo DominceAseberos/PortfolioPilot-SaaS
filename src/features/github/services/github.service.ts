@@ -82,24 +82,42 @@ export class GitHubService {
       let topRepoReadmeLength = 0
       let topRepoHasReadme = false
       if (repos.length > 0) {
-        const topRepo = [...repos].sort((a, b) => b.stars - a.stars || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
-        try {
-          const readmeRes = await fetch(`https://api.github.com/repos/${username}/${topRepo.name}/readme`, { headers, signal: AbortSignal.timeout(5000) })
-          if (readmeRes.ok) {
-            const readmeData = await readmeRes.json()
-            if (readmeData.content) {
-              const decoded = Buffer.from(readmeData.content, 'base64').toString('utf8')
-              topRepoReadmeLength = decoded.length
-              topRepoHasReadme = true
-              
-              const topRepoIndex = repos.findIndex(r => r.name === topRepo.name)
-              if (topRepoIndex !== -1) {
-                repos[topRepoIndex].hasReadme = true
-                repos[topRepoIndex].readmeLength = topRepoReadmeLength
+        const sortedRepos = [...repos].sort((a, b) => b.stars - a.stars || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        const topRepos = sortedRepos.slice(0, 3)
+        
+        await Promise.all(topRepos.map(async (repo, index) => {
+          try {
+            const readmeRes = await fetch(`https://api.github.com/repos/${username}/${repo.name}/readme`, { headers, signal: AbortSignal.timeout(5000) })
+            if (readmeRes.ok) {
+              const readmeData = await readmeRes.json()
+              if (readmeData.content) {
+                const decoded = Buffer.from(readmeData.content, 'base64').toString('utf8')
+                
+                if (index === 0) {
+                  topRepoReadmeLength = decoded.length
+                  topRepoHasReadme = true
+                }
+                
+                const repoIndex = repos.findIndex(r => r.name === repo.name)
+                if (repoIndex !== -1) {
+                  repos[repoIndex].hasReadme = true
+                  repos[repoIndex].readmeLength = decoded.length
+                  
+                  const cleaned = decoded
+                    .replace(/!\[.*?\]\(.*?\)/g, '')
+                    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+                    .replace(/[#*`_>\-]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                  
+                  if (cleaned) {
+                    repos[repoIndex].readmeSummary = cleaned.slice(0, 200) + (cleaned.length > 200 ? '...' : '')
+                  }
+                }
               }
             }
-          }
-        } catch { /* ignore error fetching readme */ }
+          } catch { /* ignore error fetching readme */ }
+        }))
       }
 
       const details: GitHubDetails = { profile, repos, events }

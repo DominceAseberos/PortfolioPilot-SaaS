@@ -368,7 +368,7 @@ function StreamingChatBox({
       .map(r => ({
         name: r.name,
         link: githubUsername ? `https://github.com/${githubUsername}/${r.name}` : '',
-        description: r.description ?? `${r.language ?? 'Open source'} project with ${r.stars} stars`,
+        description: r.description || r.readmeSummary || `${r.language ?? 'Open source'} project with ${r.stars} stars`,
         isNew: true
       }))
 
