@@ -32,5 +32,5 @@ export default async function ReviewsPage() {
 
   const credits = creditData?.credits || 0
 
-  return <ReviewsPageClient isGuest={isGuest} reviewCount={reviews?.length || 0} credits={credits} reviews={reviews || []} />
+  return <ReviewsPageClient key="new" isGuest={isGuest} reviewCount={reviews?.length || 0} credits={credits} reviews={reviews || []} />
 }

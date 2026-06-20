@@ -1216,6 +1216,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [isHistoryMode, setIsHistoryMode] = useState(!!initialReviewData)
   const [showHistoryDropdown, setShowHistoryDropdown] = useState(false)
   const [historyList, setHistoryList] = useState<ReviewHistoryItem[]>(reviews)
+  const [isSwitchingHistory, setIsSwitchingHistory] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
@@ -2069,8 +2070,14 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                      historyList.map(r => (
                         <button 
                           key={r.id} 
-                          onClick={() => { setShowHistoryDropdown(false); router.push(`/dashboard/reviews/${r.id}`) }} 
-                          className={`w-full text-left px-3 py-3 rounded-xl transition-colors flex flex-col gap-1 group ${analysisId === r.id ? 'bg-primary/10 text-primary' : 'hover:bg-primary/10 hover:text-primary text-foreground'}`}
+                          onClick={() => { 
+                            if (analysisId !== r.id) {
+                              setShowHistoryDropdown(false); 
+                              setIsSwitchingHistory(true);
+                              router.push(`/dashboard/reviews/${r.id}`);
+                            }
+                          }} 
+                          className={`w-full text-left px-3 py-3 rounded-xl transition-colors flex flex-col gap-1 group ${analysisId === r.id ? 'bg-primary/10 text-primary cursor-default' : 'hover:bg-primary/10 hover:text-primary text-foreground cursor-pointer'}`}
                         >
                            <div className="flex items-center justify-between w-full">
                              <span className={`text-sm font-semibold truncate pr-2 ${analysisId !== r.id && 'group-hover:text-primary'}`}>{r.detected_name || (r.portfolio_url ? r.portfolio_url.replace(/^https?:\/\//, '') : 'Unnamed Scan')}</span>
@@ -2089,6 +2096,14 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       <div className={`flex flex-col lg:flex-row flex-1 w-full h-full gap-8 lg:gap-12`}>
         {/* Left Side: Form, Progress Status, or Streaming Results */}
         <div className={`w-full h-full transition-all duration-700 flex flex-col justify-start relative`}>
+                
+                {isSwitchingHistory && (
+                  <div className="absolute inset-0 z-[100] bg-background/50 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300 rounded-3xl">
+                    <div className="h-12 w-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4 shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
+                    <p className="text-sm font-bold tracking-widest text-primary animate-pulse uppercase">Decrypting Archive...</p>
+                  </div>
+                )}
+
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full h-full flex flex-col justify-start">
                   <NeuralChatLanding 
                        portfolioUrl={portfolioUrl}

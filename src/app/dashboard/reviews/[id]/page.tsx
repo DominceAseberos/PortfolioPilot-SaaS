@@ -63,6 +63,7 @@ export default async function ReviewDetailPage({
 
   return (
     <ReviewsPageClient 
+      key={currentReview.id}
       isGuest={isGuest} 
       reviewCount={reviews?.length || 0} 
       credits={credits} 
