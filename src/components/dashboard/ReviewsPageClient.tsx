@@ -748,86 +748,8 @@ function StreamingChatBox({
            </div>
         )}
 
-        {/* Guest Lock Overlay for Content Below Strengths */}
-        {isDoneTyping && isGuest ? (
-          <div className="relative mt-8 group animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
-            {/* The actual blurred content preview (Weaknesses, Recommendations) */}
-            <div className="pointer-events-none select-none blur-sm opacity-40 space-y-6">
-              <div className="flex gap-4">
-                <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">Areas for Improvement</span>
-                  </div>
-                  <div className="rounded-2xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-5 shadow-sm h-32">
-                     <div className="h-4 w-3/4 bg-red-500/20 rounded mb-3"></div>
-                     <div className="h-4 w-1/2 bg-red-500/20 rounded"></div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Target className="h-5 w-5 text-blue-500" />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">Actionable Recommendations</span>
-                  </div>
-                  <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 p-5 shadow-sm h-32">
-                     <div className="h-4 w-full bg-blue-500/20 rounded mb-3"></div>
-                     <div className="h-4 w-5/6 bg-blue-500/20 rounded mb-3"></div>
-                     <div className="h-4 w-4/6 bg-blue-500/20 rounded"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Premium CTA Overlay */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-6 bg-gradient-to-t from-background/90 via-background/60 to-transparent">
-              <div className="bg-card border border-primary/20 shadow-2xl rounded-3xl p-8 max-w-md text-center transform transition-transform group-hover:scale-105 duration-300">
-                <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <Sparkles className="h-8 w-8 text-primary animate-pulse" />
-                </div>
-                <h3 className="text-xl font-bold mb-2 tracking-tight">Unlock Your Full AI Report</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  You've previewed your strengths! Sign up for a free account to unlock your personalized areas for improvement, actionable recommendations, and raw extraction telemetry.
-                </p>
-                <div className="space-y-3">
-                  <Button className="w-full h-12 text-base font-bold shadow-[0_0_20px_-5px_rgba(var(--primary),0.4)]" onClick={() => window.location.href = '/register?next=/dashboard/reviews/latest'}>
-                    Create Free Account
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Already have an account? <a href="/login" className="text-primary font-bold hover:underline">Log in</a>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* DEEP ANALYSIS GUEST LOCK CONTAINER */}
-            <div className="relative">
-              {isDoneTyping && isGuest && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/40 backdrop-blur-[2px] rounded-2xl border border-white/10 p-6 animate-in fade-in duration-1000 delay-500">
-                  <div className="bg-card border border-border shadow-2xl rounded-2xl p-6 text-center max-w-sm">
-                    <div className="h-12 w-12 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/20">
-                      <Target className="h-6 w-6 text-indigo-500" />
-                    </div>
-                    <h3 className="text-lg font-bold text-foreground mb-2">Unlock Deep Analysis</h3>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      Create a free account to view your personalized actionable recommendations, detailed weaknesses, and cross-reference checks.
-                    </p>
-                    <Button onClick={() => window.location.href = '/register?next=/dashboard/reviews/latest'} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25">
-                      Sign Up Free
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              <div className={isGuest && isDoneTyping ? 'blur-sm opacity-60 pointer-events-none select-none transition-all duration-1000 delay-500' : ''}>
-                {/* Weaknesses Bubble */}
+        <div className="space-y-8 mt-8">
+          {/* Weaknesses Bubble */}
                 {/* Weaknesses Bubble */}
                 {showStep(3) && (result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length > 0 && (
                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1034,10 +956,6 @@ function StreamingChatBox({
                </div>
             )}
             
-            {/* END DEEP ANALYSIS GUEST LOCK CONTAINER */}
-            </div>
-          </div>
-
           {/* Final Overall Score Bubble */}
             {showStep(8) && (
                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-4">
@@ -1088,8 +1006,6 @@ function StreamingChatBox({
                  )}
               </div>
             )}
-          </>
-        )}
       </div>
 
       <ReportTemplate ref={pdfRef} result={result} mismatches={mismatches} />
