@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { GitBranch, Globe, ShieldAlert, Link2 } from 'lucide-react'
-import { Button } from '@/components/common/Button'
+import { ConnectProviderButton } from '@/components/account/ConnectProviderButton'
 
 export default async function AccountsPage() {
   const supabase = await createClient()
@@ -38,7 +38,7 @@ export default async function AccountsPage() {
               <span className="text-sm font-bold text-green-600 dark:text-green-400">Connected</span>
             </div>
           ) : (
-            <Button variant="outline" className="rounded-xl font-bold shadow-sm shrink-0">Connect GitHub</Button>
+            <ConnectProviderButton provider="github" label="Connect GitHub" />
           )}
         </div>
 
@@ -59,7 +59,7 @@ export default async function AccountsPage() {
               <span className="text-sm font-bold text-green-600 dark:text-green-400">Connected</span>
             </div>
           ) : (
-            <Button variant="outline" className="rounded-xl font-bold shadow-sm shrink-0">Connect Google</Button>
+            <ConnectProviderButton provider="google" label="Connect Google" />
           )}
         </div>
       </div>
