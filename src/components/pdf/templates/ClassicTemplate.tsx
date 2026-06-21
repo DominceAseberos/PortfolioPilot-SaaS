@@ -88,7 +88,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
             {data.projects.map((proj, i) => (
               <View key={i} style={{ marginBottom: 8 }}>
                 <View style={styles.entryHeader}>
-                  {proj.link
+                  {proj.link && /^https?:\/\//.test(proj.link)
                     ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#2563eb' }}>{proj.name}</Link>
                     : <Text style={styles.entryTitle}>{proj.name}</Text>}
                 </View>
