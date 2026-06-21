@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { User, Shield } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { UpdateProfileForm } from '@/components/account/UpdateProfileForm'
+import { UpdatePasswordForm } from '@/components/account/UpdatePasswordForm'
 import { SettingsActions } from '@/components/account/SettingsActions'
 
 export default async function SettingsPage() {
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
             <User className="h-5 w-5 text-primary" /> Profile
           </h2>
           <UpdateProfileForm initialName={fullName} email={email || ''} />
+          <UpdatePasswordForm />
         </section>
 
         <SettingsActions />
