@@ -70,21 +70,12 @@ export async function POST(request: NextRequest) {
 
     // Inject isolated source recommendations back into the global list so they aren't lost
     if (!truth.validSources.portfolio && portfolio) {
-      summary.topStrengths.push(...portfolio.strengths.slice(0, 2))
-      summary.topWeaknesses.push(...portfolio.weaknesses.slice(0, 2))
-      summary.topRecommendations.push(...portfolio.recommendations.slice(0, 2))
       if (summary.sourceBreakdown.portfolio) summary.sourceBreakdown.portfolio.summary = 'Isolated: ' + (portfolio.strengths[0] || 'Analyzed')
     }
     if (!truth.validSources.github && github) {
-      summary.topStrengths.push(...github.strengths.slice(0, 2))
-      summary.topWeaknesses.push(...github.weaknesses.slice(0, 2))
-      summary.topRecommendations.push(...github.recommendations.slice(0, 2))
       if (summary.sourceBreakdown.github) summary.sourceBreakdown.github.summary = 'Isolated: ' + (github.strengths[0] || 'Analyzed')
     }
     if (!truth.validSources.resume && resume) {
-      summary.topStrengths.push(...resume.strengths.slice(0, 2))
-      summary.topWeaknesses.push(...resume.weaknesses.slice(0, 2))
-      summary.topRecommendations.push(...resume.recommendations.slice(0, 2))
       if (summary.sourceBreakdown.resume) summary.sourceBreakdown.resume.summary = 'Isolated: ' + (resume.strengths[0] || 'Analyzed')
     }
 

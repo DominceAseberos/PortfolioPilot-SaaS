@@ -386,7 +386,10 @@ function StreamingChatBox({
     
     const details = resumeAnalysis?.details
     const existingSkillNames = new Set((details?.skills ?? []).filter(s => s.found).map(s => s.name.toLowerCase()))
-    const githubLanguages = Array.from(new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))).filter(lang => !existingSkillNames.has(lang.toLowerCase()))
+    const notAligned = mismatches ?? []
+    const isGithubIsolated = notAligned.some(m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch'))
+
+    const githubLanguages = isGithubIsolated ? [] : Array.from(new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))).filter(lang => !existingSkillNames.has(lang.toLowerCase()))
     
     const improvedSkills = [
       ...(details?.skills ?? []).filter(s => s.found).map(s => s.name),
@@ -394,7 +397,7 @@ function StreamingChatBox({
     ]
 
     const resumeProjectNames = new Set((details?.projects ?? []).map(p => p.name?.toLowerCase() ?? ''))
-    const newProjects = (githubAnalysis?.details?.repos ?? [])
+    const newProjects = isGithubIsolated ? [] : (githubAnalysis?.details?.repos ?? [])
       .filter(r => r.stars > 0 && !resumeProjectNames.has(r.name.toLowerCase()))
       .sort((a, b) => b.stars - a.stars)
       .slice(0, 3)
@@ -840,23 +843,25 @@ function StreamingChatBox({
               const resumeProjectNames = new Set(
                 (resumeAnalysis?.details?.projects ?? []).map(p => (p.name ?? '').toLowerCase())
               )
-              const githubLanguages = Array.from(
+              const notAligned = mismatches ?? []
+              const isGithubIsolated = notAligned.some(m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch'))
+
+              const githubLanguages = isGithubIsolated ? [] : Array.from(
                 new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))
               ).filter(lang => !resumeSkillNames.has(lang.toLowerCase()))
-              const githubTopRepos = (githubAnalysis?.details?.repos ?? [])
+              const githubTopRepos = isGithubIsolated ? [] : (githubAnalysis?.details?.repos ?? [])
                 .filter(r => r.stars >= 5)
                 .sort((a, b) => b.stars - a.stars)
                 .slice(0, 3)
                 .filter(r => !resumeProjectNames.has(r.name.toLowerCase()))
 
-              const notAligned = mismatches ?? []
               const missingFromResume: string[] = [
                 ...githubLanguages.slice(0, 3).map(lang => `${lang} appears in your GitHub repos but is not listed in your resume skills`),
                 ...githubTopRepos.map(r => `"${r.name}" (⭐${r.stars}) is a top GitHub project not mentioned in your resume`),
               ]
               const canBeAdded: string[] = [
                 ...(githubLanguages.length > 0 ? [`Add ${githubLanguages.slice(0, 3).join(', ')} to your skills section — detected across your GitHub repositories`] : []),
-                ...(githubAnalysis?.details?.contributions && githubAnalysis.details.contributions.totalContributions > 100
+                ...(githubAnalysis?.details?.contributions && githubAnalysis.details.contributions.totalContributions > 100 && !isGithubIsolated
                   ? [`Mention your ${githubAnalysis.details.contributions.totalContributions.toLocaleString()} GitHub contributions this year — a strong signal of activity`]
                   : []),
                 ...((resumeAnalysis?.details?.hasMetrics === false) ? ['Add quantified metrics to your work experience (e.g. "reduced load time by 30%")'] : []),
