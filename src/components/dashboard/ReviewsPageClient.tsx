@@ -337,6 +337,7 @@ function StreamingChatBox({
   createdAt?: string
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
+  const [isGeneratingResume, setIsGeneratingResume] = useState(false)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
   const [displayedText, setDisplayedText] = useState(isHistory ? (result.normalFeedback?.summary ?? result.summary) : '')
   const [visibleStep, setVisibleStep] = useState(isHistory ? 99 : 0)
@@ -378,23 +379,30 @@ function StreamingChatBox({
     }
   }
 
-  const handleGenerateImprovedResume = (e: React.MouseEvent) => {
+  const handleGenerateImprovedResume = async (e: React.MouseEvent) => {
     e.preventDefault()
     if (isGuest) {
       window.location.href = '/register?next=/dashboard/reviews/latest'
       return
     }
     
-    const initialData = buildImprovedResume(
+    setIsGeneratingResume(true)
+    try {
+      const initialData = await buildImprovedResume(
       resumeAnalysis?.details,
       githubAnalysis,
       mismatches,
       portfolioUrl || undefined,
       githubUsername || undefined
-    )
+      )
 
-    setResumeData(initialData)
-    setShowResumeModal(true)
+      setResumeData(initialData)
+      setShowResumeModal(true)
+    } catch (err) {
+      console.error('Failed to generate improved resume', err)
+    } finally {
+      setIsGeneratingResume(false)
+    }
   }
 
   const radarData = [
@@ -1013,9 +1021,21 @@ function StreamingChatBox({
                  ) : (
                    <>
                      {result.sourceBreakdown.resume && (
-                       <Button onClick={handleGenerateImprovedResume} className="shadow-lg hover:scale-105 transition-transform bg-primary hover:bg-primary/90 text-primary-foreground gap-2">
-                          <Sparkles className="w-4 h-4" /> Generate Improved Resume
-                       </Button>
+                        <Button 
+                          onClick={handleGenerateImprovedResume} 
+                          disabled={isGeneratingResume}
+                          className="shadow-lg hover:scale-105 transition-transform bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+                        >
+                          {isGeneratingResume ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" /> Weaving new resume...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4" /> Generate Improved Resume
+                            </>
+                          )}
+                        </Button>
                      )}
                      <Button onClick={() => window.location.href = '/dashboard/reviews'} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2">
                        <RotateCcw className="w-4 h-4" /> New Analysis

@@ -1,13 +1,13 @@
 import { AIMismatch, GitHubAnalysis, ResumeDetails } from '../../types'
 import { DynamicSection, ImprovedResumeData } from '../../types/resume'
 
-export function buildImprovedResume(
+export async function buildImprovedResume(
   details: ResumeDetails | null | undefined,
   githubAnalysis: GitHubAnalysis | null | undefined,
   mismatches: AIMismatch[] | null | undefined,
   portfolioUrl?: string,
   githubUsername?: string
-): ImprovedResumeData {
+): Promise<ImprovedResumeData> {
   const notAligned = mismatches ?? []
   const isGithubIsolated = notAligned.some(
     m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch')
@@ -60,22 +60,27 @@ export function buildImprovedResume(
           isEnhanced: true,
         }))
 
-  // 3. Clone and Enhance Sections
-  const enhancedSections = originalSections.map(section => {
-    const cloned = { ...section }
-
-    if (cloned.acceptsAIImprovements) {
-      if (cloned.type === 'list' && githubLanguages.length > 0) {
-        cloned.items = [...(cloned.items || []), ...githubLanguages.slice(0, 5)]
+  // 3. Delegate Enhancement to AI Layer 3
+  let enhancedSections = originalSections
+  if (githubLanguages.length > 0 || newProjects.length > 0) {
+    try {
+      const response = await fetch('/api/resume/improve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originalSections,
+          missingSkills: githubLanguages.slice(0, 5),
+          missingProjects: newProjects
+        })
+      })
+      if (response.ok) {
+        const data = await response.json()
+        enhancedSections = data.sections || originalSections
       }
-      
-      if (cloned.type === 'entries' && newProjects.length > 0) {
-        cloned.entries = [...(cloned.entries || []), ...newProjects]
-      }
+    } catch (e) {
+      console.error('Failed to generate improved resume sections', e)
     }
-
-    return cloned
-  })
+  }
 
   // 4. Return standard ImprovedResumeData format
   return {

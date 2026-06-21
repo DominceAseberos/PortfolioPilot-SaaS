@@ -38,14 +38,21 @@ export async function analyzeResumeWithAI(text: string, scrapedContext?: string)
   if (!client) return null
 
   try {
-    const response = await client.chat.completions.create({
+    // LAYER 1: STRICT EXTRACTION & STANDARDIZATION
+    const extractResponse = await client.chat.completions.create({
       model: 'llama-3.1-8b-instant',
       messages: [
         {
           role: 'system',
-          content: `You are a resume parser. Analyze the resume text (and optionally cross-reference with provided scraped context from their portfolio/github) and return JSON only.
+          content: `You are a strict data extraction parser. Your ONLY job is to take raw resume text and cleanly restructure it into standard JSON.
+Do NOT score the resume. Do NOT generate strengths or weaknesses.
 
-Return this exact structure:
+CRITICAL RULES:
+1. Split any comma-separated skills (e.g., "Python, Java, C++") into individual items in an array: ["Python", "Java", "C++"].
+2. Standardize all dates.
+3. You MUST use 'list' type for Skills sections, and 'entries' type for Experience/Projects/Education sections.
+
+Return this EXACT structure ONLY:
 {
   "name": "Full name or null",
   "email": "email or null",
@@ -54,57 +61,142 @@ Return this exact structure:
   "sections": [
     {
       "title": "Exact Header from PDF (e.g. SKILLS, EXPERIENCE, PROJECTS)",
-      "type": "text | list | entries", // CRITICAL: You MUST use 'list' for Skills, and 'entries' for Experience/Projects/Education!
-      "text": "Extracted paragraph for text sections (use only for Summary or generic text)",
-      "items": ["item1", "item2"], // Only used when type is 'list'
-      "entries": [{"title": "Role/Project Name", "subtitle": "Company/Location", "dates": "...", "description": "..."}], // Only used when type is 'entries'
-      "acceptsAIImprovements": true // ONLY set true for the exact sections representing Skills or Projects!
+      "type": "text | list | entries", 
+      "text": "Extracted paragraph for text sections",
+      "items": ["item1", "item2"], 
+      "entries": [{"title": "Role/Project", "subtitle": "Company", "dates": "...", "description": "..."}],
+      "acceptsAIImprovements": true // True ONLY for Skills or Projects!
     }
   ],
-  "score": 0-100,
-  "strengths": ["..."],
-  "weaknesses": ["..."],
-  "recommendations": ["..."],
   "predictedSeniority": "Junior | Mid-Level | Senior | Lead | Executive",
   "tone": "Confident | Passive | Action-Oriented | Vague"
 }
 
-Score: 90-100 excellent, 70-89 good, 50-69 average, below 50 needs work.
-Strengths, weaknesses, and recommendations should be highly personalized and incorporate any mismatches or powerful insights from the scraped context if provided.
-CRITICAL: If the resume completely lacks a 'Projects' or 'Skills' section, automatically create an empty placeholder section for it (e.g. items: []), set acceptsAIImprovements: true, and place it in the optimal logical position within the array.
-Use null for missing fields. Empty arrays for missing lists. No markdown.`,
+If the resume lacks 'Projects' or 'Skills', create an empty placeholder section for it (items: []), set acceptsAIImprovements: true. Use null for missing fields.`,
         },
         {
           role: 'user',
-          content: scrapedContext ? `${text}\n\n=== SCRAPED CONTEXT (Portfolio/GitHub) ===\n${scrapedContext}` : text,
+          content: scrapedContext ? `${text}\n\n=== SCRAPED CONTEXT ===\n${scrapedContext}` : text,
         },
       ],
-      temperature: 0.3,
-      max_tokens: 2000,
+      temperature: 0.1,
+      max_tokens: 3000,
       response_format: { type: 'json_object' },
     })
 
-    const content = response.choices?.[0]?.message?.content
-    if (!content) return null
+    const cleanContent = extractResponse.choices?.[0]?.message?.content
+    if (!cleanContent) return null
+    const cleanData = JSON.parse(cleanContent)
 
-    const parsed = JSON.parse(content)
+    // LAYER 2: DEEP ANALYSIS & SCORING
+    const analyzeResponse = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert tech recruiter. Analyze the perfectly structured JSON resume provided and return JSON grading it.
+
+Return this EXACT structure:
+{
+  "score": 0-100,
+  "strengths": ["..."],
+  "weaknesses": ["..."],
+  "recommendations": ["..."]
+}
+
+Score: 90-100 excellent, 70-89 good, 50-69 average, below 50 needs work.
+Strengths, weaknesses, and recommendations should be highly personalized to the structured content provided.`
+        },
+        {
+          role: 'user',
+          content: JSON.stringify(cleanData, null, 2)
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 1000,
+      response_format: { type: 'json_object' },
+    })
+
+    const scoreContent = analyzeResponse.choices?.[0]?.message?.content
+    const scoreData = scoreContent ? JSON.parse(scoreContent) : { score: 50, strengths: [], weaknesses: [], recommendations: [] }
+
     return {
-      score: parsed.score ?? 50,
-      name: parsed.name || null,
-      email: parsed.email || null,
-      linkedin: parsed.linkedin || null,
-      github: parsed.github || null,
-      sections: Array.isArray(parsed.sections) ? parsed.sections : [],
-      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
-      weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
-      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+      score: scoreData.score ?? 50,
+      name: cleanData.name || null,
+      email: cleanData.email || null,
+      linkedin: cleanData.linkedin || null,
+      github: cleanData.github || null,
+      sections: Array.isArray(cleanData.sections) ? cleanData.sections : [],
+      strengths: Array.isArray(scoreData.strengths) ? scoreData.strengths : [],
+      weaknesses: Array.isArray(scoreData.weaknesses) ? scoreData.weaknesses : [],
+      recommendations: Array.isArray(scoreData.recommendations) ? scoreData.recommendations : [],
       rawText: text,
-      predictedSeniority: parsed.predictedSeniority || undefined,
-      tone: parsed.tone || undefined,
+      predictedSeniority: cleanData.predictedSeniority || undefined,
+      tone: cleanData.tone || undefined,
     }
   } catch (error) {
-    logger.error('AI resume analysis failed', { error: String(error) })
+    logger.error('AI resume pipeline failed', { error: String(error) })
     return null
+  }
+}
+
+export async function generateImprovedResumeContent(
+  originalSections: DynamicSection[],
+  missingSkills: string[],
+  missingProjects: { name: string; description: string; link?: string }[]
+): Promise<DynamicSection[]> {
+  const client = createClient()
+  if (!client) return originalSections
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert resume writer. I am providing you with the user's current resume sections as JSON, along with a list of missing skills and projects from their GitHub/Portfolio that should be added.
+
+YOUR JOB:
+1. Seamlessly integrate the missing skills into the existing "Skills" section (type: 'list'). If none exists, create one.
+2. Weave the missing projects into the existing "Projects" or "Experience" section (type: 'entries'). Make the descriptions sound professional and use action verbs.
+3. Improve the tone and impact of existing weak bullet points across all entries.
+4. Return the fully updated sections array.
+
+Return ONLY JSON matching this EXACT structure:
+{
+  "sections": [
+    {
+      "title": "Header Name",
+      "type": "text | list | entries",
+      "text": "...",
+      "items": ["..."],
+      "entries": [{"title": "...", "subtitle": "...", "dates": "...", "description": "..."}]
+    }
+  ]
+}`
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            currentSections: originalSections,
+            missingSkillsToAdd: missingSkills,
+            missingProjectsToAdd: missingProjects
+          }, null, 2)
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 3000,
+      response_format: { type: 'json_object' }
+    })
+
+    const content = response.choices?.[0]?.message?.content
+    if (!content) return originalSections
+
+    const parsed = JSON.parse(content)
+    return Array.isArray(parsed.sections) ? parsed.sections : originalSections
+  } catch (error) {
+    logger.error('AI improved resume generation failed', { error: String(error) })
+    return originalSections
   }
 }
 
