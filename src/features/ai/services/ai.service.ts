@@ -53,11 +53,11 @@ Return this exact structure:
   "github": "GitHub URL or null",
   "sections": [
     {
-      "title": "Exact Header from PDF (e.g. PROFESSIONAL SUMMARY, RELEVANT COURSEWORK)",
-      "type": "text | list | entries",
-      "text": "Extracted paragraph for text sections",
-      "items": ["item1", "item2"],
-      "entries": [{"title": "...", "subtitle": "...", "dates": "...", "description": "..."}],
+      "title": "Exact Header from PDF (e.g. SKILLS, EXPERIENCE, PROJECTS)",
+      "type": "text | list | entries", // CRITICAL: You MUST use 'list' for Skills, and 'entries' for Experience/Projects/Education!
+      "text": "Extracted paragraph for text sections (use only for Summary or generic text)",
+      "items": ["item1", "item2"], // Only used when type is 'list'
+      "entries": [{"title": "Role/Project Name", "subtitle": "Company/Location", "dates": "...", "description": "..."}], // Only used when type is 'entries'
       "acceptsAIImprovements": true // ONLY set true for the exact sections representing Skills or Projects!
     }
   ],

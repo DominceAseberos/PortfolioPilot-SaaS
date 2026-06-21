@@ -43,7 +43,7 @@ export class ResumeService {
             linkedin: aiResult.linkedin || detectedLinkedIn || ruleResult.details?.linkedin || null,
             github: aiResult.github || detectedGithub || ruleResult.details?.github || null,
             workEntries: aiResult.sections
-              .filter(s => s.type === 'entries' && /(experience|work|employment|history)/i.test(s.title))
+              .filter(s => s.type === 'entries' && !/(education|university|college|degree|project|portfolio)/i.test(s.title))
               .flatMap(s => s.entries || [])
               .map(e => ({
                 company: e.subtitle || '',
@@ -68,7 +68,7 @@ export class ResumeService {
                 description: e.description || ''
               })),
             skills: aiResult.sections
-              .filter(s => s.type === 'list' && /(skill|technolog|tool)/i.test(s.title))
+              .filter(s => s.type === 'list' || /(skill|technolog|tool|expert|proficien)/i.test(s.title))
               .flatMap(s => s.items || [])
               .map(s => ({ name: s, found: true })),
             sections: aiResult.sections.length > 0 ? aiResult.sections : ruleResult.details?.sections || [],
