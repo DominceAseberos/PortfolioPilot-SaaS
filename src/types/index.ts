@@ -198,6 +198,7 @@ export interface ResumeDetails {
   workEntries: (string | ResumeWorkEntry)[]
   education?: ResumeEducation[]
   projects?: { name?: string; link?: string; description?: string }[]
+  professionalSummary?: string | null
   wordCount: number
   hasEmail: boolean
   hasLinkedIn: boolean

@@ -24,6 +24,7 @@ export interface AIAnalysisResult {
   projects?: { name?: string; link?: string; description?: string }[]
   skills: string[]
   sections: string[]
+  professionalSummary?: string | null
   strengths: string[]
   weaknesses: string[]
   recommendations: string[]
@@ -61,6 +62,7 @@ Return this exact structure:
   "projects": [{"name":"...","link":"...","description":"..."}],
   "skills": ["skill1", "skill2"],
   "sections": ["Experience", "Education", "Skills"],
+  "professionalSummary": "The extracted professional summary from the resume, or null",
   "score": 0-100,
   "strengths": ["..."],
   "weaknesses": ["..."],
@@ -98,6 +100,7 @@ Use null for missing fields. Empty arrays for missing lists. No markdown.`,
       projects: Array.isArray(parsed.projects) ? parsed.projects : [],
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],
       sections: Array.isArray(parsed.sections) ? parsed.sections : [],
+      professionalSummary: parsed.professionalSummary || null,
       strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
       weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],

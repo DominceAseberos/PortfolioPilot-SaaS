@@ -412,7 +412,7 @@ function StreamingChatBox({
       linkedin: details?.linkedin ?? '',
       github: details?.github ?? (githubUsername ? `https://github.com/${githubUsername}` : ''),
       website: portfolioUrl ?? '',
-      summary: result.summary,
+      summary: details?.professionalSummary || '',
       skills: improvedSkills,
       workEntries: (details?.workEntries ?? []).map((w: any) => typeof w === 'string' ? { company: '', role: w, dates: '', description: '' } : w),
       projects: [
