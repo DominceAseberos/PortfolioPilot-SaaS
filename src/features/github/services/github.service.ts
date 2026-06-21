@@ -3,7 +3,7 @@ import { logger } from '@/lib/logger'
 import { normalizeGitHubUsername } from '@/utils/source-normalizers'
 
 export class GitHubService {
-  async analyze(rawUsername: string): Promise<GitHubAnalysis> {
+  async analyze(rawUsername: string, selectedRepos?: string[]): Promise<GitHubAnalysis> {
     const username = normalizeGitHubUsername(rawUsername)
     try {
       const headers: Record<string, string> = {
@@ -82,8 +82,13 @@ export class GitHubService {
       let topRepoReadmeLength = 0
       let topRepoHasReadme = false
       if (repos.length > 0) {
-        const sortedRepos = [...repos].sort((a, b) => b.stars - a.stars || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-        const topRepos = sortedRepos.slice(0, 3)
+        let topRepos: GitHubRepo[] = []
+        if (selectedRepos && selectedRepos.length > 0) {
+          topRepos = repos.filter(r => selectedRepos.includes(r.name)).slice(0, 3)
+        } else {
+          const sortedRepos = [...repos].sort((a, b) => b.stars - a.stars || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          topRepos = sortedRepos.slice(0, 3)
+        }
         
         await Promise.all(topRepos.map(async (repo, index) => {
           try {

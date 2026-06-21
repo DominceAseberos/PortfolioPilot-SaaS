@@ -1251,6 +1251,15 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
   const [analysisId, setAnalysisId] = useState<string>(initialReviewData?.id || '')
   const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(initialReviewData?.portfolio_url || null)
+  
+  // NEW: Repository Selection State
+  const [repoSelection, setRepoSelection] = useState<{ 
+    isOpen: boolean, 
+    repos: Array<{name: string, description: string | null, language: string | null, stars: number}>, 
+    selected: string[], 
+    isFetching: boolean, 
+    error: string | null 
+  }>({ isOpen: false, repos: [], selected: [], isFetching: false, error: null })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>(initialReviewData ? 'finalizing' : 'form')
@@ -1369,6 +1378,28 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
         setIsLoading(false)
         return
       }
+
+      // -- NEW: Intercept for repo selection --
+      if (!repoSelection.isOpen && repoSelection.selected.length === 0) {
+        setRepoSelection(p => ({ ...p, isFetching: true, error: null }))
+        try {
+          const res = await fetch(`/api/github/repos?username=${encodeURIComponent(cleanGithub)}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.repos && data.repos.length > 0) {
+              setRepoSelection({ isOpen: true, repos: data.repos, selected: [], isFetching: false, error: null })
+              setIsLoading(false)
+              return // Wait for user to select repos and submit again
+            }
+          } else {
+            const errData = await res.json()
+            toast.error(errData.error || 'Failed to fetch repositories')
+          }
+        } catch (e) {
+          toast.error('Network error fetching repositories')
+        }
+        setRepoSelection(p => ({ ...p, isFetching: false }))
+      }
     }
 
     const sources: { id: 'portfolio' | 'github' | 'resume'; label: string; source: string }[] = []
@@ -1479,7 +1510,10 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
           res = await fetch('/api/reviews/github', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ githubUsername: cleanGithub }),
+            body: JSON.stringify({ 
+              githubUsername: cleanGithub,
+              selectedRepos: repoSelection.selected.length > 0 ? repoSelection.selected : undefined
+            }),
           }).then((r) => r.json())
         } else {
           const fd = new FormData()
@@ -2102,6 +2136,78 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
 
   // ── Main render ────────────────────────────────────────
   return (
+    <>
+      {/* Repo Selection Modal */}
+      {repoSelection.isOpen && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-border flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold">Select Repositories</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Choose up to 3 repositories to feature in your AI analysis and improved resume.
+                </p>
+              </div>
+              <div className="text-sm font-medium px-3 py-1 bg-primary/10 text-primary rounded-full">
+                {repoSelection.selected.length} / 3 Selected
+              </div>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-muted/20">
+              {repoSelection.repos.map(repo => {
+                const isSelected = repoSelection.selected.includes(repo.name)
+                return (
+                  <div 
+                    key={repo.name}
+                    onClick={() => {
+                      if (isSelected) {
+                        setRepoSelection(p => ({ ...p, selected: p.selected.filter(n => n !== repo.name) }))
+                      } else if (repoSelection.selected.length < 3) {
+                        setRepoSelection(p => ({ ...p, selected: [...p.selected, repo.name] }))
+                      } else {
+                        toast.error('You can only select up to 3 repositories.')
+                      }
+                    }}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-4 ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border/50 bg-card hover:border-border'}`}
+                  >
+                    <div className={`mt-1 w-5 h-5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-input bg-background'}`}>
+                      {isSelected && <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <span className="font-semibold">{repo.name}</span>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {repo.language && <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary/40"></div> {repo.language}</span>}
+                          <span className="flex items-center gap-1">⭐ {repo.stars}</span>
+                        </div>
+                      </div>
+                      {repo.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{repo.description}</p>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            
+            <div className="p-4 border-t border-border bg-card flex justify-end gap-3">
+              <Button variant="outline" onClick={() => {
+                setRepoSelection({ isOpen: false, repos: [], selected: [], isFetching: false, error: null })
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={(e) => {
+                  setRepoSelection(p => ({ ...p, isOpen: false }))
+                  handleSubmit(e as unknown as React.FormEvent)
+                }}
+                className="shadow-md"
+              >
+                Start Analysis
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     <div className="w-full flex h-[calc(100vh-64px)] overflow-hidden relative bg-background">
       
       {/* The Desktop History Sidebar has been removed in favor of the ChatGPT-style top-left dropdown */}
@@ -2407,5 +2513,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       )}
 
     </div>
+    </>
   )
 }

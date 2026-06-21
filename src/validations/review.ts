@@ -27,6 +27,7 @@ const githubUsernameSchema = z.string()
 
 export const githubReviewSchema = z.object({
   githubUsername: githubUsernameSchema,
+  selectedRepos: z.array(z.string()).optional(),
 })
 
 export const resumeReviewSchema = z.object({

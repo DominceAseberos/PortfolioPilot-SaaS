@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await gitHubService.analyze(parsed.data.githubUsername)
+    const result = await gitHubService.analyze(parsed.data.githubUsername, parsed.data.selectedRepos)
     return successResponse(result, 'GitHub analysis complete')
   } catch {
     return errorResponse('GitHub analysis failed', 500)
