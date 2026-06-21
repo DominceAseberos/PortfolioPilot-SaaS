@@ -4,10 +4,9 @@ import { ClassicTemplate } from './templates/ClassicTemplate'
 import { ModernTemplate } from './templates/ModernTemplate'
 import { CompactTemplate } from './templates/CompactTemplate'
 
-// Template ID type
+// ─── Template registry ────────────────────────────────────────────────────────
 export type ResumeTemplateId = 'classic' | 'modern' | 'compact'
 
-// Registry used by the picker UI
 export const RESUME_TEMPLATES: {
   id: ResumeTemplateId
   name: string
@@ -42,7 +41,6 @@ export const RESUME_TEMPLATES: {
   },
 ]
 
-// Renderer — pick which component to use based on template ID
 export function ResumeTemplateRenderer({ data, templateId }: { data: ImprovedResumeData; templateId: ResumeTemplateId }) {
   switch (templateId) {
     case 'modern': return <ModernTemplate data={data} />
@@ -51,15 +49,8 @@ export function ResumeTemplateRenderer({ data, templateId }: { data: ImprovedRes
   }
 }
 
-// We register standard fonts for PDF generation
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyeMZhrib2Bg-4.ttf', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYMZhrib2Bg-4.ttf', fontWeight: 600 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf', fontWeight: 700 }
-  ]
-})
+// ─── Legacy "Classic" export (kept for backwards compatibility) ────────────────
+// Font registration is handled inside ClassicTemplate via shared fonts.ts
 
 const styles = StyleSheet.create({
   page: {

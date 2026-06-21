@@ -1,15 +1,7 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link, Font } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
-
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyeMZhrib2Bg-4.ttf', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYMZhrib2Bg-4.ttf', fontWeight: 600 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf', fontWeight: 700 },
-  ],
-})
+import './fonts'
 
 const ACCENT = '#6366f1'
 const SIDEBAR_BG = '#1e293b'
