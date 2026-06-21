@@ -1,5 +1,55 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link, Font } from '@react-pdf/renderer'
+import { ClassicTemplate } from './templates/ClassicTemplate'
+import { ModernTemplate } from './templates/ModernTemplate'
+import { CompactTemplate } from './templates/CompactTemplate'
+
+// Template ID type
+export type ResumeTemplateId = 'classic' | 'modern' | 'compact'
+
+// Registry used by the picker UI
+export const RESUME_TEMPLATES: {
+  id: ResumeTemplateId
+  name: string
+  description: string
+  tags: string[]
+  accentColor: string
+  previewBg: string
+}[] = [
+  {
+    id: 'classic',
+    name: 'Classic',
+    description: 'Clean single-column layout, perfect for corporate and university applications.',
+    tags: ['ATS-Perfect', 'Single Column', 'Traditional'],
+    accentColor: '#1e293b',
+    previewBg: '#f8fafc',
+  },
+  {
+    id: 'modern',
+    name: 'Modern',
+    description: 'Two-column design with a dark sidebar. Stands out for tech and startup roles.',
+    tags: ['ATS-Friendly', 'Two Column', 'Tech / Startup'],
+    accentColor: '#6366f1',
+    previewBg: '#eef2ff',
+  },
+  {
+    id: 'compact',
+    name: 'Compact',
+    description: 'Dense layout with a bold dark header. Maximises space for experienced candidates.',
+    tags: ['ATS-Perfect', 'Dense Layout', 'Senior / Experienced'],
+    accentColor: '#0284c7',
+    previewBg: '#f0f9ff',
+  },
+]
+
+// Renderer — pick which component to use based on template ID
+export function ResumeTemplateRenderer({ data, templateId }: { data: ImprovedResumeData; templateId: ResumeTemplateId }) {
+  switch (templateId) {
+    case 'modern': return <ModernTemplate data={data} />
+    case 'compact': return <CompactTemplate data={data} />
+    default: return <ClassicTemplate data={data} />
+  }
+}
 
 // We register standard fonts for PDF generation
 Font.register({

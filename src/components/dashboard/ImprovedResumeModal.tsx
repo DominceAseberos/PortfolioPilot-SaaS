@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle } from 'lucide-react'
+import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate } from 'lucide-react'
 import { BlobProvider, PDFDownloadLink } from '@react-pdf/renderer'
-import { ImprovedResumeTemplate, ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
+import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
+import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 
@@ -15,6 +16,8 @@ export interface ImprovedResumeModalProps {
 export default function ImprovedResumeModal({ initialData, resumeFile, onClose }: ImprovedResumeModalProps) {
   const [data, setData] = useState<ImprovedResumeData>(initialData)
   const [activeTab, setActiveTab] = useState<'original' | 'edit' | 'preview'>('edit')
+  const [step, setStep] = useState<'pick-template' | 'edit'>('pick-template')
+  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateId>('classic')
   
   // Create object URL for original resume
   const [originalUrl, setOriginalUrl] = useState<string | null>(null)
@@ -224,6 +227,32 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
 
   if (typeof document === 'undefined') return null
 
+  // Template picker step
+  if (step === 'pick-template') {
+    return createPortal(
+      <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in slide-in-from-bottom-8 duration-300">
+        <div className="h-16 border-b border-border/50 flex items-center justify-between px-4 sm:px-6 shrink-0 bg-card">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+              <LayoutTemplate className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-lg font-bold">Improved Resume Generator</h2>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <ResumeTemplatePicker
+          data={data}
+          selected={selectedTemplate}
+          onSelect={setSelectedTemplate}
+          onConfirm={() => setStep('edit')}
+        />
+      </div>,
+      document.body
+    )
+  }
+
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in slide-in-from-bottom-8 duration-300">
       
@@ -239,8 +268,12 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setStep('pick-template')}>
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            Change Template
+          </Button>
           <PDFDownloadLink 
-            document={<ImprovedResumeTemplate data={data} />} 
+            document={<ResumeTemplateRenderer data={data} templateId={selectedTemplate} />} 
             fileName={`${data.name.replace(/\s+/g, '_')}_Improved_Resume.pdf`}
           >
             {({ loading }) => (
@@ -293,13 +326,13 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         </div>
 
         {/* Panel 3: Live Preview */}
-        <div className={`w-full sm:w-1/4 h-full bg-muted/20 flex flex-col ${activeTab !== 'preview' && 'hidden sm:flex'}`}>
+         <div className={`w-full sm:w-1/4 h-full bg-muted/20 flex flex-col ${activeTab !== 'preview' && 'hidden sm:flex'}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Eye className="h-4 w-4"/> Live PDF Preview</span>
              <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20 gap-1"><CheckCircle2 className="h-3 w-3"/> ATS Friendly</Badge>
            </div>
            <div className="flex-1 p-4 overflow-hidden relative flex flex-col items-center justify-center">
-             <BlobProvider document={<ImprovedResumeTemplate data={data} />}>
+             <BlobProvider document={<ResumeTemplateRenderer data={data} templateId={selectedTemplate} />}>
                {({ blob, url, loading, error }) => {
                  if (error) {
                    return <div className="text-red-500 text-xs flex items-center gap-2"><AlertTriangle className="h-4 w-4"/> Error rendering PDF preview.</div>
@@ -313,7 +346,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                }}
              </BlobProvider>
            </div>
-        </div>
+         </div>
 
       </div>
     </div>,
