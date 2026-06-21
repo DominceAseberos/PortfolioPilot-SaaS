@@ -4,23 +4,23 @@ import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
 import './fonts'
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#1a1a1a', lineHeight: 1.5 },
+  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.5 },
   header: { marginBottom: 20, textAlign: 'center' },
   name: { fontSize: 24, fontWeight: 700, marginBottom: 8, color: '#000000' },
-  contactRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8, fontSize: 9, color: '#4b5563' },
-  contactItem: { textDecoration: 'none', color: '#4b5563' },
-  divider: { borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginVertical: 10 },
-  section: { marginBottom: 14 },
-  sectionTitle: { fontSize: 11, fontWeight: 700, color: '#000000', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryText: { textAlign: 'justify' },
+  contactRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8, fontSize: 9, color: '#111827' },
+  contactItem: { textDecoration: 'none', color: '#111827' },
+  divider: { borderBottomWidth: 1.5, borderBottomColor: '#000000', marginVertical: 8 },
+  section: { marginBottom: 16 },
+  sectionTitle: { fontSize: 11, fontWeight: 700, color: '#000000', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryText: { textAlign: 'justify', color: '#111827' },
   skillsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  skillText: { padding: '2 6', backgroundColor: '#f3f4f6', borderRadius: 4, fontSize: 9 },
+  skillText: { padding: '2 6', backgroundColor: '#e2e8f0', borderRadius: 4, fontSize: 9, color: '#000000', fontWeight: 700 },
   entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 },
-  entryTitle: { fontWeight: 600, fontSize: 10, color: '#000000' },
-  entrySubtitle: { color: '#4b5563', fontSize: 9 },
-  entryDates: { fontSize: 9, color: '#6b7280' },
-  entryDescription: { marginTop: 3, marginBottom: 6, textAlign: 'justify' },
-  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#9ca3af' },
+  entryTitle: { fontWeight: 700, fontSize: 10, color: '#000000' },
+  entrySubtitle: { color: '#000000', fontSize: 9, fontWeight: 700 },
+  entryDates: { fontSize: 9, color: '#000000', fontWeight: 700 },
+  entryDescription: { marginTop: 3, marginBottom: 8, textAlign: 'justify', color: '#111827' },
+  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#6b7280' },
 })
 
 export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {

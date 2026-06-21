@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     padding: 40,
     fontFamily: 'Inter',
     fontSize: 10,
-    color: '#1a1a1a',
+    color: '#000000',
     lineHeight: 1.5,
   },
   header: {
@@ -76,11 +76,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     fontSize: 9,
-    color: '#4b5563',
+    color: '#111827',
   },
   contactItem: {
     textDecoration: 'none',
-    color: '#4b5563',
+    color: '#111827',
   },
   divider: {
     borderBottomWidth: 1,
@@ -100,6 +100,7 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     textAlign: 'justify',
+    color: '#111827',
   },
   skillsContainer: {
     flexDirection: 'row',
@@ -108,9 +109,11 @@ const styles = StyleSheet.create({
   },
   skillText: {
     padding: '2 6',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#e2e8f0',
     borderRadius: 4,
     fontSize: 9,
+    color: '#000000',
+    fontWeight: 700,
   },
   entryHeader: {
     flexDirection: 'row',
@@ -119,21 +122,24 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   entryTitle: {
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: 11,
     color: '#000000',
   },
   entrySubtitle: {
-    color: '#4b5563',
+    color: '#000000',
+    fontWeight: 700,
   },
   entryDates: {
     fontSize: 9,
-    color: '#6b7280',
+    color: '#000000',
+    fontWeight: 700,
   },
   entryDescription: {
     marginTop: 4,
     marginBottom: 8,
     textAlign: 'justify',
+    color: '#111827',
   },
   footer: {
     position: 'absolute',

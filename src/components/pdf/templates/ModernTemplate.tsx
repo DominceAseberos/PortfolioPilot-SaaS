@@ -3,22 +3,22 @@ import { Document, Page, Text, View, StyleSheet, Link, Font } from '@react-pdf/r
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
 import './fonts'
 
-const ACCENT = '#6366f1'
-const SIDEBAR_BG = '#1e293b'
-const SIDEBAR_TEXT = '#e2e8f0'
+const ACCENT = '#4f46e5'
+const SIDEBAR_BG = '#0f172a'
+const SIDEBAR_TEXT = '#f8fafc'
 const SIDEBAR_MUTED = '#94a3b8'
 
 const styles = StyleSheet.create({
-  page: { flexDirection: 'row', fontFamily: 'Inter', fontSize: 9.5, color: '#1e293b', lineHeight: 1.5 },
+  page: { flexDirection: 'row', fontFamily: 'Inter', fontSize: 9.5, color: '#000000', lineHeight: 1.5 },
   // Sidebar
   sidebar: { width: '32%', backgroundColor: SIDEBAR_BG, padding: '32 16', minHeight: '100%' },
   sidebarName: { fontSize: 17, fontWeight: 700, color: '#ffffff', marginBottom: 4, lineHeight: 1.2 },
   sidebarRole: { fontSize: 9, color: SIDEBAR_MUTED, marginBottom: 20, textTransform: 'uppercase', letterSpacing: 0.8 },
   sidebarSection: { marginBottom: 18 },
-  sidebarSectionTitle: { fontSize: 8, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 4 },
+  sidebarSectionTitle: { fontSize: 8, fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 4 },
   sidebarText: { fontSize: 9, color: SIDEBAR_TEXT, marginBottom: 4, lineHeight: 1.4 },
   sidebarMuted: { fontSize: 8, color: SIDEBAR_MUTED },
-  skillPill: { backgroundColor: '#334155', padding: '3 7', borderRadius: 3, marginBottom: 4, marginRight: 4, fontSize: 8, color: SIDEBAR_TEXT },
+  skillPill: { backgroundColor: '#334155', padding: '3 7', borderRadius: 3, marginBottom: 4, marginRight: 4, fontSize: 8, color: '#ffffff' },
   skillRow: { flexDirection: 'row', flexWrap: 'wrap' },
   // Main
   main: { width: '68%', padding: '32 24 32 20', backgroundColor: '#ffffff' },
@@ -26,11 +26,11 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 10, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 },
   sectionDivider: { borderBottomWidth: 1.5, borderBottomColor: ACCENT, marginBottom: 8 },
   entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 1 },
-  entryTitle: { fontWeight: 700, fontSize: 10, color: '#0f172a' },
-  entrySubtitle: { color: '#475569', fontSize: 9, marginBottom: 2 },
-  entryDates: { fontSize: 8, color: '#64748b', backgroundColor: '#f1f5f9', padding: '1 5', borderRadius: 3 },
-  entryDescription: { marginTop: 3, marginBottom: 8, color: '#334155', lineHeight: 1.5 },
-  summaryText: { color: '#334155', lineHeight: 1.6, textAlign: 'justify' },
+  entryTitle: { fontWeight: 700, fontSize: 10, color: '#000000' },
+  entrySubtitle: { color: '#000000', fontSize: 9, marginBottom: 2, fontWeight: 700 },
+  entryDates: { fontSize: 8, color: '#000000', backgroundColor: '#f1f5f9', padding: '1 5', borderRadius: 3 },
+  entryDescription: { marginTop: 3, marginBottom: 8, color: '#111827', lineHeight: 1.5 },
+  summaryText: { color: '#111827', lineHeight: 1.6, textAlign: 'justify' },
   footer: { position: 'absolute', bottom: 20, right: 24, fontSize: 7, color: '#94a3b8' },
 })
 
