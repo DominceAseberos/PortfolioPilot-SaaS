@@ -806,11 +806,12 @@ function StreamingChatBox({
             {/* Comparative Analysis Bubble (redesigned mismatches) */}
             {showStep(5) && (() => {
               // Compute client-side: which GitHub languages/repos are missing from resume
+              const sections = resumeAnalysis?.details?.sections ?? []
               const resumeSkillNames = new Set(
-                (resumeAnalysis?.details?.skills ?? []).flatMap(s => (s.found && typeof s.name === 'string') ? [s.name.toLowerCase()] : [])
+                sections.filter((s: any) => s.type === 'list').flatMap((s: any) => s.items || []).filter((item: any) => typeof item === 'string').map((item: string) => item.toLowerCase())
               )
               const resumeProjectNames = new Set(
-                (resumeAnalysis?.details?.projects ?? []).flatMap(p => typeof p.name === 'string' ? [p.name.toLowerCase()] : [])
+                sections.filter((s: any) => s.type === 'entries').flatMap((s: any) => s.entries || []).filter((e: any) => e && typeof e.title === 'string').map((e: any) => e.title.toLowerCase())
               )
               const notAligned = mismatches ?? []
               const isGithubIsolated = notAligned.some(m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch'))
