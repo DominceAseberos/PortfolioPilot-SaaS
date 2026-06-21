@@ -1630,10 +1630,23 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
           const fileExt = resumeFile.name.split('.').pop()
           const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
           const filePath = `${user.id}/${fileName}`
-          const { error: uploadError } = await supabase.storage.from('resumes').upload(filePath, resumeFile)
-          if (!uploadError) {
-            storedResumePath = filePath
-          } else {
+          
+          const fd = new FormData()
+          fd.append('file', resumeFile)
+          fd.append('path', filePath)
+          
+          try {
+            const uploadRes = await fetch('/api/storage/resume', {
+              method: 'POST',
+              body: fd
+            })
+            if (uploadRes.ok) {
+              const uploadJson = await uploadRes.json()
+              storedResumePath = uploadJson.path || filePath
+            } else {
+              console.error('Failed to upload resume to storage via API:', await uploadRes.text())
+            }
+          } catch (uploadError) {
             console.error('Failed to upload resume to storage:', uploadError)
           }
         }
