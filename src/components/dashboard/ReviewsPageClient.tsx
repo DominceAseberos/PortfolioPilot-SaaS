@@ -843,7 +843,7 @@ function StreamingChatBox({
                 new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))
               ).filter(lang => !resumeSkillNames.has(lang.toLowerCase()))
               const githubTopRepos = (githubAnalysis?.details?.repos ?? [])
-                .filter(r => r.stars > 0)
+                .filter(r => r.stars >= 5)
                 .sort((a, b) => b.stars - a.stars)
                 .slice(0, 3)
                 .filter(r => !resumeProjectNames.has(r.name.toLowerCase()))
