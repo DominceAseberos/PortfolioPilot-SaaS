@@ -104,11 +104,13 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
     setRegisterError(null)
     try {
       const result = await authService.signUp(data.email, data.password, data.fullName)
-      if (result?.user) {
+      
+      // If session exists, email confirmation is disabled and they are logged in immediately
+      if (result && 'session' in result && result.session) {
         try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
         toast.success('Account created successfully')
         
-        const hasUsername = !!result.user.user_metadata?.username
+        const hasUsername = !!result.user?.user_metadata?.username
         
         if (!hasUsername) {
           router.push('/onboarding')
