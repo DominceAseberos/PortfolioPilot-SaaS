@@ -74,10 +74,16 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
     setIsLoginLoading(true)
     setLoginError(null)
     try {
-      await authService.signIn(data.email, data.password)
+      const result = await authService.signIn(data.email, data.password)
       try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
       toast.success('Signed in successfully')
-      if (onSuccess) {
+      
+      const hasUsername = !!result.user?.user_metadata?.username
+      
+      if (!hasUsername) {
+        router.push('/onboarding')
+        router.refresh()
+      } else if (onSuccess) {
         onSuccess()
         window.location.reload()
       } else {
@@ -101,11 +107,18 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
       if (result?.user) {
         try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
         toast.success('Account created successfully')
-        if (onSuccess) {
+        
+        const hasUsername = !!result.user.user_metadata?.username
+        
+        if (!hasUsername) {
+          router.push('/onboarding')
+          router.refresh()
+        } else if (onSuccess) {
           onSuccess()
           window.location.reload()
         } else {
           router.push(nextPath || ROUTES.dashboard)
+          router.refresh()
         }
       } else {
         toast.success('Account created! Check your email to confirm.')
