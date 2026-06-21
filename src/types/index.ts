@@ -119,6 +119,7 @@ export interface GitHubRepo {
   hasReadme?: boolean
   readmeLength?: number
   readmeSummary?: string | null
+  aiResumeDescription?: string
 }
 
 export interface GitHubProfile {

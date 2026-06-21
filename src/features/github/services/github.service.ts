@@ -1,6 +1,7 @@
 import type { GitHubAnalysis, GitHubProfile, GitHubRepo, GitHubDetails, GitHubContributions } from '@/types'
 import { logger } from '@/lib/logger'
 import { normalizeGitHubUsername } from '@/utils/source-normalizers'
+import { generateRepoSummaries } from '@/features/ai/services/ai.service'
 
 export class GitHubService {
   async analyze(rawUsername: string, selectedRepos?: string[]): Promise<GitHubAnalysis> {
@@ -123,6 +124,26 @@ export class GitHubService {
             }
           } catch { /* ignore error fetching readme */ }
         }))
+
+        const aiSummaries = await generateRepoSummaries(topRepos.map(r => {
+          const actualRepo = repos.find(x => x.name === r.name)
+          return {
+            name: r.name,
+            description: r.description,
+            language: r.language,
+            readmeSummary: actualRepo?.readmeSummary || null
+          }
+        }))
+
+        aiSummaries.forEach(aiSum => {
+          const repoIndex = repos.findIndex(r => r.name === aiSum.name)
+          if (repoIndex !== -1) {
+            repos[repoIndex].aiResumeDescription = aiSum.professionalSummary
+            if (!aiSum.hasGoodReadme) {
+              topRepoHasReadme = false
+            }
+          }
+        })
       }
 
       const details: GitHubDetails = { profile, repos, events }
@@ -188,7 +209,10 @@ export class GitHubService {
       else recommendations.push('Be more active publicly — push commits, open issues, or contribute to discussions')
 
       if (checks.hasDetailedReadme) strengths.push('Top repository has a detailed README (good documentation)')
-      else if (repos.length > 0) recommendations.push('Add a detailed README to your top repository (architecture, setup instructions, etc)')
+      else if (repos.length > 0) {
+        recommendations.push('Add a detailed README to your top repository (architecture, setup instructions, etc)')
+        weaknesses.push('One or more of your top repositories lacks a high-quality README file')
+      }
 
       if (repos.length > 0) {
         const readmeCount = repos.filter((r) => r.description && r.description.length > 20).length

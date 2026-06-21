@@ -160,6 +160,49 @@ Strengths, weaknesses, and recommendations should be tailored specifically to th
   }
 }
 
+export async function generateRepoSummaries(repos: { name: string, description: string | null, language: string | null, readmeSummary: string | null }[]): Promise<{ name: string, professionalSummary: string, hasGoodReadme: boolean }[]> {
+  const client = createClient()
+  if (!client || repos.length === 0) return repos.map(r => ({ name: r.name, professionalSummary: r.description || `${r.language || 'Software'} project`, hasGoodReadme: true }))
+
+  try {
+    const prompt = `You are a professional resume writer. I will provide a list of GitHub repositories with their descriptions and a snippet of their README.
+For each repository:
+1. Evaluate if the README seems like a proper, helpful documentation for a software project (hasGoodReadme: boolean).
+2. Write a single, highly professional, concise bullet point summarizing what the project is, suitable for a resume (professionalSummary: string). Make it sound impressive but accurate to the provided details. Keep it under 120 characters.
+
+Input repositories:
+${JSON.stringify(repos, null, 2)}
+
+Return ONLY a JSON object with a 'summaries' array containing objects with this exact structure:
+{
+  "summaries": [
+    {
+      "name": "repo-name",
+      "professionalSummary": "Developed a [language] application that does [X]...",
+      "hasGoodReadme": true
+    }
+  ]
+}`
+
+    const response = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 1000,
+      response_format: { type: 'json_object' }
+    })
+
+    const content = response.choices?.[0]?.message?.content
+    if (!content) throw new Error('No content from Groq')
+
+    const parsed = JSON.parse(content)
+    return parsed.summaries || repos.map(r => ({ name: r.name, professionalSummary: r.description || `${r.language || 'Software'} project`, hasGoodReadme: true }))
+  } catch (err) {
+    logger.error('Failed to generate repo summaries', { error: err })
+    return repos.map(r => ({ name: r.name, professionalSummary: r.description || `${r.language || 'Software'} project`, hasGoodReadme: true }))
+  }
+}
+
 export function computeFallbackSummary(
   portfolio?: PortfolioAnalysis,
   github?: GitHubAnalysis,
