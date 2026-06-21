@@ -242,12 +242,14 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <ResumeTemplatePicker
-          data={data}
-          selected={selectedTemplate}
-          onSelect={setSelectedTemplate}
-          onConfirm={() => setStep('edit')}
-        />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ResumeTemplatePicker
+            data={data}
+            selected={selectedTemplate}
+            onSelect={setSelectedTemplate}
+            onConfirm={() => setStep('edit')}
+          />
+        </div>
       </div>,
       document.body
     )
