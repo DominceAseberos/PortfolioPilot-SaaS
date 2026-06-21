@@ -333,12 +333,13 @@ interface NeuralChatLandingProps {
   setResumeFile: (val: File | null) => void
   onSubmit: (e: any) => void
   isLoading: boolean
+  isScanning?: boolean
+  hideInput?: boolean
   collectingNode?: React.ReactNode
   errorNode?: React.ReactNode
   resultNode?: React.ReactNode
   analysisId?: string
   credits?: number
-  isScanning?: boolean
 }
 
 export function NeuralChatLanding({
@@ -350,12 +351,13 @@ export function NeuralChatLanding({
   setResumeFile,
   onSubmit,
   isLoading,
+  isScanning = false,
+  hideInput = false,
   collectingNode,
   errorNode,
   resultNode,
   analysisId,
-  credits = 0,
-  isScanning
+  credits = 0
 }: NeuralChatLandingProps) {
   const [chatLog, setChatLog] = useState<ChatMessage[]>([
     {
@@ -1024,8 +1026,9 @@ export function NeuralChatLanding({
       </div>
 
       {/* Input Bar Overlay (Always visible for continuous session) */}
-      <div className="absolute bottom-0 left-0 right-0 pt-4 pb-6 px-4 sm:px-6 z-20 pointer-events-none">
-         <div className="w-full max-w-3xl lg:w-1/2 lg:min-w-[600px] mx-auto flex flex-col gap-3 pointer-events-auto">
+      {!hideInput && (
+        <div className="absolute bottom-0 left-0 right-0 pt-4 pb-6 px-4 sm:px-6 z-20 pointer-events-none">
+          <div className="w-full max-w-3xl lg:w-1/2 lg:min-w-[600px] mx-auto flex flex-col gap-3 pointer-events-auto">
             
             {/* Active Attachment Pills & Proceed Button */}
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
@@ -1116,11 +1119,12 @@ export function NeuralChatLanding({
                </button>
             </form>
             
-            <p className="text-center text-xs font-medium text-muted-foreground/60 mt-1">
-              Upload your resume — portfolio & GitHub are auto-detected with live previews.
-            </p>
-         </div>
-      </div>
+             <p className="text-center text-xs font-medium text-muted-foreground/60 mt-1">
+               Upload your resume — portfolio & GitHub are auto-detected with live previews.
+             </p>
+          </div>
+       </div>
+      )}
       
       </div>
     </DynamicProceedContext.Provider>

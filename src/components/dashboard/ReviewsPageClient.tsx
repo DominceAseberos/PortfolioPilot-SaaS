@@ -44,6 +44,7 @@ import {
   Star,
   Sparkles,
   Search,
+  RotateCcw,
   Users,
   Link2,
   AlertTriangle,
@@ -1041,7 +1042,10 @@ function StreamingChatBox({
                           <Sparkles className="w-4 h-4" /> Generate Improved Resume
                        </Button>
                      )}
-                    </>
+                     <Button onClick={() => window.location.href = '/dashboard/reviews'} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2">
+                       <RotateCcw className="w-4 h-4" /> New Analysis
+                     </Button>
+                   </>
                  )}
               </div>
             )}
@@ -2286,6 +2290,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                        credits={credits}
                        analysisId={analysisId}
                        isScanning={phase === 'collecting' || phase === 'analyzing'}
+                       hideInput={phase === 'finalizing'}
                        collectingNode={
                          phase === 'collecting' || phase === 'analyzing' ? (
                            <div className="w-full max-w-xl space-y-3">
