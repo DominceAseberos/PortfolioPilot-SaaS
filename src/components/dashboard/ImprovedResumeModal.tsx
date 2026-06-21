@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate } from 'lucide-react'
+import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate, Columns } from 'lucide-react'
 import { BlobProvider, PDFDownloadLink } from '@react-pdf/renderer'
 import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
@@ -18,6 +18,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const [activeTab, setActiveTab] = useState<'original' | 'edit' | 'preview'>('edit')
   const [step, setStep] = useState<'pick-template' | 'edit'>('pick-template')
   const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateId>('classic')
+  const [compareMode, setCompareMode] = useState(false)
   
   // Create object URL for original resume
   const [originalUrl, setOriginalUrl] = useState<string | null>(null)
@@ -270,6 +271,10 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setCompareMode(!compareMode)}>
+            <Columns className="h-3.5 w-3.5" />
+            {compareMode ? 'Exit Compare' : 'Compare PDFs'}
+          </Button>
           <Button variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setStep('pick-template')}>
             <LayoutTemplate className="h-3.5 w-3.5" />
             Change Template
@@ -301,7 +306,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       <div className="flex-1 overflow-hidden flex flex-col sm:flex-row">
         
         {/* Panel 1: Original Resume (Hidden on mobile unless activeTab) */}
-        <div className={`w-full sm:w-1/4 h-full border-r border-border/50 bg-muted/20 flex flex-col ${activeTab !== 'original' && 'hidden sm:flex'}`}>
+        <div className={`w-full ${compareMode ? 'sm:w-1/2' : 'sm:w-1/4'} h-full border-r border-border/50 bg-muted/20 flex-col ${activeTab === 'original' ? 'flex' : 'hidden sm:flex'}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><FileText className="h-4 w-4"/> Original Resume</span>
            </div>
@@ -318,7 +323,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         </div>
 
         {/* Panel 2: Edit Form */}
-        <div className={`w-full sm:w-2/4 h-full border-r border-border/50 bg-background flex flex-col ${activeTab !== 'edit' && 'hidden sm:flex'}`}>
+        <div className={`w-full sm:w-2/4 h-full border-r border-border/50 bg-background flex-col ${compareMode ? 'hidden' : (activeTab === 'edit' ? 'flex' : 'hidden sm:flex')}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Sparkles className="h-4 w-4"/> Edit Content</span>
            </div>
@@ -328,7 +333,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         </div>
 
         {/* Panel 3: Live Preview */}
-         <div className={`w-full sm:w-1/4 h-full bg-muted/20 flex flex-col ${activeTab !== 'preview' && 'hidden sm:flex'}`}>
+         <div className={`w-full ${compareMode ? 'sm:w-1/2' : 'sm:w-1/4'} h-full bg-muted/20 flex-col ${activeTab === 'preview' ? 'flex' : 'hidden sm:flex'}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Eye className="h-4 w-4"/> Live PDF Preview</span>
              <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20 gap-1"><CheckCircle2 className="h-3 w-3"/> ATS Friendly</Badge>
