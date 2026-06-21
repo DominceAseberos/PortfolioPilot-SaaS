@@ -24,11 +24,13 @@ export function buildImprovedResume(
 
   originalSections.forEach(section => {
     if (section.type === 'list' && Array.isArray(section.items)) {
-      section.items.forEach(item => existingSkillNames.add(item.toLowerCase()))
+      section.items.forEach(item => {
+        if (typeof item === 'string') existingSkillNames.add(item.toLowerCase())
+      })
     }
     if (section.type === 'entries' && Array.isArray(section.entries)) {
       section.entries.forEach(entry => {
-        if (entry.title) resumeProjectNames.add(entry.title.toLowerCase())
+        if (entry && typeof entry.title === 'string') resumeProjectNames.add(entry.title.toLowerCase())
       })
     }
   })
