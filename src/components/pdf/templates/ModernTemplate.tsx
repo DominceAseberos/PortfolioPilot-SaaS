@@ -104,7 +104,9 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                     <Text style={styles.entryTitle}>{work.role}</Text>
                     <Text style={styles.entryDates}>{work.dates}</Text>
                   </View>
-                  {work.company && <Text style={styles.entrySubtitle}>{work.company}</Text>}
+                  {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
+                    <Text style={styles.entrySubtitle}>{work.company}</Text>
+                  )}
                   {work.description && <Text style={styles.entryDescription}>{work.description}</Text>}
                 </View>
               ))}

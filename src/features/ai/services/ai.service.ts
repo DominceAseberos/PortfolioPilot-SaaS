@@ -62,7 +62,7 @@ Return this exact structure:
   "projects": [{"name":"...","link":"...","description":"..."}],
   "skills": ["skill1", "skill2"],
   "sections": ["Experience", "Education", "Skills"],
-  "professionalSummary": "The extracted professional summary from the resume, or null",
+  "professionalSummary": "The extracted professional summary, objective, or profile paragraph from the resume, or null if absolutely not present. Be sure to extract this!",
   "score": 0-100,
   "strengths": ["..."],
   "weaknesses": ["..."],
