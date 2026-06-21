@@ -170,8 +170,12 @@ export async function generateRepoSummaries(repos: { name: string, description: 
   try {
     const prompt = `You are a professional resume writer. I will provide a list of GitHub repositories with their descriptions and a snippet of their README.
 For each repository:
-1. Evaluate if the README seems like a proper, helpful documentation for a software project (hasGoodReadme: boolean).
+1. Evaluate if the README seems like a proper, helpful documentation for a software project (hasGoodReadme: boolean). If readmeSummary is null, hasGoodReadme MUST be false.
 2. Write a single, highly professional, concise bullet point summarizing what the project is, suitable for a resume (professionalSummary: string). Make it sound impressive but accurate to the provided details. Keep it under 120 characters.
+CRITICAL RULES FOR SUMMARIES:
+- If the description is missing or just a few words, write "Developed an open-source [language] application." (e.g., "Developed an open-source Dart application.")
+- If the description is only a URL, write "Developed a [language] web application deployed at [URL]."
+- NEVER just return a raw URL or a phrase like "[Language] project with 2 stars". ALWAYS use action verbs (Developed, Designed, Engineered).
 
 Input repositories:
 ${JSON.stringify(repos, null, 2)}

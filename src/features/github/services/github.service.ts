@@ -136,7 +136,7 @@ export class GitHubService {
         }))
 
         aiSummaries.forEach(aiSum => {
-          const repoIndex = repos.findIndex(r => r.name === aiSum.name)
+          const repoIndex = repos.findIndex(r => r.name.toLowerCase() === aiSum.name.toLowerCase())
           if (repoIndex !== -1) {
             repos[repoIndex].aiResumeDescription = aiSum.professionalSummary
             if (!aiSum.hasGoodReadme) {
