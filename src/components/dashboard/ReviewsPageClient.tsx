@@ -807,10 +807,10 @@ function StreamingChatBox({
             {showStep(5) && (() => {
               // Compute client-side: which GitHub languages/repos are missing from resume
               const resumeSkillNames = new Set(
-                (resumeAnalysis?.details?.skills ?? []).filter(s => s.found && typeof s.name === 'string').map(s => s.name.toLowerCase())
+                (resumeAnalysis?.details?.skills ?? []).flatMap(s => (s.found && typeof s.name === 'string') ? [s.name.toLowerCase()] : [])
               )
               const resumeProjectNames = new Set(
-                (resumeAnalysis?.details?.projects ?? []).filter(p => typeof p.name === 'string').map(p => p.name.toLowerCase())
+                (resumeAnalysis?.details?.projects ?? []).flatMap(p => typeof p.name === 'string' ? [p.name.toLowerCase()] : [])
               )
               const notAligned = mismatches ?? []
               const isGithubIsolated = notAligned.some(m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch'))
