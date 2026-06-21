@@ -1213,7 +1213,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
 
   useEffect(() => {
-    if (initialReviewData?.resume_url && initialReviewData.resume_url.includes('/')) {
+    if (initialReviewData?.resume_url && typeof initialReviewData.resume_url === 'string' && initialReviewData.resume_url.includes('/')) {
       fetch(`/api/storage/resume?path=${encodeURIComponent(initialReviewData.resume_url)}`)
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch')
@@ -1227,8 +1227,8 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
     }
   }, [initialReviewData])
 
-  const [analysisId, setAnalysisId] = useState<string>(initialReviewData?.id || '')
-  const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(initialReviewData?.portfolio_url || null)
+  const [analysisId, setAnalysisId] = useState<string>(typeof initialReviewData?.id === 'string' ? initialReviewData.id : '')
+  const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(typeof initialReviewData?.portfolio_url === 'string' ? initialReviewData.portfolio_url : null)
   
   // NEW: Repository Selection State
   const [repoSelection, setRepoSelection] = useState<{ 
@@ -1985,7 +1985,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
               Detected Sections
             </h4>
             <div className="flex flex-wrap gap-1.5 bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
-              {details.sections.map((s: DynamicSection | ResumeSection) => {
+              {details.sections.map((s: any) => {
                 const sectionName = ('name' in s ? s.name : s.title) || 'Section'
                 const isFound = ('found' in s ? s.found : true) ?? true
                 return (
@@ -2295,7 +2295,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                                resumeFile={resumeFile}
                                isGuestFallback={isGuestFallback}
                                setShowAuthModal={setShowAuthModal}
-                               createdAt={initialReviewData?.created_at}
+                               createdAt={typeof initialReviewData?.created_at === 'string' ? initialReviewData.created_at : undefined}
                                onReset={() => {
                                  setPhase('form')
                                  setResults({})

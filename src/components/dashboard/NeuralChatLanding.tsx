@@ -97,7 +97,7 @@ function SmartPortfolioPreview({ url, originalInput }: { url: string, originalIn
   )
 }
 
-function SmartGithubPreview({ profile, username }: { profile: { avatarUrl?: string; login?: string; name?: string; bio?: string; public_repos?: number; followers?: number; [key: string]: unknown }, username: string }) {
+function SmartGithubPreview({ profile, username }: { profile: { avatarUrl?: string; login?: string; name?: string; bio?: string; publicRepos?: number; public_repos?: number; followers?: number; [key: string]: unknown }, username: string }) {
   const { githubUsername } = React.useContext(DynamicProceedContext)
   const isSelected = username === githubUsername
   const isDismissed = githubUsername && !isSelected
@@ -472,7 +472,7 @@ export function NeuralChatLanding({
     )
   }
 
-  const handleActionClick = (e: React.MouseEvent, action: string) => {
+  const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (isChatProcessing || isLoading || submitLock.current) return
     
