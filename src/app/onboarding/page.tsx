@@ -20,9 +20,12 @@ export default async function OnboardingPage() {
     redirect(ROUTES.dashboard)
   }
 
+  // Check if they already have an email/password login
+  const hasPassword = user.app_metadata?.providers?.includes('email') || false;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
-      <OnboardingClient email={user.email || ''} />
+      <OnboardingClient email={user.email || ''} hasPassword={hasPassword} />
     </div>
   )
 }

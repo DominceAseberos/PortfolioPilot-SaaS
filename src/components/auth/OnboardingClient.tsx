@@ -8,7 +8,7 @@ import { ROUTES } from '@/constants'
 import { toast } from 'sonner'
 import { Sparkles, User, Lock, Mail, Eye, EyeOff } from 'lucide-react'
 
-export function OnboardingClient({ email }: { email: string }) {
+export function OnboardingClient({ email, hasPassword }: { email: string, hasPassword?: boolean }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -24,7 +24,7 @@ export function OnboardingClient({ email }: { email: string }) {
       return
     }
 
-    if (!password || password.length < 6) {
+    if (!hasPassword && (!password || password.length < 6)) {
       toast.error('Password must be at least 6 characters long')
       return
     }
@@ -34,10 +34,12 @@ export function OnboardingClient({ email }: { email: string }) {
       // Check if username is taken (optional, but good practice if unique usernames are strictly enforced)
       // For this MVP, we'll just store it in user_metadata
       
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-        data: { username: username.trim().toLowerCase() }
-      })
+      const updateData: any = { data: { username: username.trim().toLowerCase() } }
+      if (!hasPassword && password) {
+        updateData.password = password
+      }
+
+      const { error } = await supabase.auth.updateUser(updateData)
 
       if (error) throw error
 
@@ -59,7 +61,7 @@ export function OnboardingClient({ email }: { email: string }) {
           <Sparkles className="h-8 w-8 text-primary" />
         </div>
         <h1 className="text-3xl font-black tracking-tight text-foreground">Complete Setup</h1>
-        <p className="text-muted-foreground mt-2">Almost there! Set your username and an optional backup password to access your dashboard.</p>
+        <p className="text-muted-foreground mt-2">Almost there! {hasPassword ? 'Choose a username to access your dashboard.' : 'Set your username and an optional backup password to access your dashboard.'}</p>
       </div>
 
       <div className="rounded-3xl border border-border/50 bg-card p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] relative overflow-hidden group">
@@ -95,34 +97,36 @@ export function OnboardingClient({ email }: { email: string }) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">Set a Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Create a strong password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-11 pr-12 py-3 bg-background rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
-                required
-                minLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/50"
-                tabIndex={-1}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
+          {!hasPassword && (
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Set a Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Create a strong password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-11 pr-12 py-3 bg-background rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                  required={!hasPassword}
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/50"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground ml-1">You can use this password to log in with your email instead of Google next time.</p>
             </div>
-            <p className="text-xs text-muted-foreground ml-1">You can use this password to log in with your email instead of Google next time.</p>
-          </div>
+          )}
 
           <div className="pt-2">
             <Button
