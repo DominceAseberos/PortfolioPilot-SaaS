@@ -29,8 +29,8 @@ const styles = StyleSheet.create({
   entryTitle: { fontWeight: 700, fontSize: 10, color: '#000000' },
   entrySubtitle: { color: '#000000', fontSize: 9, marginBottom: 2, fontWeight: 700 },
   entryDates: { fontSize: 8, color: '#000000', backgroundColor: '#f1f5f9', padding: '1 5', borderRadius: 3 },
-  entryDescription: { marginTop: 3, marginBottom: 8, color: '#111827', lineHeight: 1.5 },
-  summaryText: { color: '#111827', lineHeight: 1.6, textAlign: 'justify' },
+  entryDescription: { marginTop: 3, marginBottom: 8, color: '#000000', lineHeight: 1.5 },
+  summaryText: { color: '#000000', lineHeight: 1.6, textAlign: 'justify' },
   footer: { position: 'absolute', bottom: 20, right: 24, fontSize: 7, color: '#94a3b8' },
 })
 

@@ -1988,16 +1988,11 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
               Detected Skills
             </h4>
             <div className="flex flex-wrap gap-1.5 bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
-              {details.skills.slice(0, 15).map((s) => (
+              {details.skills.map((s) => (
                 <Badge key={s.name} variant={s.found ? 'default' : 'outline'} className={`text-xs px-2.5 py-0.5 ${s.found ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'opacity-50'}`}>
                   {s.name}
                 </Badge>
               ))}
-              {details.skills.filter((s) => !s.found).length > 3 && (
-                <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-dashed">
-                  +{details.skills.filter((s) => !s.found).length} missing
-                </Badge>
-              )}
             </div>
           </div>
           <div className="space-y-3">
