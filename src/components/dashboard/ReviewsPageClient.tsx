@@ -19,7 +19,8 @@ import html2canvas from 'html2canvas'
 import { ReportTemplate } from '@/components/pdf/ReportTemplate'
 import dynamic from 'next/dynamic'
 import { AuthScreen } from '@/components/auth/AuthScreen'
-import type { ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
+import type { ImprovedResumeData } from '@/types/resume'
+import { buildImprovedResume } from '@/features/resume/resume-builder'
 
 const ImprovedResumeModal = dynamic(() => import('./ImprovedResumeModal'), { ssr: false })
 import type {
@@ -71,7 +72,7 @@ function TypingText({ text, speed = 12, onComplete, isHistory }: { text: string;
       return
     }
 
-    setShown('')
+    setTimeout(() => setShown(''), 0)
     let index = 0
     let completed = false
     const interval = setInterval(() => {
@@ -384,47 +385,13 @@ function StreamingChatBox({
       return
     }
     
-    const details = resumeAnalysis?.details
-    const existingSkillNames = new Set((details?.skills ?? []).filter(s => s.found).map(s => s.name.toLowerCase()))
-    const notAligned = mismatches ?? []
-    const isGithubIsolated = notAligned.some(m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch'))
-
-    const githubLanguages = isGithubIsolated ? [] : Array.from(new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))).filter(lang => !existingSkillNames.has(lang.toLowerCase()))
-    
-    const improvedSkills = [
-      ...(details?.skills ?? []).filter(s => s.found).map(s => s.name),
-      ...githubLanguages.slice(0, 5)
-    ]
-
-    const resumeProjectNames = new Set((details?.projects ?? []).map(p => p.name?.toLowerCase() ?? ''))
-    const newProjects = isGithubIsolated ? [] : (githubAnalysis?.details?.repos ?? [])
-      .filter(r => r.stars > 0 && !resumeProjectNames.has(r.name.toLowerCase()))
-      .sort((a, b) => b.stars - a.stars)
-      .slice(0, 3)
-      .map(r => ({
-        name: r.name,
-        link: githubUsername ? `https://github.com/${githubUsername}/${r.name}` : '',
-        description: r.aiResumeDescription || r.description || r.readmeSummary || `${r.language ?? 'Open source'} project with ${r.stars} stars`,
-        isNew: true
-      }))
-
-    const initialData: ImprovedResumeData = {
-      name: details?.name ?? '',
-      email: details?.email ?? '',
-      phone: '',
-      linkedin: details?.linkedin ?? '',
-      github: details?.github ?? (githubUsername ? `https://github.com/${githubUsername}` : ''),
-      website: portfolioUrl ?? '',
-      summary: details?.professionalSummary || '',
-      skills: improvedSkills,
-      workEntries: (details?.workEntries ?? []).map((w: any) => typeof w === 'string' ? { company: '', role: w, dates: '', description: '' } : w),
-      projects: [
-        ...(details?.projects ?? []).map((p: any) => ({ ...p, name: p.name ?? '', link: p.link ?? '', description: p.description ?? '' })),
-        ...newProjects
-      ],
-      education: (details?.education ?? []).map((e: any) => ({ degree: e.degree ?? '', school: e.school ?? '', dates: e.dates ?? '' })),
-      recommendations: result.topRecommendations
-    }
+    const initialData = buildImprovedResume(
+      resumeAnalysis?.details,
+      githubAnalysis,
+      mismatches,
+      portfolioUrl || undefined,
+      githubUsername || undefined
+    )
 
     setResumeData(initialData)
     setShowResumeModal(true)
@@ -445,9 +412,11 @@ function StreamingChatBox({
     let interval: ReturnType<typeof setInterval> | undefined
     const text = result.normalFeedback?.summary ?? result.summary
     const targetScore = result.normalFeedback?.overallScore ?? result.overallScore
-    setDisplayedText('')
-    setVisibleStep(0)
-    setShowRadarChart(false)
+    setTimeout(() => {
+      setDisplayedText('')
+      setVisibleStep(0)
+      setShowRadarChart(false)
+    }, 0)
 
     const thinkTimeout = setTimeout(() => {
       setIsThinking(false)
@@ -486,21 +455,21 @@ function StreamingChatBox({
         const t = setTimeout(advanceStep, 1500)
         return () => clearTimeout(t)
       } else {
-        advanceStep()
+        setTimeout(advanceStep, 0)
       }
     }
     
     // Auto-skip empty list steps
     if (visibleStep === 2 && (result.normalFeedback?.topStrengths ?? result.topStrengths).length === 0) {
-      advanceStep()
+      setTimeout(advanceStep, 0)
     }
     
     // Guest jump logic (guests only see up to step 2 visually typing, then it blurs out and jumps to 8)
     if (visibleStep === 3) {
       if (isGuest) {
-        setVisibleStep(8)
+        setTimeout(() => setVisibleStep(8), 0)
       } else if ((result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length === 0) {
-        advanceStep()
+        setTimeout(() => advanceStep(), 0)
       }
     }
     
@@ -509,7 +478,7 @@ function StreamingChatBox({
     }
     
     if (visibleStep === 5 && (!mismatches || mismatches.length === 0)) {
-      advanceStep()
+      setTimeout(() => advanceStep(), 0)
     }
     
     if (visibleStep === 6) {
@@ -1226,7 +1195,7 @@ function LiveCrawlerPreview({
   )
 }
 
-export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [], initialReviewData }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[], initialReviewData?: any }) {
+export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [], initialReviewData }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[], initialReviewData?: Record<string, unknown> | null }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isGuestFallback, setIsGuestFallback] = useState(false)
@@ -1310,38 +1279,14 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       }
 
       setPhase('finalizing')
-    } catch (err: any) {
-      toast.error(err.message || 'Error loading review.')
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err))
+      toast.error(error.message || 'Error loading review.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file && file.type === 'application/pdf') {
-      setResumeFile(file)
-      setError(null)
-    } else if (file) {
-      setError('Please upload a valid PDF file for your resume/CV.')
-    }
-  }
-
-  const toggleDetail = (id: string) => {
-    setShowDetails((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
 
   const hasDetails = useCallback((result: Record<string, unknown>, id: string): boolean => {
     if (id === 'portfolio') return Array.isArray(result.checks) && result.checks.length > 0
@@ -1404,7 +1349,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
             const errData = await res.json()
             toast.error(errData.error || 'Failed to fetch repositories')
           }
-        } catch (e) {
+        } catch {
           toast.error('Network error fetching repositories')
         }
         setRepoSelection(p => ({ ...p, isFetching: false }))
@@ -1445,7 +1390,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        const { data, error: authError } = await supabase.auth.signInAnonymously()
+        const { error: authError } = await supabase.auth.signInAnonymously()
         if (authError) {
           toast.warning('Guest sessions unavailable. PDF generation disabled.', { duration: 6000 })
           setIsGuestFallback(true)
@@ -1554,11 +1499,11 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
             serverError = res.message
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setCollectingSteps((prev) =>
           prev.map((s) => (s.id === source.id ? { ...s, status: 'error' } : s))
         )
-        if (!serverError) serverError = err.message || `Failed to connect to ${source.id} service`
+        if (!serverError) serverError = err instanceof Error ? err.message : `Failed to connect to ${source.id} service`
       }
 
       await delay(600)
@@ -1725,9 +1670,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   }
 
   // ── Results layout ─────────────────────────────────────
-  const hasAnyResults = Object.keys(results).length > 0
-  const isDone = phase === 'finalizing' && !isLoading
-
   // ── Detail sub-components ──────────────────────────────
 
   const PortfolioDetails = ({ analysis }: { analysis: PortfolioAnalysis }) => {
@@ -2043,11 +1985,15 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
               Detected Sections
             </h4>
             <div className="flex flex-wrap gap-1.5 bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
-              {details.sections.map((s) => (
-                <Badge key={s.name} variant={s.found ? 'default' : 'outline'} className={`text-[10px] uppercase tracking-wider px-2 py-1 ${s.found ? 'bg-slate-800 text-slate-100' : 'opacity-50'}`}>
-                  {s.name}
-                </Badge>
-              ))}
+              {details.sections.map((s: DynamicSection | ResumeSection) => {
+                const sectionName = ('name' in s ? s.name : s.title) || 'Section'
+                const isFound = ('found' in s ? s.found : true) ?? true
+                return (
+                  <Badge key={sectionName} variant={isFound ? 'default' : 'outline'} className={`text-[10px] uppercase tracking-wider px-2 py-1 ${isFound ? 'bg-slate-800 text-slate-100' : 'opacity-50'}`}>
+                    {sectionName}
+                  </Badge>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -2135,8 +2081,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const renderSourceDetails = (id: 'portfolio' | 'github' | 'resume', label: string) => {
     const d = results[id]
     if (!d) return null
-    const score = 'score' in d ? d.score : 0
-
     return (
       <div className="rounded-2xl border border-border/50 bg-card overflow-hidden shadow-sm mb-6">
         <div className="flex w-full items-center gap-4 px-6 py-4 text-left border-b border-border/50 bg-muted/5">

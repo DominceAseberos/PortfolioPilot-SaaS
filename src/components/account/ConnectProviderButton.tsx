@@ -27,9 +27,10 @@ export function ConnectProviderButton({ provider, label }: ConnectProviderButton
       if (error) throw error
       // The page will redirect to the provider's OAuth flow, so we don't necessarily need to reset isLoading
       // But if it fails to redirect, we'd want to reset it.
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Failed to connect ${provider}:`, error)
-      toast.error(`Failed to connect ${provider}: ${error.message}`)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to connect ${provider}: ${errorMsg}`)
       setIsLoading(false)
     }
   }

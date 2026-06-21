@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/common/Button'
 import { ROUTES } from '@/constants'
-import { ArrowRight, BarChart3, FileSearch, GitBranch, Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { HeroAnimation } from './HeroAnimation'
 import { ScrollReveal } from '@/components/common/ScrollReveal'
 

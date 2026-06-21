@@ -42,7 +42,7 @@ export function TermsModal({ isOpen, onClose }: TermsModalProps) {
           <section>
             <h3 className="text-lg font-semibold text-foreground mb-2">1. Acceptance of Terms</h3>
             <p>
-              By accessing and using PortfolioPilot ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.
+              By accessing and using PortfolioPilot (&quot;the Service&quot;), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.
             </p>
           </section>
 
@@ -54,13 +54,13 @@ export function TermsModal({ isOpen, onClose }: TermsModalProps) {
           </section>
 
           <section>
-            <h3 className="text-lg font-semibold text-foreground mb-2">3. AI Service Limitations and "As-Is" Disclaimer</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">3. AI Service Limitations and &quot;As-Is&quot; Disclaimer</h3>
             <p>
               Our service utilizes advanced Artificial Intelligence (AI) models. You acknowledge that AI is an evolving technology and that:
             </p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>Outputs are generated probabilistically and may occasionally contain inaccuracies, errors, or "hallucinations."</li>
-              <li>The Service is provided on an "AS-IS" and "AS-AVAILABLE" basis without warranties of any kind.</li>
+              <li>Outputs are generated probabilistically and may occasionally contain inaccuracies, errors, or &quot;hallucinations.&quot;</li>
+              <li>The Service is provided on an &quot;AS-IS&quot; and &quot;AS-AVAILABLE&quot; basis without warranties of any kind.</li>
               <li>You are solely responsible for reviewing, verifying, and validating all AI-generated feedback before making decisions or applying for jobs based on such feedback.</li>
             </ul>
           </section>
@@ -68,7 +68,7 @@ export function TermsModal({ isOpen, onClose }: TermsModalProps) {
           <section>
             <h3 className="text-lg font-semibold text-foreground mb-2">4. User Content and AI Training</h3>
             <p>
-              When you submit URLs, resumes, or other data ("User Content"), you grant us a license to process this data to provide the Service. 
+              When you submit URLs, resumes, or other data (&quot;User Content&quot;), you grant us a license to process this data to provide the Service. 
             </p>
             <p className="mt-2 font-medium text-foreground">
               We do not claim ownership of your User Content. Furthermore, we explicitly state that we do not use your personal resumes or private repositories to train our foundational AI models without your explicit consent.

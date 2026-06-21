@@ -10,21 +10,15 @@ import type {
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 
+import { DynamicSection } from '../../../types/resume'
+
 export interface AIAnalysisResult {
   score: number
   name: string | null
   email: string | null
   linkedin: string | null
   github: string | null
-  workEntries: (
-    | string
-    | { company?: string; role?: string; dates?: string; description?: string }
-  )[]
-  education: { degree?: string; school?: string; dates?: string }[]
-  projects?: { name?: string; link?: string; description?: string }[]
-  skills: string[]
-  sections: string[]
-  professionalSummary?: string | null
+  sections: DynamicSection[]
   strengths: string[]
   weaknesses: string[]
   recommendations: string[]
@@ -57,12 +51,16 @@ Return this exact structure:
   "email": "email or null",
   "linkedin": "LinkedIn URL or null",
   "github": "GitHub URL or null",
-  "workEntries": [{"company":"...","role":"...","dates":"...","description":"..."}],
-  "education": [{"degree":"...","school":"...","dates":"..."}],
-  "projects": [{"name":"...","link":"...","description":"..."}],
-  "skills": ["skill1", "skill2"],
-  "sections": ["Experience", "Education", "Skills"],
-  "professionalSummary": "The extracted professional summary, objective, or profile paragraph from the resume, or null if absolutely not present. Be sure to extract this!",
+  "sections": [
+    {
+      "title": "Exact Header from PDF (e.g. PROFESSIONAL SUMMARY, RELEVANT COURSEWORK)",
+      "type": "text | list | entries",
+      "text": "Extracted paragraph for text sections",
+      "items": ["item1", "item2"],
+      "entries": [{"title": "...", "subtitle": "...", "dates": "...", "description": "..."}],
+      "acceptsAIImprovements": true // ONLY set true for the exact sections representing Skills or Projects!
+    }
+  ],
   "score": 0-100,
   "strengths": ["..."],
   "weaknesses": ["..."],
@@ -73,6 +71,7 @@ Return this exact structure:
 
 Score: 90-100 excellent, 70-89 good, 50-69 average, below 50 needs work.
 Strengths, weaknesses, and recommendations should be highly personalized and incorporate any mismatches or powerful insights from the scraped context if provided.
+CRITICAL: If the resume completely lacks a 'Projects' or 'Skills' section, automatically create an empty placeholder section for it (e.g. items: []), set acceptsAIImprovements: true, and place it in the optimal logical position within the array.
 Use null for missing fields. Empty arrays for missing lists. No markdown.`,
         },
         {
@@ -95,12 +94,7 @@ Use null for missing fields. Empty arrays for missing lists. No markdown.`,
       email: parsed.email || null,
       linkedin: parsed.linkedin || null,
       github: parsed.github || null,
-      workEntries: Array.isArray(parsed.workEntries) ? parsed.workEntries : [],
-      education: Array.isArray(parsed.education) ? parsed.education : [],
-      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-      skills: Array.isArray(parsed.skills) ? parsed.skills : [],
       sections: Array.isArray(parsed.sections) ? parsed.sections : [],
-      professionalSummary: parsed.professionalSummary || null,
       strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
       weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
@@ -548,7 +542,7 @@ export async function detectMismatches(
   const client = createClient()
   if (!client) return []
 
-  const sourcesData: any = {}
+  const sourcesData: Record<string, unknown> = {}
   
   if (portfolio) {
     sourcesData.portfolio = {

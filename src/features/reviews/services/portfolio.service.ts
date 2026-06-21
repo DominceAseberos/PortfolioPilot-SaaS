@@ -433,7 +433,7 @@ export class PortfolioService {
     }
   }
 
-  private isLikelyPortfolio(html: string): boolean {
+  private isLikelyPortfolio(_html: string): boolean {
     // We are migrating to Layer 2 AI Extraction. 
     // We no longer strictly block based on simple keyword regex heuristics
     // as it frequently produces false negatives for minimalist portfolios.

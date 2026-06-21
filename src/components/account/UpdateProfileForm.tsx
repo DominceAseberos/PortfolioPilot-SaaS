@@ -38,9 +38,10 @@ export function UpdateProfileForm({ initialName, email }: UpdateProfileFormProps
 
       toast.success('Profile updated successfully!')
       router.refresh()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to update profile:', error)
-      toast.error(error.message || 'Failed to update profile')
+      const errorMsg = error instanceof Error ? error.message : 'Failed to update profile'
+      toast.error(errorMsg)
     } finally {
       setIsUpdating(false)
     }

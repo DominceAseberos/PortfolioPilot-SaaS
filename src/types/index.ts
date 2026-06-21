@@ -1,3 +1,5 @@
+import { DynamicSection } from './resume'
+
 export interface User {
   id: string
   email: string
@@ -194,7 +196,7 @@ export interface ResumeDetails {
   linkedin: string | null
   github: string | null
   skills: ResumeSkill[]
-  sections: ResumeSection[]
+  sections: DynamicSection[] | ResumeSection[]
   workEntries: (string | ResumeWorkEntry)[]
   education?: ResumeEducation[]
   projects?: { name?: string; link?: string; description?: string }[]

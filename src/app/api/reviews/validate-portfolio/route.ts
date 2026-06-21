@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { success: false, message: 'An unexpected server error occurred during validation.' },
       { status: 500 }

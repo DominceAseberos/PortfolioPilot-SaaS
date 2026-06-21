@@ -82,7 +82,7 @@ export function LandingFeatures() {
                   <div className="mt-auto md:mt-0">
                      <h3 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">Deep Portfolio Analysis</h3>
                      <p className="text-foreground/80 text-lg md:text-xl max-w-md leading-relaxed font-medium">
-                       We don't just look at text. Our vision models evaluate layout, responsiveness, color contrast, and UX/UI patterns against top-tier tech industry standards.
+                       We don&apos;t just look at text. Our vision models evaluate layout, responsiveness, color contrast, and UX/UI patterns against top-tier tech industry standards.
                      </p>
                   </div>
                </div>

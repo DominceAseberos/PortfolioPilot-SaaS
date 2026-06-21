@@ -34,9 +34,10 @@ export function UpdatePasswordForm() {
       toast.success('Password updated successfully!')
       setNewPassword('')
       setConfirmPassword('')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to update password:', error)
-      toast.error(error.message || 'Failed to update password')
+      const errorMsg = error instanceof Error ? error.message : 'Failed to update password'
+      toast.error(errorMsg)
     } finally {
       setIsUpdating(false)
     }

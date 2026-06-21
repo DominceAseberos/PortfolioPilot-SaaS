@@ -30,9 +30,10 @@ export function DisconnectProviderButton({ identity, disabled }: DisconnectProvi
       
       toast.success(`Successfully disconnected ${identity.provider}`)
       router.refresh()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Failed to disconnect ${identity.provider}:`, error)
-      toast.error(`Failed to disconnect ${identity.provider}: ${error.message}`)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to disconnect ${identity.provider}: ${errorMsg}`)
     } finally {
       setIsLoading(false)
     }

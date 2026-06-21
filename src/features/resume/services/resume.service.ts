@@ -42,34 +42,36 @@ export class ResumeService {
             email: aiResult.email || ruleResult.details?.email || null,
             linkedin: aiResult.linkedin || detectedLinkedIn || ruleResult.details?.linkedin || null,
             github: aiResult.github || detectedGithub || ruleResult.details?.github || null,
-            workEntries:
-              aiResult.workEntries.length > 0
-                ? aiResult.workEntries
-                : ruleResult.details?.workEntries || [],
-            education: aiResult.education.length > 0 ? aiResult.education : [],
-            projects: aiResult.projects && aiResult.projects.length > 0 ? aiResult.projects : [],
-            skills:
-              aiResult.skills.length > 0
-                ? aiResult.skills.map((s) => {
-                    const name =
-                      typeof s === 'string'
-                        ? s
-                        : (s as { name?: string; skill?: string }).name ||
-                          (s as { skill?: string }).skill ||
-                          JSON.stringify(s)
-                    return {
-                      name: name
-                        .toLowerCase()
-                        .replace(/\s*\(.*?\)\s*/g, '')
-                        .trim(),
-                      found: true,
-                    }
-                  })
-                : ruleResult.details?.skills || [],
-            sections:
-              aiResult.sections.length > 0
-                ? aiResult.sections.map((s) => ({ name: s, found: true }))
-                : ruleResult.details?.sections || [],
+            workEntries: aiResult.sections
+              .filter(s => s.type === 'entries' && /(experience|work|employment|history)/i.test(s.title))
+              .flatMap(s => s.entries || [])
+              .map(e => ({
+                company: e.subtitle || '',
+                role: e.title || '',
+                dates: e.dates || '',
+                description: e.description || ''
+              })),
+            education: aiResult.sections
+              .filter(s => s.type === 'entries' && /(education|university|college|degree)/i.test(s.title))
+              .flatMap(s => s.entries || [])
+              .map(e => ({
+                degree: e.title || '',
+                school: e.subtitle || '',
+                dates: e.dates || ''
+              })),
+            projects: aiResult.sections
+              .filter(s => s.type === 'entries' && /(project|portfolio)/i.test(s.title))
+              .flatMap(s => s.entries || [])
+              .map(e => ({
+                name: e.title || '',
+                link: e.link || '',
+                description: e.description || ''
+              })),
+            skills: aiResult.sections
+              .filter(s => s.type === 'list' && /(skill|technolog|tool)/i.test(s.title))
+              .flatMap(s => s.items || [])
+              .map(s => ({ name: s, found: true })),
+            sections: aiResult.sections.length > 0 ? aiResult.sections : ruleResult.details?.sections || [],
             wordCount: text.split(/\s+/).length,
             hasEmail: !!(aiResult.email || ruleResult.details?.email),
             hasLinkedIn: !!(aiResult.linkedin || detectedLinkedIn || ruleResult.details?.linkedin),

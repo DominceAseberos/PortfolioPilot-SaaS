@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/common/Button'
 import { CREDIT_PACKS } from '@/constants'
-import { CheckCircle2, Sparkles } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { ScrollReveal } from '@/components/common/ScrollReveal'
 
 export function LandingPricing() {

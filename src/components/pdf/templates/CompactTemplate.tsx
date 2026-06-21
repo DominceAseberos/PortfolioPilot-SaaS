@@ -1,5 +1,5 @@
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Link, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
 import './fonts'
 
@@ -42,7 +42,16 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
   if (data.github) contactParts.push(data.github.replace(/^https?:\/\//, ''))
   if (data.website) contactParts.push(data.website.replace(/^https?:\/\//, ''))
 
-  const topRole = data.workEntries?.[0]?.role || ''
+  const topRole = data.sections 
+    ? data.sections.find(s => s.type === 'entries')?.entries?.[0]?.title || ''
+    : data.workEntries?.[0]?.role || ''
+
+  const hasSections = data.sections && data.sections.length > 0
+  const summarySection = hasSections ? data.sections.find(s => s.title.toLowerCase().includes('summary') || s.title.toLowerCase().includes('profile') || s.type === 'text') : null
+  
+  const rightTitles = ['skill', 'education', 'certif', 'language']
+  const rightSections = hasSections ? data.sections.filter(s => s !== summarySection && rightTitles.some(t => s.title.toLowerCase().includes(t))) : []
+  const leftSections = hasSections ? data.sections.filter(s => s !== summarySection && !rightTitles.some(t => s.title.toLowerCase().includes(t))) : []
 
   return (
     <Document>
@@ -62,85 +71,149 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
         </View>
 
         <View style={styles.body}>
-          {/* Summary */}
-          {data.summary && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Summary</Text>
-              <View style={styles.divider} />
-              <Text style={styles.summaryText}>{data.summary}</Text>
-            </View>
-          )}
-
-          {/* Two column */}
-          <View style={styles.twoCol}>
-            {/* Left: Experience + Projects */}
-            <View style={styles.colLeft}>
-              {data.workEntries?.length > 0 && (
+          {hasSections ? (
+            <>
+              {summarySection && summarySection.text && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Experience</Text>
+                  <Text style={styles.sectionTitle}>{summarySection.title}</Text>
                   <View style={styles.divider} />
-                  {data.workEntries.map((work, i) => (
-                    <View key={i} style={{ marginBottom: 8 }}>
-                      <View style={styles.entryHeader}>
-                        <Text style={styles.entryTitle}>{work.role}</Text>
-                        <Text style={styles.entryDates}>{work.dates}</Text>
-                      </View>
-                      {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
-                        <Text style={styles.entrySubtitle}>{work.company}</Text>
+                  <Text style={styles.summaryText}>{summarySection.text}</Text>
+                </View>
+              )}
+
+              <View style={styles.twoCol}>
+                {/* Left Column */}
+                <View style={styles.colLeft}>
+                  {leftSections.map((section, idx) => (
+                    <View key={`left-${idx}`} style={styles.section}>
+                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                      <View style={styles.divider} />
+                      
+                      {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
+                        <View key={i} style={{ marginBottom: 8 }}>
+                          <View style={styles.entryHeader}>
+                            {entry.link && /^https?:\/\//.test(entry.link)
+                              ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{entry.title}</Link>
+                              : <Text style={styles.entryTitle}>{entry.title}</Text>}
+                            {entry.dates && <Text style={styles.entryDates}>{entry.dates}</Text>}
+                          </View>
+                          {entry.subtitle && entry.subtitle.toLowerCase() !== entry.title?.toLowerCase() && (
+                            <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>
+                          )}
+                          {entry.description && <Text style={{ ...styles.entryDesc, marginTop: 2 }}>{entry.description}</Text>}
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+
+                {/* Right Column */}
+                <View style={styles.colRight}>
+                  {rightSections.map((section, idx) => (
+                    <View key={`right-${idx}`} style={styles.section}>
+                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                      <View style={styles.divider} />
+                      
+                      {section.type === 'list' && section.items && (
+                        <View style={styles.skillsRow}>
+                          {section.items.map((item, i) => (
+                            <Text key={i} style={styles.skillTag}>{item}</Text>
+                          ))}
+                        </View>
                       )}
-                      {work.description && <Text style={styles.entryDesc}>{work.description}</Text>}
+
+                      {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
+                        <View key={i} style={styles.eduEntry}>
+                          <Text style={styles.entryTitle}>{entry.title}</Text>
+                          {entry.subtitle && <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>}
+                          {entry.dates && <Text style={styles.entryDates}>{entry.dates}</Text>}
+                        </View>
+                      ))}
                     </View>
                   ))}
                 </View>
+              </View>
+            </>
+          ) : (
+            // Legacy fallbacks
+            <>
+              {data.summary && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Summary</Text>
+                  <View style={styles.divider} />
+                  <Text style={styles.summaryText}>{data.summary}</Text>
+                </View>
               )}
 
-              {data.projects?.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Projects</Text>
-                  <View style={styles.divider} />
-                  {data.projects.map((proj, i) => (
-                    <View key={i} style={{ marginBottom: 7 }}>
-                      <View style={styles.entryHeader}>
-                        {proj.link && /^https?:\/\//.test(proj.link)
-                          ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{proj.name}</Link>
-                          : <Text style={styles.entryTitle}>{proj.name}</Text>}
+              <View style={styles.twoCol}>
+                <View style={styles.colLeft}>
+                  {(data.workEntries?.length ?? 0) > 0 && (
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Experience</Text>
+                      <View style={styles.divider} />
+                      {(data.workEntries || []).map((work, i) => (
+                        <View key={i} style={{ marginBottom: 8 }}>
+                          <View style={styles.entryHeader}>
+                            <Text style={styles.entryTitle}>{work.role}</Text>
+                            <Text style={styles.entryDates}>{work.dates}</Text>
+                          </View>
+                          {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
+                            <Text style={styles.entrySubtitle}>{work.company}</Text>
+                          )}
+                          {work.description && <Text style={styles.entryDesc}>{work.description}</Text>}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {(data.projects?.length ?? 0) > 0 && (
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Projects</Text>
+                      <View style={styles.divider} />
+                      {(data.projects || []).map((proj, i) => (
+                        <View key={i} style={{ marginBottom: 7 }}>
+                          <View style={styles.entryHeader}>
+                            {proj.link && /^https?:\/\//.test(proj.link)
+                              ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{proj.name}</Link>
+                              : <Text style={styles.entryTitle}>{proj.name}</Text>}
+                          </View>
+                          {proj.description && <Text style={{ ...styles.entryDesc, marginTop: 2 }}>{proj.description}</Text>}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.colRight}>
+                  {(data.skills?.length ?? 0) > 0 && (
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Skills</Text>
+                      <View style={styles.divider} />
+                      <View style={styles.skillsRow}>
+                        {(data.skills || []).map((skill, i) => (
+                          <Text key={i} style={styles.skillTag}>{skill}</Text>
+                        ))}
                       </View>
-                      {proj.description && <Text style={{ ...styles.entryDesc, marginTop: 2 }}>{proj.description}</Text>}
                     </View>
-                  ))}
-                </View>
-              )}
-            </View>
+                  )}
 
-            {/* Right: Skills + Education */}
-            <View style={styles.colRight}>
-              {data.skills?.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Skills</Text>
-                  <View style={styles.divider} />
-                  <View style={styles.skillsRow}>
-                    {data.skills.map((skill, i) => (
-                      <Text key={i} style={styles.skillTag}>{skill}</Text>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {data.education?.length > 0 && (
-                <View style={{ ...styles.section, marginTop: 6 }}>
-                  <Text style={styles.sectionTitle}>Education</Text>
-                  <View style={styles.divider} />
-                  {data.education.map((edu, i) => (
-                    <View key={i} style={styles.eduEntry}>
-                      <Text style={styles.entryTitle}>{edu.degree}</Text>
-                      {edu.school && <Text style={styles.entrySubtitle}>{edu.school}</Text>}
-                      {edu.dates && <Text style={styles.entryDates}>{edu.dates}</Text>}
+                  {(data.education?.length ?? 0) > 0 && (
+                    <View style={{ ...styles.section, marginTop: 6 }}>
+                      <Text style={styles.sectionTitle}>Education</Text>
+                      <View style={styles.divider} />
+                      {(data.education || []).map((edu, i) => (
+                        <View key={i} style={styles.eduEntry}>
+                          <Text style={styles.entryTitle}>{edu.degree}</Text>
+                          {edu.school && <Text style={styles.entrySubtitle}>{edu.school}</Text>}
+                          {edu.dates && <Text style={styles.entryDates}>{edu.dates}</Text>}
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  )}
                 </View>
-              )}
-            </View>
-          </View>
+              </View>
+            </>
+          )}
         </View>
 
         <Text style={styles.footer}>Generated by PortfolioPilot</Text>

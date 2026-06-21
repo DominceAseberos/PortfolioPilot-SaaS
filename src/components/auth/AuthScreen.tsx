@@ -48,7 +48,7 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
 
   // Sync state if user uses browser back/forward buttons
   useEffect(() => {
-    setIsLogin(pathname === '/login')
+    setTimeout(() => setIsLogin(pathname === '/login'), 0)
   }, [pathname])
 
   const handleSwitchMode = () => {
@@ -169,7 +169,7 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
           <div className="space-y-2">
             <h1 className="text-2xl font-bold">Check your email</h1>
             <p className="text-muted-foreground">
-              We've sent a confirmation link to your email. Click the link to activate your account.
+              We&apos;ve sent a confirmation link to your email. Click the link to activate your account.
             </p>
           </div>
           <button onClick={() => { setRegisterSuccess(false); setIsLogin(true); window.history.pushState(null, '', ROUTES.login) }} className="inline-block text-sm text-primary hover:underline font-medium">
@@ -335,7 +335,7 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
             </div>
             
             <p className="mt-8 text-center text-sm text-muted-foreground md:hidden">
-              Don't have an account? <button onClick={handleSwitchMode} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Sign up</button>
+              Don&apos;t have an account? <button onClick={handleSwitchMode} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Sign up</button>
             </p>
           </div>
         </div>

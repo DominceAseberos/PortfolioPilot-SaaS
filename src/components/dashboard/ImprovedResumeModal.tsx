@@ -25,45 +25,43 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   useEffect(() => {
     if (resumeFile) {
       const url = URL.createObjectURL(resumeFile)
-      setOriginalUrl(url)
+      setTimeout(() => setOriginalUrl(url), 0)
       return () => URL.revokeObjectURL(url)
     }
   }, [resumeFile])
 
   // Simple handlers
-  const updateField = (field: keyof ImprovedResumeData, value: any) => {
+  const updateField = <K extends keyof ImprovedResumeData>(field: K, value: ImprovedResumeData[K]) => {
     setData(prev => ({ ...prev, [field]: value }))
   }
 
   const updateWorkEntry = (index: number, field: string, value: string) => {
-    const newEntries = [...data.workEntries]
+    const newEntries = [...(data.workEntries || [])]
     newEntries[index] = { ...newEntries[index], [field]: value }
     updateField('workEntries', newEntries)
   }
 
   const updateProject = (index: number, field: string, value: string) => {
-    const newProjects = [...data.projects]
+    const newProjects = [...(data.projects || [])]
     newProjects[index] = { ...newProjects[index], [field]: value }
     updateField('projects', newProjects)
   }
 
   const updateEducation = (index: number, field: string, value: string) => {
-    const newEdu = [...data.education]
+    const newEdu = [...(data.education || [])]
     newEdu[index] = { ...newEdu[index], [field]: value }
     updateField('education', newEdu)
   }
 
   const removeSkill = (index: number) => {
-    updateField('skills', data.skills.filter((_, i) => i !== index))
+    updateField('skills', (data.skills || []).filter((_, i) => i !== index))
   }
 
   const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+    const val = e.currentTarget.value.trim()
+    if (e.key === 'Enter' && val) {
       e.preventDefault()
-      const newSkill = e.currentTarget.value.trim()
-      if (!data.skills.includes(newSkill)) {
-        updateField('skills', [...data.skills, newSkill])
-      }
+      updateField('skills', [...(data.skills || []), val])
       e.currentTarget.value = ''
     }
   }
@@ -73,13 +71,13 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     <div className="space-y-8 animate-in fade-in duration-300">
       
       {/* AI Recommendations Sidebar/Banner */}
-      {data.recommendations.length > 0 && (
+      {(data.recommendations || []).length > 0 && (
         <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4 space-y-3">
           <h3 className="text-sm font-bold flex items-center gap-2 text-blue-600">
             <Sparkles className="h-4 w-4" /> AI Recommendations
           </h3>
           <ul className="text-xs text-muted-foreground space-y-2 pl-6 list-disc">
-            {data.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+            {(data.recommendations || []).map((rec, i) => <li key={i}>{rec}</li>)}
           </ul>
         </div>
       )}
@@ -132,11 +130,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       <section className="space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Skills</h3>
         <div className="flex flex-wrap gap-2">
-          {data.skills.map((skill, i) => {
-            const isInitial = initialData.skills.includes(skill)
-            const isNew = !initialData.skills.includes(skill) && i >= (initialData.skills.length - 5) // roughly guess which are from GitHub based on initial setup
-            // Actually, we passed them all in initialData. Let's just say any skill in initialData that wasn't in original resume (which we don't have direct access to here, but we can assume the last ones might be). 
-            // We won't colorize perfectly here unless we passed originalSkills vs newSkills, but let's just make it editable.
+          {(data.skills || []).map((skill, i) => {
             return (
               <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted border border-border/50 group">
                 {skill}
@@ -159,9 +153,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Experience</h3>
         </div>
         <div className="space-y-4">
-          {data.workEntries.map((work, i) => (
+          {(data.workEntries || []).map((work, i) => (
             <div key={i} className="p-4 rounded-xl border border-border/50 bg-card space-y-3 relative group">
-               <button type="button" onClick={() => updateField('workEntries', data.workEntries.filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
+               <button type="button" onClick={() => updateField('workEntries', (data.workEntries || []).filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
                  <div>
                    <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Role</label>
@@ -185,7 +179,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                </div>
             </div>
           ))}
-          <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => updateField('workEntries', [...data.workEntries, { role: '', company: '', dates: '', description: '' }])}>
+          <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => updateField('workEntries', [...(data.workEntries || []), { role: '', company: '', dates: '', description: '' }])}>
              <Plus className="h-4 w-4 mr-2" /> Add Experience
           </Button>
         </div>
@@ -197,9 +191,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Projects</h3>
         </div>
         <div className="space-y-4">
-          {data.projects.map((proj, i) => (
+          {(data.projects || []).map((proj, i) => (
             <div key={i} className={`p-4 rounded-xl border space-y-3 relative group ${proj.isNew ? 'border-green-500/30 bg-green-500/5' : 'border-border/50 bg-card'}`}>
-               <button type="button" onClick={() => updateField('projects', data.projects.filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
+               <button type="button" onClick={() => updateField('projects', (data.projects || []).filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
                {proj.isNew && <Badge variant="outline" className="absolute -top-2.5 left-4 bg-background text-green-600 border-green-500/30 text-[10px] uppercase">Added from GitHub</Badge>}
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
                  <div>
@@ -217,7 +211,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                </div>
             </div>
           ))}
-          <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => updateField('projects', [...data.projects, { name: '', link: '', description: '' }])}>
+          <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => updateField('projects', [...(data.projects || []), { name: '', link: '', description: '' }])}>
              <Plus className="h-4 w-4 mr-2" /> Add Project
           </Button>
         </div>
@@ -341,15 +335,19 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
            <div className="flex-1 p-4 overflow-hidden relative flex flex-col items-center justify-center">
              <BlobProvider document={<ResumeTemplateRenderer data={data} templateId={selectedTemplate} />}>
                {({ blob, url, loading, error }) => {
-                 if (error) {
+                 try {
+                   if (error) {
+                     return <div className="text-red-500 text-xs flex items-center gap-2"><AlertTriangle className="h-4 w-4"/> Error rendering PDF preview.</div>
+                   }
+                   if (loading || !url) {
+                     return <div className="text-muted-foreground text-xs animate-pulse">Updating live preview...</div>
+                   }
+                   return (
+                     <iframe src={`${url}#toolbar=0&navpanes=0&view=FitH`} className="w-full h-full rounded-lg border border-border/50 shadow-sm bg-background animate-in fade-in duration-500" title="Live Preview PDF" />
+                   )
+                 } catch (err: unknown) {
                    return <div className="text-red-500 text-xs flex items-center gap-2"><AlertTriangle className="h-4 w-4"/> Error rendering PDF preview.</div>
                  }
-                 if (loading || !url) {
-                   return <div className="text-muted-foreground text-xs animate-pulse">Updating live preview...</div>
-                 }
-                 return (
-                   <iframe src={`${url}#toolbar=0&navpanes=0&view=FitH`} className="w-full h-full rounded-lg border border-border/50 shadow-sm bg-background animate-in fade-in duration-500" title="Live Preview PDF" />
-                 )
                }}
              </BlobProvider>
            </div>

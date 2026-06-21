@@ -1,5 +1,5 @@
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Link, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
 import './fonts'
 
@@ -35,7 +35,15 @@ const styles = StyleSheet.create({
 })
 
 export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
-  const role = data.workEntries?.[0]?.role || ''
+  // Legacy role fallback
+  const role = data.sections 
+    ? data.sections.find(s => s.type === 'entries')?.entries?.[0]?.title || ''
+    : data.workEntries?.[0]?.role || ''
+
+  const sidebarTitles = ['skill', 'education', 'certif', 'language', 'contact']
+  const hasSections = data.sections && data.sections.length > 0
+  const sidebarSections = hasSections ? data.sections.filter(s => sidebarTitles.some(t => s.title.toLowerCase().includes(t))) : []
+  const mainSections = hasSections ? data.sections.filter(s => !sidebarTitles.some(t => s.title.toLowerCase().includes(t))) : []
 
   return (
     <Document>
@@ -55,80 +63,133 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
             {data.website && <Text style={styles.sidebarMuted}>{data.website.replace(/^https?:\/\//, '')}</Text>}
           </View>
 
-          {/* Skills */}
-          {data.skills?.length > 0 && (
-            <View style={styles.sidebarSection}>
-              <Text style={styles.sidebarSectionTitle}>Skills</Text>
-              <View style={styles.skillRow}>
-                {data.skills.map((skill, i) => (
-                  <Text key={i} style={styles.skillPill}>{skill}</Text>
+          {hasSections ? (
+            sidebarSections.map((section, idx) => (
+              <View key={`sidebar-${idx}`} style={styles.sidebarSection}>
+                <Text style={styles.sidebarSectionTitle}>{section.title}</Text>
+                
+                {section.type === 'list' && section.items && (
+                  <View style={styles.skillRow}>
+                    {section.items.map((item, i) => (
+                      <Text key={i} style={styles.skillPill}>{item}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
+                  <View key={i} style={{ marginBottom: 8 }}>
+                    <Text style={{ ...styles.sidebarText, fontWeight: 700 }}>{entry.title}</Text>
+                    {entry.subtitle && <Text style={styles.sidebarMuted}>{entry.subtitle}</Text>}
+                    {entry.dates && <Text style={{ ...styles.sidebarMuted, marginTop: 2 }}>{entry.dates}</Text>}
+                  </View>
                 ))}
               </View>
-            </View>
-          )}
-
-          {/* Education */}
-          {data.education?.length > 0 && (
-            <View style={styles.sidebarSection}>
-              <Text style={styles.sidebarSectionTitle}>Education</Text>
-              {data.education.map((edu, i) => (
-                <View key={i} style={{ marginBottom: 8 }}>
-                  <Text style={{ ...styles.sidebarText, fontWeight: 700 }}>{edu.degree}</Text>
-                  {edu.school && <Text style={styles.sidebarMuted}>{edu.school}</Text>}
-                  {edu.dates && <Text style={{ ...styles.sidebarMuted, marginTop: 2 }}>{edu.dates}</Text>}
+            ))
+          ) : (
+            // Legacy fallbacks
+            <>
+              {(data.skills?.length ?? 0) > 0 && (
+                <View style={styles.sidebarSection}>
+                  <Text style={styles.sidebarSectionTitle}>Skills</Text>
+                  <View style={styles.skillRow}>
+                    {(data.skills || []).map((skill, i) => (
+                      <Text key={i} style={styles.skillPill}>{skill}</Text>
+                    ))}
+                  </View>
                 </View>
-              ))}
-            </View>
+              )}
+
+              {(data.education?.length ?? 0) > 0 && (
+                <View style={styles.sidebarSection}>
+                  <Text style={styles.sidebarSectionTitle}>Education</Text>
+                  {(data.education || []).map((edu, i) => (
+                    <View key={i} style={{ marginBottom: 8 }}>
+                      <Text style={{ ...styles.sidebarText, fontWeight: 700 }}>{edu.degree}</Text>
+                      {edu.school && <Text style={styles.sidebarMuted}>{edu.school}</Text>}
+                      {edu.dates && <Text style={{ ...styles.sidebarMuted, marginTop: 2 }}>{edu.dates}</Text>}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
           )}
         </View>
 
         {/* Main Content */}
         <View style={styles.main}>
-          {/* Summary */}
-          {data.summary && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Profile</Text>
-              <View style={styles.sectionDivider} />
-              <Text style={styles.summaryText}>{data.summary}</Text>
-            </View>
-          )}
-
-          {/* Experience */}
-          {data.workEntries?.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Experience</Text>
-              <View style={styles.sectionDivider} />
-              {data.workEntries.map((work, i) => (
-                <View key={i} style={{ marginBottom: 10 }}>
-                  <View style={styles.entryHeader}>
-                    <Text style={styles.entryTitle}>{work.role}</Text>
-                    <Text style={styles.entryDates}>{work.dates}</Text>
+          {hasSections ? (
+            mainSections.map((section, idx) => (
+              <View key={`main-${idx}`} style={styles.section}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <View style={styles.sectionDivider} />
+                
+                {section.type === 'text' && section.text && (
+                  <Text style={styles.summaryText}>{section.text}</Text>
+                )}
+                
+                {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
+                  <View key={i} style={{ marginBottom: 10 }}>
+                    <View style={styles.entryHeader}>
+                      {entry.link && /^https?:\/\//.test(entry.link)
+                        ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{entry.title}</Link>
+                        : <Text style={styles.entryTitle}>{entry.title}</Text>}
+                      {entry.dates && <Text style={styles.entryDates}>{entry.dates}</Text>}
+                    </View>
+                    {entry.subtitle && entry.subtitle.toLowerCase() !== entry.title?.toLowerCase() && (
+                      <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>
+                    )}
+                    {entry.description && <Text style={styles.entryDescription}>{entry.description}</Text>}
                   </View>
-                  {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
-                    <Text style={styles.entrySubtitle}>{work.company}</Text>
-                  )}
-                  {work.description && <Text style={styles.entryDescription}>{work.description}</Text>}
+                ))}
+              </View>
+            ))
+          ) : (
+            // Legacy fallbacks
+            <>
+              {data.summary && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Profile</Text>
+                  <View style={styles.sectionDivider} />
+                  <Text style={styles.summaryText}>{data.summary}</Text>
                 </View>
-              ))}
-            </View>
-          )}
+              )}
 
-          {/* Projects */}
-          {data.projects?.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Projects</Text>
-              <View style={styles.sectionDivider} />
-              {data.projects.map((proj, i) => (
-                <View key={i} style={{ marginBottom: 8 }}>
-                  <View style={styles.entryHeader}>
-                    {proj.link && /^https?:\/\//.test(proj.link)
-                      ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{proj.name}</Link>
-                      : <Text style={styles.entryTitle}>{proj.name}</Text>}
-                  </View>
-                  {proj.description && <Text style={{ ...styles.entryDescription, marginTop: 2, marginBottom: 4 }}>{proj.description}</Text>}
+              {(data.workEntries?.length ?? 0) > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Experience</Text>
+                  <View style={styles.sectionDivider} />
+                  {(data.workEntries || []).map((work, i) => (
+                    <View key={i} style={{ marginBottom: 10 }}>
+                      <View style={styles.entryHeader}>
+                        <Text style={styles.entryTitle}>{work.role}</Text>
+                        <Text style={styles.entryDates}>{work.dates}</Text>
+                      </View>
+                      {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
+                        <Text style={styles.entrySubtitle}>{work.company}</Text>
+                      )}
+                      {work.description && <Text style={styles.entryDescription}>{work.description}</Text>}
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
+              )}
+
+              {(data.projects?.length ?? 0) > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Projects</Text>
+                  <View style={styles.sectionDivider} />
+                  {(data.projects || []).map((proj, i) => (
+                    <View key={i} style={{ marginBottom: 8 }}>
+                      <View style={styles.entryHeader}>
+                        {proj.link && /^https?:\/\//.test(proj.link)
+                          ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{proj.name}</Link>
+                          : <Text style={styles.entryTitle}>{proj.name}</Text>}
+                      </View>
+                      {proj.description && <Text style={{ ...styles.entryDescription, marginTop: 2, marginBottom: 4 }}>{proj.description}</Text>}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
           )}
         </View>
 

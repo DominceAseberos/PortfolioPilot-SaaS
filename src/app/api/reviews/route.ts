@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
     
-    let userId = user?.id
+    const userId = user?.id
 
     const contentType = request.headers.get('content-type') || ''
 

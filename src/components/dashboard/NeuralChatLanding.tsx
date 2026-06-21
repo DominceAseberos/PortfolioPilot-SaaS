@@ -97,7 +97,7 @@ function SmartPortfolioPreview({ url, originalInput }: { url: string, originalIn
   )
 }
 
-function SmartGithubPreview({ profile, username }: { profile: any, username: string }) {
+function SmartGithubPreview({ profile, username }: { profile: { avatarUrl?: string; login?: string; name?: string; bio?: string; public_repos?: number; followers?: number; [key: string]: unknown }, username: string }) {
   const { githubUsername } = React.useContext(DynamicProceedContext)
   const isSelected = username === githubUsername
   const isDismissed = githubUsername && !isSelected
@@ -331,7 +331,7 @@ interface NeuralChatLandingProps {
   setGithubUsername: (val: string) => void
   resumeFile: File | null
   setResumeFile: (val: File | null) => void
-  onSubmit: (e: any) => void
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
   isLoading: boolean
   isScanning?: boolean
   hideInput?: boolean
@@ -366,7 +366,7 @@ export function NeuralChatLanding({
       content: (
         <div className="space-y-4">
           <p className="text-base font-medium">Pilot Review agent standing by.</p>
-          <p className="text-sm">Upload your Resume/CV. I'll automatically detect your portfolio and GitHub, show you a live preview, and let you approve, reject, or change each one before analysis.</p>
+          <p className="text-sm">Upload your Resume/CV. I&apos;ll automatically detect your portfolio and GitHub, show you a live preview, and let you approve, reject, or change each one before analysis.</p>
         </div>
       )
     }
@@ -414,24 +414,26 @@ export function NeuralChatLanding({
   // Append resultNode to chatLog for continuous session history
   useEffect(() => {
     if (resultNode && analysisId) {
-      setChatLog(prev => {
-        const resultId = `result-${analysisId}`
-        if (prev.find(m => m.id === resultId)) return prev
-        
-        const storedNode = (
-          <div className="w-full mt-6">
-            {resultNode}
-          </div>
-        )
-        
-        return [...prev, {
-          id: resultId,
-          role: 'system',
-          fullWidth: true,
-          naked: true,
-          content: storedNode
-        }]
-      })
+      setTimeout(() => {
+        setChatLog(prev => {
+          const resultId = `result-${analysisId}`
+          if (prev.find(m => m.id === resultId)) return prev
+          
+          const storedNode = (
+            <div className="w-full mt-6">
+              {resultNode}
+            </div>
+          )
+          
+          return [...prev, {
+            id: resultId,
+            role: 'system',
+            fullWidth: true,
+            naked: true,
+            content: storedNode
+          }]
+        })
+      }, 0)
     }
   }, [resultNode, analysisId])
 
@@ -470,7 +472,7 @@ export function NeuralChatLanding({
     )
   }
 
-  const handleChatSubmit = (e: React.FormEvent) => {
+  const handleActionClick = (e: React.MouseEvent, action: string) => {
     e.preventDefault()
     if (isChatProcessing || isLoading || submitLock.current) return
     
@@ -528,7 +530,7 @@ export function NeuralChatLanding({
               </div>
             ) 
          }])
-         toast.error(`File is too large. Maximum size is ${maxMb}MB.`)
+         toast.error(`File is too large. Maximum size is {maxMb}MB.`)
          if (fileInputRef.current) fileInputRef.current.value = ''
          return
        }
@@ -951,7 +953,9 @@ export function NeuralChatLanding({
   }
 
   // Keep addChatFlowRef always current to avoid stale closures in approval callbacks
-  addChatFlowRef.current = addChatFlow
+  useEffect(() => {
+    addChatFlowRef.current = addChatFlow
+  }, [addChatFlow])
 
   return (
     <DynamicProceedContext.Provider value={{ portfolioUrl, githubUsername, resumeFile, isScanning: isScanning ?? false }}>
@@ -1057,7 +1061,7 @@ export function NeuralChatLanding({
                </div>
 
                {totalCost > 0 && (
-                  <Button onClick={(e) => onSubmitRef.current(e as any)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 rounded-full px-5 animate-in fade-in slide-in-from-bottom-2 shrink-0">
+                  <Button onClick={(e) => onSubmitRef.current(e as unknown as React.FormEvent<HTMLFormElement>)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 rounded-full px-5 animate-in fade-in slide-in-from-bottom-2 shrink-0">
                     Proceed ({totalCost} {totalCost === 1 ? 'Credit' : 'Credits'}) <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </Button>
                )}

@@ -34,7 +34,7 @@ export function OnboardingClient({ email, hasPassword }: { email: string, hasPas
       // Check if username is taken (optional, but good practice if unique usernames are strictly enforced)
       // For this MVP, we'll just store it in user_metadata
       
-      const updateData: any = { data: { username: username.trim().toLowerCase() } }
+      const updateData: { data: { username: string }; password?: string } = { data: { username: username.trim().toLowerCase() } }
       if (!hasPassword && password) {
         updateData.password = password
       }
@@ -46,9 +46,9 @@ export function OnboardingClient({ email, hasPassword }: { email: string, hasPas
       toast.success('Account setup complete!')
       router.push(ROUTES.dashboard)
       router.refresh()
-    } catch (error: any) {
-      console.error('Setup failed:', error)
-      toast.error(error.message || 'Failed to complete setup. Please try again.')
+    } catch (err: unknown) {
+      console.error('Setup failed:', err)
+      toast.error((err as Error).message || 'Failed to complete setup. Please try again.')
     } finally {
       setIsLoading(false)
     }
