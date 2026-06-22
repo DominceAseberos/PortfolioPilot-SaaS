@@ -181,7 +181,7 @@ export function ImprovedResumeTemplate({ data }: { data: ImprovedResumeData }) {
               {section.type === 'list' && section.items && (
                 <View style={styles.skillsContainer}>
                   {section.items.map((item, i) => (
-                    <Text key={i} style={styles.skillText}>{item}</Text>
+                    <Text key={i} style={styles.skillText} wrap={false}>{item}</Text>
                   ))}
                 </View>
               )}
@@ -225,7 +225,7 @@ export function ImprovedResumeTemplate({ data }: { data: ImprovedResumeData }) {
                 <View style={styles.divider} />
                 <View style={styles.skillsContainer}>
                   {(data.skills || []).map((skill, i) => (
-                    <Text key={i} style={styles.skillText}>{skill}</Text>
+                    <Text key={i} style={styles.skillText} wrap={false}>{skill}</Text>
                   ))}
                 </View>
               </View>

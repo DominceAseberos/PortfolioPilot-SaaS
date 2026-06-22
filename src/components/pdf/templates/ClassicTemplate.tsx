@@ -55,7 +55,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
               
               {section.type === 'list' && section.items && (
                 <View style={styles.skillsContainer}>
-                  {section.items.map((item, i) => <Text key={i} style={styles.skillText}>{item}</Text>)}
+                  {section.items.map((item, i) => <Text key={i} style={styles.skillText} wrap={false}>{item}</Text>)}
                 </View>
               )}
               
@@ -95,7 +95,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                 <Text style={styles.sectionTitle}>Skills</Text>
                 <View style={styles.divider} />
                 <View style={styles.skillsContainer}>
-                  {(data.skills || []).map((skill, i) => <Text key={i} style={styles.skillText}>{skill}</Text>)}
+                  {(data.skills || []).map((skill, i) => <Text key={i} style={styles.skillText} wrap={false}>{skill}</Text>)}
                 </View>
               </View>
             )}

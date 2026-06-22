@@ -73,7 +73,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                 {section.type === 'list' && section.items && (
                   <View style={styles.skillRow}>
                     {section.items.map((item, i) => (
-                      <Text key={i} style={styles.skillPill}>{item}</Text>
+                      <Text key={i} style={styles.skillPill} wrap={false}>{item}</Text>
                     ))}
                   </View>
                 )}
@@ -95,7 +95,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                   <Text style={styles.sidebarSectionTitle}>Skills</Text>
                   <View style={styles.skillRow}>
                     {(data.skills || []).map((skill, i) => (
-                      <Text key={i} style={styles.skillPill}>{skill}</Text>
+                      <Text key={i} style={styles.skillPill} wrap={false}>{skill}</Text>
                     ))}
                   </View>
                 </View>
@@ -132,7 +132,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                 {section.type === 'list' && section.items && (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
                     {section.items.map((item, i) => (
-                      <Text key={i} style={{ backgroundColor: '#f1f5f9', padding: '3 6', borderRadius: 4, fontSize: 8.5, color: '#000000', fontWeight: 600 }}>{item}</Text>
+                      <Text key={i} style={{ backgroundColor: '#f1f5f9', padding: '3 6', borderRadius: 4, fontSize: 8.5, color: '#000000', fontWeight: 600 }} wrap={false}>{item}</Text>
                     ))}
                   </View>
                 )}

@@ -88,7 +88,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       {section.type === 'list' && section.items && (
                         <View style={styles.skillsRow}>
                           {section.items.map((item, i) => (
-                            <Text key={i} style={styles.skillTag}>{item}</Text>
+                            <Text key={i} style={styles.skillTag} wrap={false}>{item}</Text>
                           ))}
                         </View>
                       )}
@@ -125,7 +125,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       {section.type === 'list' && section.items && (
                         <View style={styles.skillsRow}>
                           {section.items.map((item, i) => (
-                            <Text key={i} style={styles.skillTag}>{item}</Text>
+                            <Text key={i} style={styles.skillTag} wrap={false}>{item}</Text>
                           ))}
                         </View>
                       )}
@@ -207,7 +207,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       <View style={styles.divider} />
                       <View style={styles.skillsRow}>
                         {(data.skills || []).map((skill, i) => (
-                          <Text key={i} style={styles.skillTag}>{skill}</Text>
+                          <Text key={i} style={styles.skillTag} wrap={false}>{skill}</Text>
                         ))}
                       </View>
                     </View>
