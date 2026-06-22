@@ -1,36 +1,38 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
+import { renderDescription } from './pdfUtils'
 import './fonts'
 
 const ACCENT = '#4f46e5'
-const SIDEBAR_BG = '#0f172a'
+const SIDEBAR_BG = '#1e293b' // Softer slate/zinc instead of harsh navy
 const SIDEBAR_TEXT = '#f8fafc'
-const SIDEBAR_MUTED = '#94a3b8'
+const SIDEBAR_MUTED = '#cbd5e1'
 
 const styles = StyleSheet.create({
-  page: { flexDirection: 'row', fontFamily: 'Inter', fontSize: 9.5, color: '#000000', lineHeight: 1.5 },
+  page: { flexDirection: 'row', fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.5 },
   // Sidebar
-  sidebar: { width: '32%', backgroundColor: SIDEBAR_BG, padding: '32 16', minHeight: '100%' },
-  sidebarName: { fontSize: 17, fontWeight: 700, color: '#ffffff', marginBottom: 4, lineHeight: 1.2 },
-  sidebarRole: { fontSize: 9, color: SIDEBAR_MUTED, marginBottom: 20, textTransform: 'uppercase', letterSpacing: 0.8 },
-  sidebarSection: { marginBottom: 18 },
-  sidebarSectionTitle: { fontSize: 8, fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 4 },
-  sidebarText: { fontSize: 9, color: SIDEBAR_TEXT, marginBottom: 4, lineHeight: 1.4 },
-  sidebarMuted: { fontSize: 8, color: SIDEBAR_MUTED },
-  skillPill: { backgroundColor: '#334155', padding: '3 7', borderRadius: 3, marginBottom: 4, marginRight: 4, fontSize: 8, color: '#ffffff' },
+  sidebar: { width: '35%', backgroundColor: SIDEBAR_BG, padding: '36 20', minHeight: '100%' },
+  sidebarName: { fontSize: 20, fontWeight: 700, color: '#ffffff', marginBottom: 6, lineHeight: 1.2 },
+  sidebarRole: { fontSize: 10, color: SIDEBAR_MUTED, marginBottom: 24, textTransform: 'uppercase', letterSpacing: 0.8 },
+  sidebarSection: { marginBottom: 20 },
+  sidebarSectionTitle: { fontSize: 9, fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 4 },
+  sidebarText: { fontSize: 9.5, color: SIDEBAR_TEXT, marginBottom: 5, lineHeight: 1.4 },
+  sidebarMuted: { fontSize: 8.5, color: SIDEBAR_MUTED },
+  skillPill: { backgroundColor: '#334155', padding: '4 8', borderRadius: 12, marginBottom: 6, marginRight: 6, fontSize: 8.5, color: '#ffffff' },
   skillRow: { flexDirection: 'row', flexWrap: 'wrap' },
   // Main
-  main: { width: '68%', padding: '32 24 32 20', backgroundColor: '#ffffff' },
-  section: { marginBottom: 16 },
-  sectionTitle: { fontSize: 10, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 },
-  sectionDivider: { borderBottomWidth: 1.5, borderBottomColor: ACCENT, marginBottom: 8 },
-  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 1 },
-  entryTitle: { fontWeight: 700, fontSize: 10, color: '#000000' },
-  entrySubtitle: { color: '#000000', fontSize: 9, marginBottom: 2, fontWeight: 700 },
-  entryDates: { fontSize: 8, color: '#000000', backgroundColor: '#f1f5f9', padding: '1 5', borderRadius: 3 },
-  entryDescription: { marginTop: 3, marginBottom: 8, color: '#000000', lineHeight: 1.5 },
-  summaryText: { color: '#000000', lineHeight: 1.6, textAlign: 'justify' },
+  main: { width: '65%', padding: '36 28 36 24', backgroundColor: '#ffffff' },
+  section: { marginBottom: 18 },
+  sectionTitle: { fontSize: 11, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  sectionDivider: { borderBottomWidth: 1.5, borderBottomColor: ACCENT, marginBottom: 10 },
+  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 },
+  entryTitle: { fontWeight: 700, fontSize: 11, color: '#000000' },
+  entrySubtitle: { color: '#000000', fontSize: 10, marginBottom: 3, fontWeight: 600 },
+  entryDates: { fontSize: 8.5, color: '#000000', backgroundColor: '#f1f5f9', padding: '2 6', borderRadius: 4, fontWeight: 600 },
+  entryDescriptionWrapper: { marginTop: 4, marginBottom: 10 },
+  entryDescription: { color: '#000000', lineHeight: 1.6 },
+  summaryText: { color: '#000000', lineHeight: 1.6, textAlign: 'left' },
   footer: { position: 'absolute', bottom: 20, right: 24, fontSize: 7, color: '#94a3b8' },
 })
 
@@ -138,7 +140,11 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                     {entry.subtitle && entry.subtitle.toLowerCase() !== entry.title?.toLowerCase() && (
                       <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>
                     )}
-                    {entry.description && <Text style={styles.entryDescription}>{entry.description}</Text>}
+                    {entry.description && (
+                      <View style={styles.entryDescriptionWrapper}>
+                        {renderDescription(entry.description, styles.entryDescription)}
+                      </View>
+                    )}
                   </View>
                 ))}
               </View>
@@ -167,7 +173,11 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                       {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
                         <Text style={styles.entrySubtitle}>{work.company}</Text>
                       )}
-                      {work.description && <Text style={styles.entryDescription}>{work.description}</Text>}
+                      {work.description && (
+                        <View style={styles.entryDescriptionWrapper}>
+                          {renderDescription(work.description, styles.entryDescription)}
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -184,7 +194,11 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                           ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{proj.name}</Link>
                           : <Text style={styles.entryTitle}>{proj.name}</Text>}
                       </View>
-                      {proj.description && <Text style={{ ...styles.entryDescription, marginTop: 2, marginBottom: 4 }}>{proj.description}</Text>}
+                      {proj.description && (
+                        <View style={styles.entryDescriptionWrapper}>
+                          {renderDescription(proj.description, styles.entryDescription)}
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>

@@ -1,26 +1,28 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
+import { renderDescription } from './pdfUtils'
 import './fonts'
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.5 },
-  header: { marginBottom: 20, textAlign: 'center' },
-  name: { fontSize: 24, fontWeight: 700, marginBottom: 8, color: '#000000' },
-  contactRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8, fontSize: 9, color: '#000000' },
+  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.6 },
+  header: { marginBottom: 24, textAlign: 'center' },
+  name: { fontSize: 26, fontWeight: 700, marginBottom: 6, color: '#000000' },
+  contactRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8, fontSize: 9.5, color: '#000000' },
   contactItem: { textDecoration: 'none', color: '#000000' },
-  divider: { borderBottomWidth: 1.5, borderBottomColor: '#000000', marginVertical: 8 },
-  section: { marginBottom: 16 },
-  sectionTitle: { fontSize: 11, fontWeight: 700, color: '#000000', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryText: { textAlign: 'justify', color: '#000000' },
-  skillsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  skillText: { padding: '2 6', backgroundColor: '#e2e8f0', borderRadius: 4, fontSize: 9, color: '#000000', fontWeight: 700 },
-  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 },
-  entryTitle: { fontWeight: 700, fontSize: 10, color: '#000000' },
-  entrySubtitle: { color: '#000000', fontSize: 9, fontWeight: 700 },
-  entryDates: { fontSize: 9, color: '#000000', fontWeight: 700 },
-  entryDescription: { marginTop: 3, marginBottom: 8, textAlign: 'justify', color: '#000000' },
-  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#6b7280' },
+  divider: { borderBottomWidth: 0.5, borderBottomColor: '#000000', marginVertical: 10 },
+  section: { marginBottom: 18 },
+  sectionTitle: { fontSize: 12, fontWeight: 700, color: '#000000', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.8 },
+  summaryText: { textAlign: 'justify', color: '#000000', lineHeight: 1.6 },
+  skillsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  skillText: { padding: '3 6', backgroundColor: '#f1f5f9', borderRadius: 4, fontSize: 9.5, color: '#000000', fontWeight: 600 },
+  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 },
+  entryTitle: { fontWeight: 700, fontSize: 11, color: '#000000' },
+  entrySubtitle: { color: '#000000', fontSize: 10, fontWeight: 600, marginBottom: 4 },
+  entryDates: { fontSize: 9.5, color: '#000000', fontWeight: 600 },
+  entryDescriptionWrapper: { marginTop: 4, marginBottom: 10 },
+  entryDescription: { color: '#000000', lineHeight: 1.6, textAlign: 'left' },
+  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#9ca3af' },
 })
 
 export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
@@ -73,7 +75,11 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                   {entry.subtitle && entry.subtitle.toLowerCase() !== entry.title?.toLowerCase() && (
                     <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>
                   )}
-                  {entry.description && <Text style={styles.entryDescription}>{entry.description}</Text>}
+                  {entry.description && (
+                    <View style={styles.entryDescriptionWrapper}>
+                      {renderDescription(entry.description, styles.entryDescription)}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -112,7 +118,11 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                     {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
                       <Text style={styles.entrySubtitle}>{work.company}</Text>
                     )}
-                    {work.description && <Text style={styles.entryDescription}>{work.description}</Text>}
+                    {work.description && (
+                      <View style={styles.entryDescriptionWrapper}>
+                        {renderDescription(work.description, styles.entryDescription)}
+                      </View>
+                    )}
                   </View>
                 ))}
               </View>
@@ -129,7 +139,11 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                         ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#2563eb' }}>{proj.name}</Link>
                         : <Text style={styles.entryTitle}>{proj.name}</Text>}
                     </View>
-                    {proj.description && <Text style={{ ...styles.entryDescription, marginTop: 2, marginBottom: 4 }}>{proj.description}</Text>}
+                    {proj.description && (
+                      <View style={styles.entryDescriptionWrapper}>
+                        {renderDescription(proj.description, styles.entryDescription)}
+                      </View>
+                    )}
                   </View>
                 ))}
               </View>

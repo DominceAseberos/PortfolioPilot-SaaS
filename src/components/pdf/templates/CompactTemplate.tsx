@@ -1,37 +1,39 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
+import { renderDescription } from './pdfUtils'
 import './fonts'
 
 const HEADER_BG = '#0f172a'
-const ACCENT = '#38bdf8' // sky-400
+const ACCENT = '#0284c7' // slightly deeper sky blue
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Inter', fontSize: 9, color: '#000000', lineHeight: 1.45, backgroundColor: '#ffffff' },
+  page: { fontFamily: 'Inter', fontSize: 9.5, color: '#000000', lineHeight: 1.45, backgroundColor: '#ffffff' },
   // Header bar
-  header: { backgroundColor: HEADER_BG, padding: '20 30 16 30' },
-  name: { fontSize: 20, fontWeight: 700, color: '#ffffff', marginBottom: 3 },
-  tagline: { fontSize: 9, color: ACCENT, marginBottom: 8, letterSpacing: 0.5 },
+  header: { backgroundColor: HEADER_BG, padding: '24 32 20 32' },
+  name: { fontSize: 22, fontWeight: 700, color: '#ffffff', marginBottom: 4 },
+  tagline: { fontSize: 10, color: '#7dd3fc', marginBottom: 10, letterSpacing: 0.5 },
   contactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  contactItem: { fontSize: 8, color: '#94a3b8' },
+  contactItem: { fontSize: 8.5, color: '#94a3b8' },
   // Body
-  body: { padding: '14 30' },
-  twoCol: { flexDirection: 'row', gap: 16 },
-  colLeft: { width: '62%' },
-  colRight: { width: '38%' },
-  section: { marginBottom: 12 },
-  sectionTitle: { fontSize: 8, fontWeight: 700, color: HEADER_BG, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, borderLeftWidth: 2, borderLeftColor: ACCENT, paddingLeft: 6 },
-  divider: { borderBottomWidth: 0.5, borderBottomColor: '#e2e8f0', marginBottom: 6 },
+  body: { padding: '20 32' },
+  twoCol: { flexDirection: 'row', gap: 20 },
+  colLeft: { width: '64%' },
+  colRight: { width: '36%' },
+  section: { marginBottom: 14 },
+  sectionTitle: { fontSize: 10, fontWeight: 700, color: HEADER_BG, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: ACCENT, paddingLeft: 8 },
+  divider: { borderBottomWidth: 0.5, borderBottomColor: '#cbd5e1', marginBottom: 8 },
   entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  entryTitle: { fontWeight: 700, fontSize: 9, color: '#0f172a' },
-  entrySubtitle: { color: '#000000', fontSize: 8.5, fontWeight: 700 },
-  entryDates: { fontSize: 7.5, color: '#000000', fontWeight: 700 },
-  entryDesc: { marginTop: 2, marginBottom: 6, color: '#000000', lineHeight: 1.5 },
+  entryTitle: { fontWeight: 700, fontSize: 10, color: '#0f172a' },
+  entrySubtitle: { color: '#000000', fontSize: 9, fontWeight: 600 },
+  entryDates: { fontSize: 8.5, color: '#475569', fontWeight: 600 },
+  entryDescriptionWrapper: { marginTop: 3, marginBottom: 8 },
+  entryDesc: { color: '#000000', lineHeight: 1.5, textAlign: 'left' },
   summaryText: { color: '#000000', lineHeight: 1.55, textAlign: 'justify' },
-  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
-  skillTag: { fontSize: 7.5, backgroundColor: '#e2e8f0', padding: '2 5', borderRadius: 2, color: '#000000', fontWeight: 700, borderWidth: 0.5, borderColor: '#cbd5e1' },
-  eduEntry: { marginBottom: 7 },
-  footer: { position: 'absolute', bottom: 18, right: 30, fontSize: 7, color: '#cbd5e1' },
+  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  skillTag: { fontSize: 8.5, backgroundColor: '#f1f5f9', padding: '3 6', borderRadius: 3, color: '#000000', fontWeight: 600, borderWidth: 0.5, borderColor: '#cbd5e1' },
+  eduEntry: { marginBottom: 8 },
+  footer: { position: 'absolute', bottom: 18, right: 32, fontSize: 7, color: '#cbd5e1' },
 })
 
 export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
@@ -100,7 +102,11 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                           {entry.subtitle && entry.subtitle.toLowerCase() !== entry.title?.toLowerCase() && (
                             <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>
                           )}
-                          {entry.description && <Text style={{ ...styles.entryDesc, marginTop: 2 }}>{entry.description}</Text>}
+                          {entry.description && (
+                            <View style={styles.entryDescriptionWrapper}>
+                              {renderDescription(entry.description, styles.entryDesc)}
+                            </View>
+                          )}
                         </View>
                       ))}
                     </View>
@@ -160,7 +166,11 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                           {work.company && work.company.toLowerCase() !== work.role?.toLowerCase() && (
                             <Text style={styles.entrySubtitle}>{work.company}</Text>
                           )}
-                          {work.description && <Text style={styles.entryDesc}>{work.description}</Text>}
+                          {work.description && (
+                            <View style={styles.entryDescriptionWrapper}>
+                              {renderDescription(work.description, styles.entryDesc)}
+                            </View>
+                          )}
                         </View>
                       ))}
                     </View>
@@ -177,7 +187,11 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                               ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{proj.name}</Link>
                               : <Text style={styles.entryTitle}>{proj.name}</Text>}
                           </View>
-                          {proj.description && <Text style={{ ...styles.entryDesc, marginTop: 2 }}>{proj.description}</Text>}
+                          {proj.description && (
+                            <View style={styles.entryDescriptionWrapper}>
+                              {renderDescription(proj.description, styles.entryDesc)}
+                            </View>
+                          )}
                         </View>
                       ))}
                     </View>
