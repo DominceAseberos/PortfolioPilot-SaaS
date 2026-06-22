@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { originalSections, missingSkills, missingProjects } = body
+    const { originalSections, githubRepos, githubUsername } = body
 
     if (!originalSections) {
       return NextResponse.json({ error: 'Missing originalSections' }, { status: 400 })
@@ -20,8 +20,8 @@ export async function POST(req: Request) {
 
     const enhancedSections = await generateImprovedResumeContent(
       originalSections,
-      missingSkills || [],
-      missingProjects || []
+      githubRepos || [],
+      githubUsername
     )
 
     return NextResponse.json({ sections: enhancedSections })

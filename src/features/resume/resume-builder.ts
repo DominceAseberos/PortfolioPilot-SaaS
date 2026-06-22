@@ -35,42 +35,19 @@ export async function buildImprovedResume(
     }
   })
 
-  // 2. Extract new enhancements from GitHub (if not isolated)
-  const githubLanguages = isGithubIsolated
-    ? []
-    : Array.from(
-        new Set((githubAnalysis?.details?.repos ?? []).filter(r => r.language).map(r => r.language as string))
-      ).filter(lang => !existingSkillNames.has(lang.toLowerCase()))
+  // 2. Delegate Enhancement to AI Layer 3
+  const rawRepos = isGithubIsolated ? [] : (githubAnalysis?.details?.repos ?? [])
 
-  const newProjects = isGithubIsolated
-    ? []
-    : (githubAnalysis?.details?.repos ?? [])
-        .filter(r => r.stars > 0 && !resumeProjectNames.has(r.name.toLowerCase()))
-        .sort((a, b) => b.stars - a.stars)
-        .slice(0, 3)
-        .map(r => ({
-          title: r.name,
-          subtitle: 'Open Source Contribution',
-          link: githubUsername ? `https://github.com/${githubUsername}/${r.name}` : '',
-          description:
-            r.aiResumeDescription ||
-            r.description ||
-            r.readmeSummary ||
-            `${r.language ?? 'Open source'} project with ${r.stars} stars`,
-          isEnhanced: true,
-        }))
-
-  // 3. Delegate Enhancement to AI Layer 3
   let enhancedSections = originalSections
-  if (githubLanguages.length > 0 || newProjects.length > 0) {
+  if (rawRepos.length > 0 || originalSections.length > 0) {
     try {
       const response = await fetch('/api/resume/improve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           originalSections,
-          missingSkills: githubLanguages.slice(0, 5),
-          missingProjects: newProjects
+          githubRepos: rawRepos,
+          githubUsername
         })
       })
       if (response.ok) {

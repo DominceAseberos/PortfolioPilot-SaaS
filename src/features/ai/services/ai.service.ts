@@ -40,7 +40,7 @@ export async function analyzeResumeWithAI(text: string, scrapedContext?: string)
   try {
     // LAYER 1: STRICT EXTRACTION & STANDARDIZATION
     const extractResponse = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'system',
@@ -65,14 +65,14 @@ Return this EXACT structure ONLY:
       "text": "Extracted paragraph for text sections",
       "items": ["item1", "item2"], 
       "entries": [{"title": "Role/Project", "subtitle": "Company", "dates": "...", "description": "..."}],
-      "acceptsAIImprovements": true // True ONLY for Skills or Projects!
+      "acceptsAIImprovements": true // True ONLY for sections containing skills, technical proficiencies, projects, or open source work!
     }
   ],
   "predictedSeniority": "Junior | Mid-Level | Senior | Lead | Executive",
   "tone": "Confident | Passive | Action-Oriented | Vague"
 }
 
-If the resume lacks 'Projects' or 'Skills', create an empty placeholder section for it (items: []), set acceptsAIImprovements: true. Use null for missing fields.`,
+If the resume lacks any technical skills or projects section, create empty placeholder sections for them (e.g. "Skills" with type "list" and "Projects" with type "entries") and set acceptsAIImprovements: true. Use null for missing fields.`,
         },
         {
           role: 'user',
@@ -90,7 +90,7 @@ If the resume lacks 'Projects' or 'Skills', create an empty placeholder section 
 
     // LAYER 2: DEEP ANALYSIS & SCORING
     const analyzeResponse = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'system',
@@ -140,62 +140,195 @@ Strengths, weaknesses, and recommendations should be highly personalized to the 
   }
 }
 
-export async function generateImprovedResumeContent(
-  originalSections: DynamicSection[],
-  missingSkills: string[],
-  missingProjects: { name: string; description: string; link?: string }[]
-): Promise<DynamicSection[]> {
-  const client = createClient()
-  if (!client) return originalSections
-
+async function extractAndMergeSkills(client: OpenAI, currentSections: DynamicSection[], githubRepos: any[]): Promise<DynamicSection | null> {
   try {
+    const existingSkillsSection = currentSections.find(s => s.type === 'list' && s.acceptsAIImprovements)
+      || currentSections.find(s => s.type === 'list' && (s.title.toLowerCase().includes('skill') || s.title.toLowerCase().includes('tech')))
+
     const response = await client.chat.completions.create({
       model: 'llama-3.1-8b-instant',
       messages: [
         {
           role: 'system',
-          content: `You are an expert resume writer. I am providing you with the user's current resume sections as JSON, along with a list of missing skills and projects from their GitHub/Portfolio that should be added.
-
-YOUR JOB:
-1. Seamlessly integrate the missing skills into the existing "Skills" section (type: 'list'). If none exists, create one.
-2. Weave the missing projects into the existing "Projects" or "Experience" section (type: 'entries'). Make the descriptions sound professional and use action verbs.
-3. Improve the tone and impact of existing weak bullet points across all entries.
-4. Return the fully updated sections array.
-
-Return ONLY JSON matching this EXACT structure:
+          content: `You are an expert technical resume writer. Your job is to extract new technical skills from the provided GitHub repositories and merge them seamlessly into the user's existing Skills section. If no Skills section is provided, create a new one from scratch based on the GitHub data.
+          
+CRITICAL RULES:
+1. Do NOT delete or drop ANY of the user's original skills.
+2. Deduplicate similar skills (e.g., "React.js" and "React").
+3. Return ONLY a JSON object representing the single updated Skills section matching this schema:
 {
-  "sections": [
-    {
-      "title": "Header Name",
-      "type": "text | list | entries",
-      "text": "...",
-      "items": ["..."],
-      "entries": [{"title": "...", "subtitle": "...", "dates": "...", "description": "..."}]
-    }
-  ]
+  "title": "Skills (or original title)",
+  "type": "list",
+  "items": ["Skill 1", "Skill 2"],
+  "acceptsAIImprovements": true
 }`
         },
         {
           role: 'user',
-          content: JSON.stringify({
-            currentSections: originalSections,
-            missingSkillsToAdd: missingSkills,
-            missingProjectsToAdd: missingProjects
+          content: JSON.stringify({ existingSkillsSection, githubRepositories: githubRepos }, null, 2)
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 1500,
+      response_format: { type: 'json_object' }
+    })
+    
+    const content = response.choices?.[0]?.message?.content
+    if (!content) return null
+    return JSON.parse(content)
+  } catch (error) {
+    logger.error('extractAndMergeSkills failed', { error: String(error) })
+    return null
+  }
+}
+
+async function weaveProjects(client: OpenAI, currentSections: DynamicSection[], githubRepos: any[], githubUsername?: string): Promise<DynamicSection | null> {
+  try {
+    const existingProjectsSection = currentSections.find(s => s.type === 'entries' && s.acceptsAIImprovements)
+      || currentSections.find(s => s.type === 'entries' && (s.title.toLowerCase().includes('project') || s.title.toLowerCase().includes('open source') || s.title.toLowerCase().includes('experience')))
+
+    const response = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert technical resume writer. Your job is to weave impressive GitHub repositories into the user's existing Projects or Experience section. If no Projects section is provided, create a new one from scratch based on the GitHub data.
+
+CRITICAL RULES:
+1. DO NOT overwrite, delete, or drop ANY of the user's original project or experience entries.
+2. Select the most impressive GitHub repos (e.g., high stars, relevant tech) and create new, highly professional action-oriented entries for them.
+3. Use the subtitle "Open Source Contribution" for new GitHub entries if appropriate.
+4. Improve the tone and impact of existing weak bullet points across all entries, but DO NOT drop or lose any existing entries.
+5. Return ONLY a JSON object representing the single updated Projects/Experience section matching this schema:
+{
+  "title": "Projects (or original title)",
+  "type": "entries",
+  "entries": [{"title": "...", "subtitle": "...", "dates": "...", "description": "...", "link": "..."}],
+  "acceptsAIImprovements": true
+}`
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({ 
+            existingProjectsSection, 
+            githubRepositories: githubRepos,
+            githubProfileUrl: githubUsername ? `https://github.com/${githubUsername}` : undefined
           }, null, 2)
         }
       ],
-      temperature: 0.3,
-      max_tokens: 3000,
+      temperature: 0.2,
+      max_tokens: 2500,
       response_format: { type: 'json_object' }
     })
 
     const content = response.choices?.[0]?.message?.content
-    if (!content) return originalSections
-
-    const parsed = JSON.parse(content)
-    return Array.isArray(parsed.sections) ? parsed.sections : originalSections
+    if (!content) return null
+    return JSON.parse(content)
   } catch (error) {
-    logger.error('AI improved resume generation failed', { error: String(error) })
+    logger.error('weaveProjects failed', { error: String(error) })
+    return null
+  }
+}
+
+async function generateProfessionalSummary(client: OpenAI, skillsSection: DynamicSection | null, projectsSection: DynamicSection | null, githubRepos: any[]): Promise<DynamicSection | null> {
+  try {
+    const response = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert technical resume writer. Your job is to write a highly professional, concise 3-sentence summary (profile) for the candidate.
+          
+CRITICAL RULES:
+1. Base the summary tightly around their technical skills and project history.
+2. Sound confident, action-oriented, and impactful.
+3. Return ONLY a JSON object representing the Summary section matching this schema:
+{
+  "title": "Professional Summary",
+  "type": "text",
+  "text": "..."
+}`
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({ skillsSection, projectsSection, rawGithubRepos: githubRepos.length }, null, 2)
+        }
+      ],
+      temperature: 0.4,
+      max_tokens: 1000,
+      response_format: { type: 'json_object' }
+    })
+
+    const content = response.choices?.[0]?.message?.content
+    if (!content) return null
+    return JSON.parse(content)
+  } catch (error) {
+    logger.error('generateProfessionalSummary failed', { error: String(error) })
+    return null
+  }
+}
+
+export async function generateImprovedResumeContent(
+  originalSections: DynamicSection[],
+  githubRepos: any[],
+  githubUsername?: string
+): Promise<DynamicSection[]> {
+  const client = createClient()
+  if (!client) return originalSections
+
+  try {
+    // 1. Run Skills Extraction and Project Weaving in PARALLEL
+    const [newSkillsSection, newProjectsSection] = await Promise.all([
+      extractAndMergeSkills(client, originalSections, githubRepos),
+      weaveProjects(client, originalSections, githubRepos, githubUsername)
+    ])
+
+    // 2. Generate the Summary based on the newly merged data
+    const skillsForSummary = newSkillsSection || originalSections.find(s => s.type === 'list' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('skill'))) || null
+    const projectsForSummary = newProjectsSection || originalSections.find(s => s.type === 'entries' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('project') || s.title.toLowerCase().includes('experience'))) || null
+    const newSummarySection = await generateProfessionalSummary(client, skillsForSummary, projectsForSummary, githubRepos)
+
+    // 3. Orchestrate the final sections array
+    let finalSections: DynamicSection[] = []
+
+    // Preserve summary at top
+    if (newSummarySection && newSummarySection.text) {
+      finalSections.push(newSummarySection)
+    } else {
+      const oldSummary = originalSections.find(s => s.type === 'text' && s.title.toLowerCase().includes('summary'))
+      if (oldSummary) finalSections.push(oldSummary)
+    }
+
+    let pushedSkills = false
+    let pushedProjects = false
+
+    // Add remaining original sections, replacing Skills and Projects with our newly generated ones
+    for (const section of originalSections) {
+      if (section.type === 'text' && section.title.toLowerCase().includes('summary')) {
+        continue // handled above
+      }
+      
+      const isSkillsTarget = section.type === 'list' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('skill') || section.title.toLowerCase().includes('tech'))
+      const isProjectsTarget = section.type === 'entries' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('project') || section.title.toLowerCase().includes('experience') || section.title.toLowerCase().includes('open source'))
+
+      if (isSkillsTarget && newSkillsSection && !pushedSkills) {
+        finalSections.push(newSkillsSection)
+        pushedSkills = true
+      } else if (isProjectsTarget && newProjectsSection && !pushedProjects) {
+        finalSections.push(newProjectsSection)
+        pushedProjects = true
+      } else {
+        finalSections.push(section)
+      }
+    }
+
+    // If new sections were generated but not inserted (because original sections lacked targets), append them
+    if (newSkillsSection && !pushedSkills) finalSections.push(newSkillsSection)
+    if (newProjectsSection && !pushedProjects) finalSections.push(newProjectsSection)
+
+    return finalSections
+  } catch (error) {
+    logger.error('AI improved resume generation pipeline failed', { error: String(error) })
     return originalSections
   }
 }
