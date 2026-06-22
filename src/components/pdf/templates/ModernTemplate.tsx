@@ -128,6 +128,14 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                 {section.type === 'text' && section.text && (
                   <Text style={styles.summaryText}>{section.text}</Text>
                 )}
+
+                {section.type === 'list' && section.items && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                    {section.items.map((item, i) => (
+                      <Text key={i} style={{ backgroundColor: '#f1f5f9', padding: '3 6', borderRadius: 4, fontSize: 8.5, color: '#000000', fontWeight: 600 }}>{item}</Text>
+                    ))}
+                  </View>
+                )}
                 
                 {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
                   <View key={i} style={{ marginBottom: 10 }} wrap={false}>

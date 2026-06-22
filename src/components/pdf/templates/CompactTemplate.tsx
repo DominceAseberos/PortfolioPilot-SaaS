@@ -85,7 +85,14 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                     <View key={`left-${idx}`} style={styles.section}>
                       <Text style={styles.sectionTitle}>{section.title}</Text>
                       <View style={styles.divider} />
-                      
+                      {section.type === 'list' && section.items && (
+                        <View style={styles.skillsRow}>
+                          {section.items.map((item, i) => (
+                            <Text key={i} style={styles.skillTag}>{item}</Text>
+                          ))}
+                        </View>
+                      )}
+
                       {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
                         <View key={i} style={{ marginBottom: 8 }} wrap={false}>
                           <View style={styles.entryHeader}>

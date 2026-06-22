@@ -32,7 +32,7 @@ export function renderDescription(text: string | undefined, textStyle?: any, bul
     if (isBullet) {
       const cleanLine = line.replace(/^[•\-\*]\s*/, '')
       return (
-        <View key={i} style={utilStyles.bulletRow}>
+        <View key={i} style={utilStyles.bulletRow} wrap={false}>
           <Text style={[{ color: bulletColor }, textStyle, utilStyles.bulletPoint]}>•</Text>
           <Text style={[textStyle, utilStyles.bulletContent]}>{cleanLine}</Text>
         </View>
@@ -40,7 +40,7 @@ export function renderDescription(text: string | undefined, textStyle?: any, bul
     }
     
     return (
-      <Text key={i} style={[textStyle, utilStyles.paragraph]}>
+      <Text key={i} style={[textStyle, utilStyles.paragraph]} wrap={false}>
         {line}
       </Text>
     )
