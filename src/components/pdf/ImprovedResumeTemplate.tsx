@@ -67,10 +67,11 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: 700,
-    marginBottom: 8,
+    marginBottom: 16,
     color: '#000000',
+    lineHeight: 1.1,
   },
-  contactRow: { textAlign: 'center', fontSize: 9, color: '#111827' },
+  contactRow: { textAlign: 'center', fontSize: 9, color: '#111827', marginTop: 4 },
   contactItem: {
     textDecoration: 'none',
     color: '#111827',

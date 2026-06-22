@@ -7,8 +7,8 @@ import './fonts'
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.3 },
   header: { marginBottom: 24, textAlign: 'center' },
-  name: { fontSize: 26, fontWeight: 700, marginBottom: 6, color: '#000000' },
-  contactRow: { textAlign: 'center', fontSize: 9.5, color: '#000000' },
+  name: { fontSize: 26, fontWeight: 700, marginBottom: 16, color: '#000000', lineHeight: 1.1 },
+  contactRow: { textAlign: 'center', fontSize: 9.5, color: '#000000', marginTop: 4 },
   contactItem: { textDecoration: 'none', color: '#000000' },
   divider: { borderBottomWidth: 0.5, borderBottomColor: '#000000', marginVertical: 10 },
   section: { marginBottom: 18 },

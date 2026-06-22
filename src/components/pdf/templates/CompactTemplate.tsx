@@ -11,9 +11,9 @@ const styles = StyleSheet.create({
   page: { fontFamily: 'Inter', fontSize: 9.5, color: '#000000', lineHeight: 1.3, backgroundColor: '#ffffff' },
   // Header bar
   header: { backgroundColor: HEADER_BG, padding: '24 32 20 32' },
-  name: { fontSize: 22, fontWeight: 700, color: '#ffffff', marginBottom: 4 },
-  tagline: { fontSize: 10, color: '#7dd3fc', marginBottom: 10, letterSpacing: 0.5 },
-  contactRow: { fontSize: 8.5, color: '#94a3b8' },
+  name: { fontSize: 22, fontWeight: 700, color: '#ffffff', marginBottom: 12, lineHeight: 1.1 },
+  tagline: { fontSize: 10, color: '#7dd3fc', marginBottom: 14, letterSpacing: 0.5 },
+  contactRow: { fontSize: 8.5, color: '#94a3b8', marginTop: 4, lineHeight: 1.3 },
   contactItem: { fontSize: 8.5, color: '#94a3b8' },
   // Body
   body: { padding: '20 32' },
