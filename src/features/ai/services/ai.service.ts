@@ -195,11 +195,12 @@ async function weaveProjects(client: OpenAI, currentSections: DynamicSection[], 
           content: `You are an expert technical resume writer. Your job is to weave impressive GitHub repositories into the user's existing Projects or Experience section. If no Projects section is provided, create a new one from scratch based on the GitHub data.
 
 CRITICAL RULES:
-1. DO NOT overwrite, delete, or drop ANY of the user's original project or experience entries.
-2. Select the most impressive GitHub repos (e.g., high stars, relevant tech) and create new, highly professional action-oriented entries for them.
-3. Use the subtitle "Open Source Contribution" for new GitHub entries if appropriate.
-4. Improve the tone and impact of existing weak bullet points across all entries, but DO NOT drop or lose any existing entries.
-5. Return ONLY a JSON object representing the single updated Projects/Experience section matching this schema:
+1. DEDUPLICATION: Cross-reference the GitHub repositories with the ORIGINAL PROJECTS. If a GitHub repo represents a project that is ALREADY in the original entries (matching by name or content), DO NOT create a new duplicate entry. Instead, elegantly update and improve the EXISTING entry's description with the new GitHub details (like technologies used, stars, links).
+2. DO NOT overwrite, delete, or drop ANY of the user's original project or experience entries.
+3. Select the most impressive NEW GitHub repos (e.g., high stars, relevant tech) and create new, highly professional action-oriented entries for them ONLY IF they are not already in the original projects.
+4. Use the subtitle "Open Source Contribution" for new GitHub entries if appropriate.
+5. Improve the tone and impact of existing weak bullet points across all entries.
+6. Return ONLY a JSON object representing the single updated Projects/Experience section matching this schema:
 {
   "title": "Projects (or original title)",
   "type": "entries",

@@ -13,7 +13,7 @@ const styles = StyleSheet.create({
   header: { backgroundColor: HEADER_BG, padding: '24 32 20 32' },
   name: { fontSize: 22, fontWeight: 700, color: '#ffffff', marginBottom: 4 },
   tagline: { fontSize: 10, color: '#7dd3fc', marginBottom: 10, letterSpacing: 0.5 },
-  contactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  contactRow: { fontSize: 8.5, color: '#94a3b8' },
   contactItem: { fontSize: 8.5, color: '#94a3b8' },
   // Body
   body: { padding: '20 32' },
@@ -62,14 +62,9 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
         <View style={styles.header}>
           <Text style={styles.name}>{data.name || 'Your Name'}</Text>
           {topRole && <Text style={styles.tagline}>{topRole}</Text>}
-          <View style={styles.contactRow}>
-            {contactParts.map((part, i) => (
-              <React.Fragment key={i}>
-                <Text style={styles.contactItem}>{part}</Text>
-                {i < contactParts.length - 1 && <Text style={styles.contactItem}>|</Text>}
-              </React.Fragment>
-            ))}
-          </View>
+          <Text style={styles.contactRow}>
+            {contactParts.join('  |  ')}
+          </Text>
         </View>
 
         <View style={styles.body}>
@@ -92,7 +87,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       <View style={styles.divider} />
                       
                       {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                        <View key={i} style={{ marginBottom: 8 }}>
+                        <View key={i} style={{ marginBottom: 8 }} wrap={false}>
                           <View style={styles.entryHeader}>
                             {entry.link && /^https?:\/\//.test(entry.link)
                               ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{entry.title}</Link>
@@ -129,7 +124,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       )}
 
                       {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                        <View key={i} style={styles.eduEntry}>
+                        <View key={i} style={styles.eduEntry} wrap={false}>
                           <Text style={styles.entryTitle}>{entry.title}</Text>
                           {entry.subtitle && <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>}
                           {entry.dates && <Text style={styles.entryDates}>{entry.dates}</Text>}
@@ -158,7 +153,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       <Text style={styles.sectionTitle}>Experience</Text>
                       <View style={styles.divider} />
                       {(data.workEntries || []).map((work, i) => (
-                        <View key={i} style={{ marginBottom: 8 }}>
+                        <View key={i} style={{ marginBottom: 8 }} wrap={false}>
                           <View style={styles.entryHeader}>
                             <Text style={styles.entryTitle}>{work.role}</Text>
                             <Text style={styles.entryDates}>{work.dates}</Text>
@@ -181,7 +176,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       <Text style={styles.sectionTitle}>Projects</Text>
                       <View style={styles.divider} />
                       {(data.projects || []).map((proj, i) => (
-                        <View key={i} style={{ marginBottom: 7 }}>
+                        <View key={i} style={{ marginBottom: 7 }} wrap={false}>
                           <View style={styles.entryHeader}>
                             {proj.link && /^https?:\/\//.test(proj.link)
                               ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{proj.name}</Link>
@@ -216,7 +211,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                       <Text style={styles.sectionTitle}>Education</Text>
                       <View style={styles.divider} />
                       {(data.education || []).map((edu, i) => (
-                        <View key={i} style={styles.eduEntry}>
+                        <View key={i} style={styles.eduEntry} wrap={false}>
                           <Text style={styles.entryTitle}>{edu.degree}</Text>
                           {edu.school && <Text style={styles.entrySubtitle}>{edu.school}</Text>}
                           {edu.dates && <Text style={styles.entryDates}>{edu.dates}</Text>}

@@ -8,7 +8,7 @@ const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.3 },
   header: { marginBottom: 24, textAlign: 'center' },
   name: { fontSize: 26, fontWeight: 700, marginBottom: 6, color: '#000000' },
-  contactRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8, fontSize: 9.5, color: '#000000' },
+  contactRow: { textAlign: 'center', fontSize: 9.5, color: '#000000' },
   contactItem: { textDecoration: 'none', color: '#000000' },
   divider: { borderBottomWidth: 0.5, borderBottomColor: '#000000', marginVertical: 10 },
   section: { marginBottom: 18 },
@@ -38,14 +38,9 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.name}>{data.name || 'Your Name'}</Text>
-          <View style={styles.contactRow}>
-            {contactParts.map((part, i) => (
-              <React.Fragment key={i}>
-                <Text style={styles.contactItem}>{part.replace(/^https?:\/\//, '')}</Text>
-                {i < contactParts.length - 1 && <Text> • </Text>}
-              </React.Fragment>
-            ))}
-          </View>
+          <Text style={styles.contactRow}>
+            {contactParts.map(p => p.replace(/^https?:\/\//, '')).join(' • ')}
+          </Text>
         </View>
 
         {data.sections && data.sections.length > 0 ? (
@@ -65,7 +60,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
               )}
               
               {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                <View key={i} style={{ marginBottom: 10 }}>
+                <View key={i} style={{ marginBottom: 10 }} wrap={false}>
                   <View style={styles.entryHeader}>
                     {entry.link && /^https?:\/\//.test(entry.link)
                       ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#2563eb' }}>{entry.title}</Link>
@@ -110,7 +105,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                 <Text style={styles.sectionTitle}>Experience</Text>
                 <View style={styles.divider} />
                 {(data.workEntries || []).map((work, i) => (
-                  <View key={i} style={{ marginBottom: 10 }}>
+                  <View key={i} style={{ marginBottom: 10 }} wrap={false}>
                     <View style={styles.entryHeader}>
                       <Text style={styles.entryTitle}>{work.role || 'Role Title'}</Text>
                       <Text style={styles.entryDates}>{work.dates}</Text>
@@ -133,7 +128,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                 <Text style={styles.sectionTitle}>Projects</Text>
                 <View style={styles.divider} />
                 {(data.projects || []).map((proj, i) => (
-                  <View key={i} style={{ marginBottom: 8 }}>
+                  <View key={i} style={{ marginBottom: 8 }} wrap={false}>
                     <View style={styles.entryHeader}>
                       {proj.link && /^https?:\/\//.test(proj.link)
                         ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#2563eb' }}>{proj.name}</Link>
@@ -154,7 +149,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                 <Text style={styles.sectionTitle}>Education</Text>
                 <View style={styles.divider} />
                 {(data.education || []).map((edu, i) => (
-                  <View key={i} style={{ marginBottom: 8 }}>
+                  <View key={i} style={{ marginBottom: 8 }} wrap={false}>
                     <View style={styles.entryHeader}>
                       <Text style={styles.entryTitle}>{edu.degree}</Text>
                       <Text style={styles.entryDates}>{edu.dates}</Text>
