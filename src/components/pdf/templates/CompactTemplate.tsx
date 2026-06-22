@@ -8,7 +8,7 @@ const HEADER_BG = '#0f172a'
 const ACCENT = '#0284c7' // slightly deeper sky blue
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Inter', fontSize: 9.5, color: '#000000', lineHeight: 1.45, backgroundColor: '#ffffff' },
+  page: { fontFamily: 'Inter', fontSize: 9.5, color: '#000000', lineHeight: 1.3, backgroundColor: '#ffffff' },
   // Header bar
   header: { backgroundColor: HEADER_BG, padding: '24 32 20 32' },
   name: { fontSize: 22, fontWeight: 700, color: '#ffffff', marginBottom: 4 },
@@ -28,8 +28,8 @@ const styles = StyleSheet.create({
   entrySubtitle: { color: '#000000', fontSize: 9, fontWeight: 600 },
   entryDates: { fontSize: 8.5, color: '#475569', fontWeight: 600 },
   entryDescriptionWrapper: { marginTop: 3, marginBottom: 8 },
-  entryDesc: { color: '#000000', lineHeight: 1.5, textAlign: 'left' },
-  summaryText: { color: '#000000', lineHeight: 1.55, textAlign: 'justify' },
+  entryDesc: { color: '#000000', lineHeight: 1.3, textAlign: 'left' },
+  summaryText: { color: '#000000', lineHeight: 1.3, textAlign: 'justify' },
   skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   skillTag: { fontSize: 8.5, backgroundColor: '#f1f5f9', padding: '3 6', borderRadius: 3, color: '#000000', fontWeight: 600, borderWidth: 0.5, borderColor: '#cbd5e1' },
   eduEntry: { marginBottom: 8 },

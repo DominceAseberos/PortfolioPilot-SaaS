@@ -10,14 +10,14 @@ const SIDEBAR_TEXT = '#f8fafc'
 const SIDEBAR_MUTED = '#cbd5e1'
 
 const styles = StyleSheet.create({
-  page: { flexDirection: 'row', fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.5 },
+  page: { flexDirection: 'row', fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.3 },
   // Sidebar
   sidebar: { width: '35%', backgroundColor: SIDEBAR_BG, padding: '36 20', minHeight: '100%' },
   sidebarName: { fontSize: 20, fontWeight: 700, color: '#ffffff', marginBottom: 6, lineHeight: 1.2 },
   sidebarRole: { fontSize: 10, color: SIDEBAR_MUTED, marginBottom: 24, textTransform: 'uppercase', letterSpacing: 0.8 },
   sidebarSection: { marginBottom: 20 },
   sidebarSectionTitle: { fontSize: 9, fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 4 },
-  sidebarText: { fontSize: 9.5, color: SIDEBAR_TEXT, marginBottom: 5, lineHeight: 1.4 },
+  sidebarText: { fontSize: 9.5, color: SIDEBAR_TEXT, marginBottom: 5, lineHeight: 1.3 },
   sidebarMuted: { fontSize: 8.5, color: SIDEBAR_MUTED },
   skillPill: { backgroundColor: '#334155', padding: '4 8', borderRadius: 12, marginBottom: 6, marginRight: 6, fontSize: 8.5, color: '#ffffff' },
   skillRow: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -31,8 +31,8 @@ const styles = StyleSheet.create({
   entrySubtitle: { color: '#000000', fontSize: 10, marginBottom: 3, fontWeight: 600 },
   entryDates: { fontSize: 8.5, color: '#000000', backgroundColor: '#f1f5f9', padding: '2 6', borderRadius: 4, fontWeight: 600 },
   entryDescriptionWrapper: { marginTop: 4, marginBottom: 10 },
-  entryDescription: { color: '#000000', lineHeight: 1.6 },
-  summaryText: { color: '#000000', lineHeight: 1.6, textAlign: 'left' },
+  entryDescription: { color: '#000000', lineHeight: 1.3 },
+  summaryText: { color: '#000000', lineHeight: 1.3, textAlign: 'left' },
   footer: { position: 'absolute', bottom: 20, right: 24, fontSize: 7, color: '#94a3b8' },
 })
 

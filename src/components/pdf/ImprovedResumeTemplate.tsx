@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontSize: 10,
     color: '#000000',
-    lineHeight: 1.5,
+    lineHeight: 1.3,
   },
   header: {
     marginBottom: 20,
