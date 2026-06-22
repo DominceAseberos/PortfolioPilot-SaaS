@@ -7,7 +7,7 @@ const HEADER_BG = '#0f172a'
 const ACCENT = '#38bdf8' // sky-400
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Inter', fontSize: 9, color: '#1e293b', lineHeight: 1.45, backgroundColor: '#ffffff' },
+  page: { fontFamily: 'Inter', fontSize: 9, color: '#000000', lineHeight: 1.45, backgroundColor: '#ffffff' },
   // Header bar
   header: { backgroundColor: HEADER_BG, padding: '20 30 16 30' },
   name: { fontSize: 20, fontWeight: 700, color: '#ffffff', marginBottom: 3 },
@@ -26,8 +26,8 @@ const styles = StyleSheet.create({
   entryTitle: { fontWeight: 700, fontSize: 9, color: '#0f172a' },
   entrySubtitle: { color: '#000000', fontSize: 8.5, fontWeight: 700 },
   entryDates: { fontSize: 7.5, color: '#000000', fontWeight: 700 },
-  entryDesc: { marginTop: 2, marginBottom: 6, color: '#111827', lineHeight: 1.5 },
-  summaryText: { color: '#111827', lineHeight: 1.55, textAlign: 'justify' },
+  entryDesc: { marginTop: 2, marginBottom: 6, color: '#000000', lineHeight: 1.5 },
+  summaryText: { color: '#000000', lineHeight: 1.55, textAlign: 'justify' },
   skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
   skillTag: { fontSize: 7.5, backgroundColor: '#e2e8f0', padding: '2 5', borderRadius: 2, color: '#000000', fontWeight: 700, borderWidth: 0.5, borderColor: '#cbd5e1' },
   eduEntry: { marginBottom: 7 },
