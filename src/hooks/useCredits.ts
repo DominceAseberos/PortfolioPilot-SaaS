@@ -44,28 +44,38 @@ export function useCredits(userId: string | undefined) {
       }
     })
 
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
     // Real-time subscription for credit deductions
-    const channel = supabase
-      .channel(`user-credits-${userId ?? 'pending'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_credits',
-          filter: userId ? `user_id=eq.${userId}` : undefined,
-        },
-        (payload) => {
-          if (payload.new && typeof payload.new.credits === 'number') {
-            setCredits(payload.new.credits)
+    if (userId) {
+      channel = supabase
+        .channel(`user-credits-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'user_credits',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            if (payload.new && typeof payload.new.credits === 'number') {
+              setCredits(payload.new.credits)
+            }
           }
-        }
-      )
-      .subscribe()
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.warn('Realtime subscription error. Polling or refresh required for credit updates.')
+          }
+        })
+    }
 
     return () => {
       subscription.unsubscribe()
-      supabase.removeChannel(channel)
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
     }
   }, [userId])
 

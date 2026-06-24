@@ -70,9 +70,11 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    const buffer = Buffer.from(await file.arrayBuffer())
+
     const { data, error } = await adminSupabase.storage
       .from('resumes')
-      .upload(path, file, {
+      .upload(path, buffer, {
         upsert: true,
         contentType: 'application/pdf',
       })
