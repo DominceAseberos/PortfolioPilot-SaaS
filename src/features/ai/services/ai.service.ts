@@ -269,20 +269,75 @@ CRITICAL RULES:
   }
 }
 
+async function extractExperienceFromPortfolio(client: OpenAI, portfolioMarkdown: string): Promise<DynamicSection | null> {
+  try {
+    const response = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert technical resume writer. Extract the candidate's work experience and education from the provided portfolio markdown.
+          
+CRITICAL RULES:
+1. Identify all job roles, companies, dates, and bullet points of their professional work experience.
+2. Formulate them into highly professional, action-oriented bullet points.
+3. If you find Education details, you may include an education entry as well, or just focus on work experience.
+4. Return ONLY a JSON object representing the Experience section matching this schema:
+{
+  "title": "Experience",
+  "type": "entries",
+  "entries": [{"title": "Role", "subtitle": "Company/Organization", "dates": "...", "description": "..."}],
+  "acceptsAIImprovements": true
+}
+If no work experience can be found in the portfolio, return null or an empty entries list.`
+        },
+        {
+          role: 'user',
+          content: portfolioMarkdown.slice(0, 15000)
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 2500,
+      response_format: { type: 'json_object' }
+    })
+    
+    const content = response.choices?.[0]?.message?.content
+    if (!content) return null
+    const parsed = JSON.parse(content)
+    if (!parsed || !Array.isArray(parsed.entries) || parsed.entries.length === 0) return null
+    return parsed
+  } catch (error) {
+    logger.error('extractExperienceFromPortfolio failed', { error: String(error) })
+    return null
+  }
+}
+
 export async function generateImprovedResumeContent(
   originalSections: DynamicSection[],
   githubRepos: any[],
-  githubUsername?: string
+  githubUsername?: string,
+  portfolioMarkdown?: string
 ): Promise<DynamicSection[]> {
   const client = createClient()
   if (!client) return originalSections
 
   try {
     // 1. Run Skills Extraction and Project Weaving in PARALLEL
-    const [newSkillsSection, newProjectsSection] = await Promise.all([
+    const promises = [
       extractAndMergeSkills(client, originalSections, githubRepos),
       weaveProjects(client, originalSections, githubRepos, githubUsername)
-    ])
+    ]
+    
+    let experiencePromise: Promise<DynamicSection | null> = Promise.resolve(null)
+    if (portfolioMarkdown && originalSections.length === 0) {
+       experiencePromise = extractExperienceFromPortfolio(client, portfolioMarkdown)
+    }
+
+    const [newSkillsSection, newProjectsSection, newExperienceSection] = await Promise.all([
+      promises[0],
+      promises[1],
+      experiencePromise
+    ]) as [DynamicSection | null, DynamicSection | null, DynamicSection | null]
 
     // 2. Generate the Summary based on the newly merged data
     const skillsForSummary = newSkillsSection || originalSections.find(s => s.type === 'list' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('skill'))) || null
@@ -324,8 +379,9 @@ export async function generateImprovedResumeContent(
     }
 
     // If new sections were generated but not inserted (because original sections lacked targets), append them
-    if (newSkillsSection && !pushedSkills) finalSections.push(newSkillsSection)
+    if (newExperienceSection) finalSections.push(newExperienceSection)
     if (newProjectsSection && !pushedProjects) finalSections.push(newProjectsSection)
+    if (newSkillsSection && !pushedSkills) finalSections.push(newSkillsSection)
 
     return finalSections
   } catch (error) {

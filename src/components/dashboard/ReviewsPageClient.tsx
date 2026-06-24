@@ -389,11 +389,12 @@ function StreamingChatBox({
     setIsGeneratingResume(true)
     try {
       const initialData = await buildImprovedResume(
-      resumeAnalysis?.details,
-      githubAnalysis,
-      mismatches,
-      portfolioUrl || undefined,
-      githubUsername || undefined
+        resumeAnalysis?.details,
+        githubAnalysis,
+        mismatches,
+        portfolioUrl || undefined,
+        githubUsername || undefined,
+        portfolioAnalysis?.details?.markdown || undefined
       )
 
       setResumeData(initialData)
@@ -1020,7 +1021,7 @@ function StreamingChatBox({
                    </div>
                  ) : (
                    <>
-                     {result.sourceBreakdown.resume && (
+                     {(result.sourceBreakdown.resume || result.sourceBreakdown.portfolio || result.sourceBreakdown.github) && (
                         <Button 
                           onClick={handleGenerateImprovedResume} 
                           disabled={isGeneratingResume}
@@ -1028,11 +1029,11 @@ function StreamingChatBox({
                         >
                           {isGeneratingResume ? (
                             <>
-                              <Loader2 className="w-4 h-4 animate-spin" /> Weaving new resume...
+                              <Loader2 className="w-4 h-4 animate-spin" /> {result.sourceBreakdown.resume ? 'Weaving new resume...' : 'Generating from scratch...'}
                             </>
                           ) : (
                             <>
-                              <Sparkles className="w-4 h-4" /> Generate Improved Resume
+                              <Sparkles className="w-4 h-4" /> {result.sourceBreakdown.resume ? 'Generate Improved Resume' : 'Generate Resume from Scratch'}
                             </>
                           )}
                         </Button>

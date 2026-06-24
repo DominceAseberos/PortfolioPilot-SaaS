@@ -6,7 +6,8 @@ export async function buildImprovedResume(
   githubAnalysis: GitHubAnalysis | null | undefined,
   mismatches: AIMismatch[] | null | undefined,
   portfolioUrl?: string,
-  githubUsername?: string
+  githubUsername?: string,
+  portfolioMarkdown?: string
 ): Promise<ImprovedResumeData> {
   const notAligned = mismatches ?? []
   const isGithubIsolated = notAligned.some(
@@ -47,7 +48,8 @@ export async function buildImprovedResume(
         body: JSON.stringify({
           originalSections,
           githubRepos: rawRepos,
-          githubUsername
+          githubUsername,
+          portfolioMarkdown
         })
       })
       if (response.ok) {
