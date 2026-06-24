@@ -388,14 +388,14 @@ function StreamingChatBox({
     
     setIsGeneratingResume(true)
     try {
-      const initialData = await buildImprovedResume(
-        resumeAnalysis?.details,
-        githubAnalysis,
-        mismatches,
-        portfolioUrl || undefined,
-        githubUsername || undefined,
-        portfolioAnalysis?.details?.markdown || undefined
-      )
+      const initialData = await buildImprovedResume({
+        details: resumeAnalysis?.details,
+        githubAnalysis: githubAnalysis,
+        mismatches: mismatches,
+        portfolioUrl: portfolioUrl || undefined,
+        githubUsername: githubUsername || undefined,
+        portfolioMarkdown: portfolioAnalysis?.details?.markdown || undefined
+      })
 
       setResumeData(initialData)
       setShowResumeModal(true)
@@ -511,6 +511,52 @@ function StreamingChatBox({
 
   const isDoneTyping = isHistory || (!isThinking && displayedText.length >= (result.normalFeedback?.summary ?? result.summary).length)
   const showStep = (step: number) => isHistory || (isDoneTyping && visibleStep >= step)
+
+  const renderActionButtons = () => {
+    return (
+      <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[600ms] mt-8 justify-center">
+         {isGuest || isGuestFallback ? (
+            <div className="flex flex-col items-center gap-3 text-center">
+             <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+               <Sparkles className="h-4 w-4 text-primary" />
+               Your analysis is complete! Create a free account or link an existing one to generate PDF reports and save your history.
+             </p>
+             <div className="flex gap-3">
+               <Button onClick={() => setShowAuthModal?.('register')} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/25">
+                 <Sparkles className="w-4 h-4" /> Create Free Account
+               </Button>
+               <Button variant="outline" onClick={() => setShowAuthModal?.('login')} className="gap-2">
+                 Link Existing Account
+               </Button>
+             </div>
+           </div>
+         ) : (
+           <>
+             {(result.sourceBreakdown.resume || result.sourceBreakdown.portfolio || result.sourceBreakdown.github) && (
+                <Button 
+                  onClick={handleGenerateImprovedResume} 
+                  disabled={isGeneratingResume}
+                  className="shadow-lg hover:scale-105 transition-transform bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+                >
+                  {isGeneratingResume ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> {result.sourceBreakdown.resume ? 'Weaving new resume...' : 'Generating from scratch...'}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" /> {result.sourceBreakdown.resume ? 'Generate Improved Resume' : 'Generate Resume from Scratch'}
+                    </>
+                  )}
+                </Button>
+             )}
+             <Button onClick={() => window.location.href = '/dashboard/reviews'} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2">
+               <RotateCcw className="w-4 h-4" /> New Analysis
+             </Button>
+           </>
+         )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1001,50 +1047,8 @@ function StreamingChatBox({
                </div>
             )}
             
-             {/* NEW: Action Buttons */}
-            {showStep(8) && (
-              <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[600ms] mt-8 justify-center">
-                 {isGuest || isGuestFallback ? (
-                    <div className="flex flex-col items-center gap-3 text-center">
-                     <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                       <Sparkles className="h-4 w-4 text-primary" />
-                       Your analysis is complete! Create a free account or link an existing one to generate PDF reports and save your history.
-                     </p>
-                     <div className="flex gap-3">
-                       <Button onClick={() => setShowAuthModal?.('register')} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/25">
-                         <Sparkles className="w-4 h-4" /> Create Free Account
-                       </Button>
-                       <Button variant="outline" onClick={() => setShowAuthModal?.('login')} className="gap-2">
-                         Link Existing Account
-                       </Button>
-                     </div>
-                   </div>
-                 ) : (
-                   <>
-                     {(result.sourceBreakdown.resume || result.sourceBreakdown.portfolio || result.sourceBreakdown.github) && (
-                        <Button 
-                          onClick={handleGenerateImprovedResume} 
-                          disabled={isGeneratingResume}
-                          className="shadow-lg hover:scale-105 transition-transform bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-                        >
-                          {isGeneratingResume ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" /> {result.sourceBreakdown.resume ? 'Weaving new resume...' : 'Generating from scratch...'}
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-4 h-4" /> {result.sourceBreakdown.resume ? 'Generate Improved Resume' : 'Generate Resume from Scratch'}
-                            </>
-                          )}
-                        </Button>
-                     )}
-                     <Button onClick={() => window.location.href = '/dashboard/reviews'} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2">
-                       <RotateCcw className="w-4 h-4" /> New Analysis
-                     </Button>
-                   </>
-                 )}
-              </div>
-            )}
+            {/* NEW: Action Buttons */}
+            {showStep(8) && renderActionButtons()}
         </div>
       </div>
 

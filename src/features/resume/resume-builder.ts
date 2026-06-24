@@ -1,14 +1,23 @@
 import { AIMismatch, GitHubAnalysis, ResumeDetails } from '../../types'
 import { DynamicSection, ImprovedResumeData } from '../../types/resume'
 
-export async function buildImprovedResume(
-  details: ResumeDetails | null | undefined,
-  githubAnalysis: GitHubAnalysis | null | undefined,
-  mismatches: AIMismatch[] | null | undefined,
-  portfolioUrl?: string,
-  githubUsername?: string,
+export interface BuildResumeOptions {
+  details: ResumeDetails | null | undefined
+  githubAnalysis: GitHubAnalysis | null | undefined
+  mismatches: AIMismatch[] | null | undefined
+  portfolioUrl?: string
+  githubUsername?: string
   portfolioMarkdown?: string
-): Promise<ImprovedResumeData> {
+}
+
+export async function buildImprovedResume({
+  details,
+  githubAnalysis,
+  mismatches,
+  portfolioUrl,
+  githubUsername,
+  portfolioMarkdown
+}: BuildResumeOptions): Promise<ImprovedResumeData> {
   const notAligned = mismatches ?? []
   const isGithubIsolated = notAligned.some(
     m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch')

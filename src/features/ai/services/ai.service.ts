@@ -312,6 +312,84 @@ If no work experience can be found in the portfolio, return null or an empty ent
   }
 }
 
+type EnhancedSections = {
+  skills: DynamicSection | null
+  projects: DynamicSection | null
+  experience: DynamicSection | null
+  summary: DynamicSection | null
+}
+
+async function fetchAIResumeEnhancements(
+  client: OpenAI,
+  originalSections: DynamicSection[],
+  githubRepos: any[],
+  githubUsername?: string,
+  portfolioMarkdown?: string
+): Promise<EnhancedSections> {
+  const promises = [
+    extractAndMergeSkills(client, originalSections, githubRepos),
+    weaveProjects(client, originalSections, githubRepos, githubUsername)
+  ]
+  
+  let experiencePromise: Promise<DynamicSection | null> = Promise.resolve(null)
+  if (portfolioMarkdown && originalSections.length === 0) {
+     experiencePromise = extractExperienceFromPortfolio(client, portfolioMarkdown)
+  }
+
+  const [skills, projects, experience] = await Promise.all([
+    promises[0],
+    promises[1],
+    experiencePromise
+  ]) as [DynamicSection | null, DynamicSection | null, DynamicSection | null]
+
+  const skillsForSummary = skills || originalSections.find(s => s.type === 'list' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('skill'))) || null
+  const projectsForSummary = projects || originalSections.find(s => s.type === 'entries' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('project') || s.title.toLowerCase().includes('experience'))) || null
+  const summary = await generateProfessionalSummary(client, skillsForSummary, projectsForSummary, githubRepos)
+
+  return { skills, projects, experience, summary }
+}
+
+function mergeResumeSections(
+  originalSections: DynamicSection[],
+  enhancements: EnhancedSections
+): DynamicSection[] {
+  const { skills, projects, experience, summary } = enhancements
+  const finalSections: DynamicSection[] = []
+
+  if (summary && summary.text) {
+    finalSections.push(summary)
+  } else {
+    const oldSummary = originalSections.find(s => s.type === 'text' && s.title.toLowerCase().includes('summary'))
+    if (oldSummary) finalSections.push(oldSummary)
+  }
+
+  let pushedSkills = false
+  let pushedProjects = false
+
+  for (const section of originalSections) {
+    if (section.type === 'text' && section.title.toLowerCase().includes('summary')) continue
+    
+    const isSkillsTarget = section.type === 'list' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('skill') || section.title.toLowerCase().includes('tech'))
+    const isProjectsTarget = section.type === 'entries' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('project') || section.title.toLowerCase().includes('experience') || section.title.toLowerCase().includes('open source'))
+
+    if (isSkillsTarget && skills && !pushedSkills) {
+      finalSections.push(skills)
+      pushedSkills = true
+    } else if (isProjectsTarget && projects && !pushedProjects) {
+      finalSections.push(projects)
+      pushedProjects = true
+    } else {
+      finalSections.push(section)
+    }
+  }
+
+  if (experience) finalSections.push(experience)
+  if (projects && !pushedProjects) finalSections.push(projects)
+  if (skills && !pushedSkills) finalSections.push(skills)
+
+  return finalSections
+}
+
 export async function generateImprovedResumeContent(
   originalSections: DynamicSection[],
   githubRepos: any[],
@@ -322,68 +400,8 @@ export async function generateImprovedResumeContent(
   if (!client) return originalSections
 
   try {
-    // 1. Run Skills Extraction and Project Weaving in PARALLEL
-    const promises = [
-      extractAndMergeSkills(client, originalSections, githubRepos),
-      weaveProjects(client, originalSections, githubRepos, githubUsername)
-    ]
-    
-    let experiencePromise: Promise<DynamicSection | null> = Promise.resolve(null)
-    if (portfolioMarkdown && originalSections.length === 0) {
-       experiencePromise = extractExperienceFromPortfolio(client, portfolioMarkdown)
-    }
-
-    const [newSkillsSection, newProjectsSection, newExperienceSection] = await Promise.all([
-      promises[0],
-      promises[1],
-      experiencePromise
-    ]) as [DynamicSection | null, DynamicSection | null, DynamicSection | null]
-
-    // 2. Generate the Summary based on the newly merged data
-    const skillsForSummary = newSkillsSection || originalSections.find(s => s.type === 'list' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('skill'))) || null
-    const projectsForSummary = newProjectsSection || originalSections.find(s => s.type === 'entries' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('project') || s.title.toLowerCase().includes('experience'))) || null
-    const newSummarySection = await generateProfessionalSummary(client, skillsForSummary, projectsForSummary, githubRepos)
-
-    // 3. Orchestrate the final sections array
-    let finalSections: DynamicSection[] = []
-
-    // Preserve summary at top
-    if (newSummarySection && newSummarySection.text) {
-      finalSections.push(newSummarySection)
-    } else {
-      const oldSummary = originalSections.find(s => s.type === 'text' && s.title.toLowerCase().includes('summary'))
-      if (oldSummary) finalSections.push(oldSummary)
-    }
-
-    let pushedSkills = false
-    let pushedProjects = false
-
-    // Add remaining original sections, replacing Skills and Projects with our newly generated ones
-    for (const section of originalSections) {
-      if (section.type === 'text' && section.title.toLowerCase().includes('summary')) {
-        continue // handled above
-      }
-      
-      const isSkillsTarget = section.type === 'list' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('skill') || section.title.toLowerCase().includes('tech'))
-      const isProjectsTarget = section.type === 'entries' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('project') || section.title.toLowerCase().includes('experience') || section.title.toLowerCase().includes('open source'))
-
-      if (isSkillsTarget && newSkillsSection && !pushedSkills) {
-        finalSections.push(newSkillsSection)
-        pushedSkills = true
-      } else if (isProjectsTarget && newProjectsSection && !pushedProjects) {
-        finalSections.push(newProjectsSection)
-        pushedProjects = true
-      } else {
-        finalSections.push(section)
-      }
-    }
-
-    // If new sections were generated but not inserted (because original sections lacked targets), append them
-    if (newExperienceSection) finalSections.push(newExperienceSection)
-    if (newProjectsSection && !pushedProjects) finalSections.push(newProjectsSection)
-    if (newSkillsSection && !pushedSkills) finalSections.push(newSkillsSection)
-
-    return finalSections
+    const enhancements = await fetchAIResumeEnhancements(client, originalSections, githubRepos, githubUsername, portfolioMarkdown)
+    return mergeResumeSections(originalSections, enhancements)
   } catch (error) {
     logger.error('AI improved resume generation pipeline failed', { error: String(error) })
     return originalSections
