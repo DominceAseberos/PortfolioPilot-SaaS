@@ -49,7 +49,7 @@ export async function buildImprovedResume({
   const rawRepos = isGithubIsolated ? [] : (githubAnalysis?.details?.repos ?? [])
 
   let enhancedSections = originalSections
-  if (rawRepos.length > 0 || originalSections.length > 0) {
+  if (rawRepos.length > 0 || originalSections.length > 0 || portfolioMarkdown) {
     try {
       const response = await fetch('/api/resume/improve', {
         method: 'POST',
@@ -72,7 +72,7 @@ export async function buildImprovedResume({
 
   // 4. Return standard ImprovedResumeData format
   return {
-    name: details?.name ?? '',
+    name: details?.name || githubAnalysis?.details?.profile?.name || '',
     email: details?.email ?? '',
     phone: '',
     linkedin: details?.linkedin ?? '',
