@@ -633,38 +633,6 @@ function StreamingChatBox({
            </div>
         )}
 
-        {/* Step 1.5 — Portfolio Live Snapshot */}
-        {showStep(1) && portfolioAnalysis && portfolioUrl && (
-          <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-              <Globe className="h-5 w-5 text-blue-500" />
-            </div>
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm">Live Portfolio Snapshot</span>
-                <a href={portfolioUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 ml-auto">
-                  {portfolioUrl.replace(/^https?:\/\//, '').slice(0, 30)} <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-              <div className="rounded-2xl rounded-tl-none border border-blue-500/20 bg-blue-500/5 overflow-hidden shadow-sm">
-                <div className="relative w-full h-[220px] sm:h-[300px] bg-muted/50">
-                  <div className="absolute top-0 left-0 w-[200%] h-[200%] origin-top-left scale-50">
-                    <iframe
-                      src={portfolioUrl.startsWith('http') ? portfolioUrl : `https://${portfolioUrl}`}
-                      className="w-full h-full border-0 bg-background"
-                      title="Portfolio in Report"
-                      sandbox="allow-scripts allow-same-origin"
-                    />
-                  </div>
-                </div>
-                <div className="px-4 py-3 border-t border-blue-500/10 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Score: <span className="font-bold text-blue-600">{portfolioAnalysis.score}/100</span></span>
-                  <span className="text-xs text-muted-foreground">{portfolioAnalysis.strengths.length} strengths · {portfolioAnalysis.weaknesses.length} areas to improve</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Step 1.6 — GitHub Activity Metrics */}
         {showStep(1) && githubAnalysis?.details && (
