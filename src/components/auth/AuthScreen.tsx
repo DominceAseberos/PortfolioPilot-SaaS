@@ -69,6 +69,22 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
     resolver: zodResolver(registerSchema),
   })
 
+  const isClaiming = searchParams?.get('claim') === 'true'
+
+  // Helper to handle auto-claiming after auth
+  const handleAutoClaim = async () => {
+    if (isClaiming) {
+      try {
+        const res = await fetch('/api/user/claim-credits', { method: 'POST' })
+        if (res.ok) {
+          toast.success('Bonus credits claimed successfully!')
+        }
+      } catch (e) {
+        console.error('Failed to claim bonus credits:', e)
+      }
+    }
+  }
+
   // --- Submit Handlers ---
   const onLoginSubmit = async (data: LoginInput) => {
     setIsLoginLoading(true)
@@ -76,6 +92,7 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
     try {
       const result = await authService.signIn(data.email, data.password)
       try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
+      await handleAutoClaim()
       toast.success('Signed in successfully')
       
       const hasUsername = !!result.user?.user_metadata?.username
@@ -108,6 +125,7 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
       // If session exists, email confirmation is disabled and they are logged in immediately
       if (result && 'session' in result && result.session) {
         try { await fetch('/api/auth/merge', { method: 'POST' }) } catch (e) {}
+        await handleAutoClaim()
         toast.success('Account created successfully')
         
         const hasUsername = !!result.user?.user_metadata?.username

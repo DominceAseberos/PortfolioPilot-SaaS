@@ -11,12 +11,14 @@ import { LogOut, Settings, CreditCard, LayoutDashboard, User as UserIcon, Histor
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { ROUTES } from '@/constants'
-import { INITIAL_FREE_TOKENS } from '@/config/pricing'
+import { INITIAL_FREE_TOKENS, CLAIM_BONUS_CREDITS } from '@/config/pricing'
+import { cn } from '@/lib/utils'
 
 export function DashboardHeader() {
   const { user, isAuthenticated } = useAuth()
-  const credits = useCredits(user?.id)
+  const { credits, hasClaimed } = useCredits(user?.id)
   const router = useRouter()
+  const [isClaiming, setIsClaiming] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -46,23 +48,80 @@ export function DashboardHeader() {
 
   const initials = user?.email?.charAt(0).toUpperCase() || 'U'
 
+  const currentCredits = credits !== null ? credits : INITIAL_FREE_TOKENS
+  const showClaim = isAuthenticated ? !hasClaimed : true
+
+  const handleClaimCredits = async () => {
+    if (!isAuthenticated) {
+      router.push(`${ROUTES.login}?claim=true`)
+    } else if (!hasClaimed) {
+      setIsClaiming(true)
+      try {
+        const res = await fetch('/api/user/claim-credits', { method: 'POST' })
+        if (res.ok) {
+           toast.success(`Successfully claimed ${CLAIM_BONUS_CREDITS} credits!`)
+           router.refresh()
+        } else {
+           toast.error('Failed to claim credits')
+        }
+      } catch {
+        toast.error('Failed to claim credits')
+      } finally {
+        setIsClaiming(false)
+      }
+    }
+  }
+
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-6 sm:px-8">
       <Link href="/" className="font-bold text-xl tracking-tight hover:text-primary transition-colors flex items-center gap-2">
         PortfolioPilot
       </Link>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Reusable Credit Pill */}
+        <button
+          onClick={showClaim ? handleClaimCredits : undefined}
+          disabled={isClaiming}
+          className={cn(
+            "group relative overflow-hidden px-3 py-1.5 rounded-full border transition-all duration-300 hidden sm:flex items-center justify-center min-w-[100px]",
+            showClaim 
+              ? "bg-primary/10 border-primary/20 hover:bg-primary hover:border-primary cursor-pointer hover:shadow-md hover:scale-105" 
+              : "bg-primary/10 border-primary/20 cursor-default"
+          )}
+        >
+          {/* Default State */}
+          <div className={cn(
+            "flex items-center gap-2 transition-all duration-300 absolute inset-0 justify-center", 
+            showClaim ? "group-hover:-translate-y-full group-hover:opacity-0" : ""
+          )}>
+            <Coins className="h-4 w-4 text-primary" />
+            <span className="text-sm font-bold text-primary">
+              {currentCredits} Credit{currentCredits === 1 ? '' : 's'}
+            </span>
+          </div>
+          
+          {/* Hover State (Claim) */}
+          {showClaim && (
+            <div className="flex items-center gap-1 transition-all duration-300 absolute inset-0 justify-center translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+              <span className="text-sm font-bold text-primary-foreground whitespace-nowrap">
+                {isClaiming ? 'Claiming...' : `Claim ${CLAIM_BONUS_CREDITS} Credits`}
+              </span>
+            </div>
+          )}
+          
+          {/* Invisible spacer to maintain button width */}
+          <div className="opacity-0 flex items-center gap-2 pointer-events-none">
+             {showClaim ? <span className="text-sm font-bold whitespace-nowrap">Claim {CLAIM_BONUS_CREDITS} Credits</span> : <span className="text-sm font-bold whitespace-nowrap">{currentCredits} Credits</span>}
+          </div>
+        </button>
+
         {isAuthenticated ? (
           <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-3 focus:outline-none hover:bg-muted/50 p-1.5 pr-3 rounded-full transition-colors border border-transparent hover:border-border/50"
+              className="flex items-center gap-2 focus:outline-none hover:bg-muted/50 p-1.5 pr-3 rounded-full transition-colors border border-transparent hover:border-border/50"
             >
-              <div className="flex items-center gap-2 mr-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
-                <Coins className="h-4 w-4 text-primary" />
-                <span className="text-sm font-bold text-primary">{credits !== null ? credits : INITIAL_FREE_TOKENS} Credit{(credits !== null ? credits : INITIAL_FREE_TOKENS) === 1 ? '' : 's'}</span>
-              </div>
               <Avatar size="sm" className="ring-2 ring-transparent ring-offset-2 hover:ring-primary/20 transition-all">
                 <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.email || ''} />
                 <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
@@ -106,11 +165,7 @@ export function DashboardHeader() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 mr-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20" title="Guest passes available">
-              <Coins className="h-4 w-4 text-primary" />
-              <span className="text-sm font-bold text-primary">{credits !== null ? credits : INITIAL_FREE_TOKENS} Credit{(credits !== null ? credits : INITIAL_FREE_TOKENS) === 1 ? '' : 's'}</span>
-            </div>
-            <Link href={ROUTES.login} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mr-2">
+            <Link href={ROUTES.login} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mr-2 ml-2">
               Sign In
             </Link>
             <Link href={ROUTES.register}>
