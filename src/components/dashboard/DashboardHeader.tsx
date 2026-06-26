@@ -20,23 +20,6 @@ export function DashboardHeader() {
   const router = useRouter()
   const [isClaiming, setIsClaiming] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isCreditDropdownOpen, setIsCreditDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const creditDropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false)
-      }
-      if (creditDropdownRef.current && !creditDropdownRef.current.contains(event.target as Node)) {
-        setIsCreditDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const handleSignOut = async () => {
     setIsSigningOut(true)
@@ -85,10 +68,9 @@ export function DashboardHeader() {
 
       <div className="flex items-center gap-3">
         {/* Credit Dropdown */}
-        <div className="relative" ref={creditDropdownRef}>
+        <div className="relative group">
           <button
-            onClick={() => setIsCreditDropdownOpen(!isCreditDropdownOpen)}
-            className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 hover:bg-primary/20 transition-all focus:outline-none"
+            className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 hover:bg-primary/20 transition-all focus:outline-none cursor-default"
           >
             <Coins className="h-4 w-4 text-primary" />
             <span className="text-sm font-bold text-primary">
@@ -96,15 +78,12 @@ export function DashboardHeader() {
             </span>
           </button>
           
-          {isCreditDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 rounded-xl border border-border/50 bg-popover text-popover-foreground shadow-lg shadow-black/5 outline-none animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden">
+          <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+            <div className="w-48 rounded-xl border border-border/50 bg-popover text-popover-foreground shadow-lg shadow-black/5 outline-none overflow-hidden">
               <div className="flex flex-col p-2 space-y-1">
                 {showClaim && (
                   <button 
-                    onClick={() => {
-                      setIsCreditDropdownOpen(false)
-                      handleClaimCredits()
-                    }}
+                    onClick={handleClaimCredits}
                     disabled={isClaiming}
                     className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors text-left"
                   >
@@ -112,19 +91,18 @@ export function DashboardHeader() {
                     {isClaiming ? 'Claiming...' : `Claim ${CLAIM_BONUS_CREDITS} Credits`}
                   </button>
                 )}
-                <Link href={ROUTES.billing} onClick={() => setIsCreditDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                <Link href={ROUTES.billing} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   Top Up
                 </Link>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {isAuthenticated ? (
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative group">
             <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-2 focus:outline-none hover:bg-muted/50 p-1.5 pr-3 rounded-full transition-colors border border-transparent hover:border-border/50"
             >
               <Avatar size="sm" className="ring-2 ring-transparent ring-offset-2 hover:ring-primary/20 transition-all">
@@ -136,22 +114,22 @@ export function DashboardHeader() {
               </div>
             </button>
 
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border/50 bg-popover text-popover-foreground shadow-lg shadow-black/5 outline-none animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden">
+            <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="w-56 rounded-xl border border-border/50 bg-popover text-popover-foreground shadow-lg shadow-black/5 outline-none overflow-hidden">
                 <div className="flex flex-col p-2 space-y-1">
-                  <Link href={ROUTES.reviews} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                  <Link href={ROUTES.reviews} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                     <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
                     New Review
                   </Link>
-                  <Link href={ROUTES.settings} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                  <Link href={ROUTES.settings} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                     <Settings className="h-4 w-4 text-muted-foreground" />
                     Settings
                   </Link>
-                  <Link href="/account/accounts" onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                  <Link href="/account/accounts" className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                     <UserIcon className="h-4 w-4 text-muted-foreground" />
                     Accounts
                   </Link>
-                  <Link href={ROUTES.billing} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                  <Link href={ROUTES.billing} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                     Billing
                   </Link>
@@ -166,7 +144,7 @@ export function DashboardHeader() {
                   </button>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
