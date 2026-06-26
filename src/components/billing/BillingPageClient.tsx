@@ -8,12 +8,14 @@ import { Coins, Zap, Activity, ShieldCheck, CreditCard, History } from 'lucide-r
 
 interface BillingPageClientProps {
   credits: number
+  hasClaimed?: boolean
   userEmail: string
   proPriceId: string // We will repurpose this as the "Credit Pack" price ID
 }
 
 export function BillingPageClient({
   credits,
+  hasClaimed = false,
   userEmail,
   proPriceId,
 }: BillingPageClientProps) {
@@ -66,7 +68,14 @@ export function BillingPageClient({
               <Coins className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Available Balance</p>
+              <div className="flex items-center gap-3 mb-1">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Available Balance</p>
+                {hasClaimed ? (
+                   <Badge variant="secondary" className="text-[10px] py-0 h-5">Free Credits Claimed</Badge>
+                ) : (
+                   <Badge variant="outline" className="text-[10px] py-0 h-5 text-primary border-primary/30 bg-primary/5">Claim Available</Badge>
+                )}
+              </div>
               <div className="flex items-baseline gap-2">
                 <h2 className="text-5xl font-black tracking-tighter text-foreground">{credits}</h2>
                 <span className="text-lg font-medium text-muted-foreground">Credits</span>

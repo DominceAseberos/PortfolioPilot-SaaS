@@ -18,15 +18,17 @@ export default async function BillingPage() {
   // Fetch user credits
   const { data: creditData } = await supabase
     .from('user_credits')
-    .select('credits')
+    .select('credits, has_claimed_free_credits')
     .eq('user_id', user.id)
     .single()
 
   const credits = creditData?.credits || 0
+  const hasClaimed = creditData?.has_claimed_free_credits || false
 
   return (
     <BillingPageClient
       credits={credits}
+      hasClaimed={hasClaimed}
       userEmail={user.email || ''}
       proPriceId={process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || ''}
     />
