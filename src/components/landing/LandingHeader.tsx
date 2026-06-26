@@ -77,8 +77,14 @@ export function LandingHeader() {
           {/* Credit Dropdown */}
           <div className="relative group">
             <button
-              className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 hover:bg-primary/20 transition-all focus:outline-none hidden sm:flex cursor-default"
+              className="relative flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 hover:bg-primary/20 transition-all focus:outline-none hidden sm:flex cursor-default"
             >
+              {showClaim && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border-2 border-background"></span>
+                </span>
+              )}
               <Coins className="h-4 w-4 text-primary" />
               <span className="text-sm font-bold text-primary">
                 {currentCredits} Credit{currentCredits === 1 ? '' : 's'}
