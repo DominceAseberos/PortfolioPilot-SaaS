@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react'
  */
 export function useCredits(userId: string | undefined) {
   const [credits, setCredits] = useState<number | null>(null)
+  const [hasClaimed, setHasClaimed] = useState<boolean>(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -21,11 +22,12 @@ export function useCredits(userId: string | undefined) {
     const fetchCredits = async (uid: string) => {
       const { data } = await supabase
         .from('user_credits')
-        .select('credits')
+        .select('credits, has_claimed_free_credits')
         .eq('user_id', uid)
         .maybeSingle()
 
       setCredits(data?.credits ?? 0)
+      setHasClaimed(data?.has_claimed_free_credits ?? false)
     }
 
     // If we already have a userId (anonymous or real), fetch immediately
@@ -41,6 +43,7 @@ export function useCredits(userId: string | undefined) {
         fetchCredits(uid)
       } else {
         setCredits(null)
+        setHasClaimed(false)
       }
     })
 
@@ -59,8 +62,13 @@ export function useCredits(userId: string | undefined) {
             filter: `user_id=eq.${userId}`,
           },
           (payload) => {
-            if (payload.new && typeof payload.new.credits === 'number') {
-              setCredits(payload.new.credits)
+            if (payload.new) {
+              if (typeof payload.new.credits === 'number') {
+                setCredits(payload.new.credits)
+              }
+              if (typeof payload.new.has_claimed_free_credits === 'boolean') {
+                setHasClaimed(payload.new.has_claimed_free_credits)
+              }
             }
           }
         )
@@ -79,5 +87,5 @@ export function useCredits(userId: string | undefined) {
     }
   }, [userId])
 
-  return credits
+  return { credits, hasClaimed }
 }
