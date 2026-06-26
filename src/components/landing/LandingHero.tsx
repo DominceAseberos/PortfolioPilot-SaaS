@@ -19,13 +19,10 @@ export function LandingHero() {
         {/* Ambient Morphing Blobs */}
         <div className="absolute inset-0 w-full h-full mix-blend-multiply dark:mix-blend-screen z-0 opacity-80">
           {/* Blue Blob starts Top Left */}
-          <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] min-w-[500px] min-h-[500px] bg-gradient-to-tr from-blue-500/50 via-cyan-400/40 to-purple-500/50 animate-[float-around_12s_ease-in-out_infinite] rounded-full blur-[100px]" />
+          <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] min-w-[500px] min-h-[500px] bg-gradient-to-tr from-blue-500/50 via-cyan-400/40 to-purple-500/50 animate-[float-around_40s_ease-in-out_infinite] rounded-full blur-[100px]" />
           
           {/* Emerald Blob starts Bottom Right */}
-          <div className="absolute bottom-[-20%] right-[-10%] w-[40vw] h-[40vw] min-w-[400px] min-h-[400px] bg-gradient-to-bl from-emerald-400/40 to-blue-600/50 animate-[float-around-reverse_15s_ease-in-out_infinite] rounded-full blur-[100px]" />
-          
-          {/* Cyan Blob starts Top Right */}
-          <div className="absolute top-[10%] right-[10%] w-[30vw] h-[30vw] min-w-[300px] min-h-[300px] bg-gradient-to-tr from-cyan-400/30 to-blue-500/40 animate-[float-around_10s_ease-in-out_infinite_reverse] rounded-full blur-[80px]" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[40vw] h-[40vw] min-w-[400px] min-h-[400px] bg-gradient-to-bl from-emerald-400/40 to-blue-600/50 animate-[float-around-reverse_50s_ease-in-out_infinite] rounded-full blur-[100px]" />
         </div>
       </div>
 
