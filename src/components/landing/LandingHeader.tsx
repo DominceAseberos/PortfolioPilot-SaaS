@@ -21,12 +21,17 @@ export function LandingHeader() {
   const [isClaiming, setIsClaiming] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isCreditDropdownOpen, setIsCreditDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const creditDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false)
+      }
+      if (creditDropdownRef.current && !creditDropdownRef.current.contains(event.target as Node)) {
+        setIsCreditDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -86,42 +91,42 @@ export function LandingHeader() {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Reusable Credit Pill */}
-          <button
-            onClick={showClaim ? handleClaimCredits : undefined}
-            disabled={isClaiming}
-            className={cn(
-              "group relative overflow-hidden px-3 py-1.5 rounded-full border transition-all duration-300 hidden sm:flex items-center justify-center min-w-[100px]",
-              showClaim 
-                ? "bg-primary/10 border-primary/20 hover:bg-primary hover:border-primary cursor-pointer hover:shadow-md hover:scale-105" 
-                : "bg-primary/10 border-primary/20 cursor-default"
-            )}
-          >
-            {/* Default State */}
-            <div className={cn(
-              "flex items-center gap-2 transition-all duration-300 absolute inset-0 justify-center", 
-              showClaim ? "group-hover:-translate-y-full group-hover:opacity-0" : ""
-            )}>
+          {/* Credit Dropdown */}
+          <div className="relative" ref={creditDropdownRef}>
+            <button
+              onClick={() => setIsCreditDropdownOpen(!isCreditDropdownOpen)}
+              className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 hover:bg-primary/20 transition-all focus:outline-none hidden sm:flex"
+            >
               <Coins className="h-4 w-4 text-primary" />
               <span className="text-sm font-bold text-primary">
                 {currentCredits} Credit{currentCredits === 1 ? '' : 's'}
               </span>
-            </div>
+            </button>
             
-            {/* Hover State (Claim) */}
-            {showClaim && (
-              <div className="flex items-center gap-1 transition-all duration-300 absolute inset-0 justify-center translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
-                <span className="text-sm font-bold text-primary-foreground whitespace-nowrap">
-                  {isClaiming ? 'Claiming...' : `Claim ${CLAIM_BONUS_CREDITS} Credits`}
-                </span>
+            {isCreditDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-border/50 bg-popover text-popover-foreground shadow-lg shadow-black/5 outline-none animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden">
+                <div className="flex flex-col p-2 space-y-1">
+                  {showClaim && (
+                    <button 
+                      onClick={() => {
+                        setIsCreditDropdownOpen(false)
+                        handleClaimCredits()
+                      }}
+                      disabled={isClaiming}
+                      className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors text-left"
+                    >
+                      <Coins className="h-4 w-4 text-muted-foreground" />
+                      {isClaiming ? 'Claiming...' : `Claim ${CLAIM_BONUS_CREDITS} Credits`}
+                    </button>
+                  )}
+                  <Link href={ROUTES.billing} onClick={() => setIsCreditDropdownOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    Top Up
+                  </Link>
+                </div>
               </div>
             )}
-            
-            {/* Invisible spacer to maintain button width */}
-            <div className="opacity-0 flex items-center gap-2 pointer-events-none">
-               {showClaim ? <span className="text-sm font-bold whitespace-nowrap">Claim {CLAIM_BONUS_CREDITS} Credits</span> : <span className="text-sm font-bold whitespace-nowrap">{currentCredits} Credits</span>}
-            </div>
-          </button>
+          </div>
 
           {isAuthenticated ? (
             <div className="relative" ref={dropdownRef}>
