@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/Card'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import { Coins, Zap, Activity, ShieldCheck, CreditCard, History } from 'lucide-react'
+import { CLAIM_BONUS_CREDITS } from '@/config/pricing'
 
 interface BillingPageClientProps {
   credits: number
@@ -19,8 +21,29 @@ export function BillingPageClient({
   userEmail,
   proPriceId,
 }: BillingPageClientProps) {
-  const [isLoading, setIsLoading] = useState<'checkout' | null>(null)
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState<'checkout' | 'claim' | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const handleClaimCredits = async () => {
+    setIsLoading('claim')
+    setError(null)
+    try {
+      const res = await fetch('/api/user/claim-credits', {
+        method: 'POST',
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        router.refresh()
+      } else {
+        setError(json.error || 'Failed to claim credits')
+      }
+    } catch {
+      setError('Failed to connect to the server')
+    } finally {
+      setIsLoading(null)
+    }
+  }
 
   const handleTopUp = async (priceId: string) => {
     setIsLoading('checkout')
@@ -76,9 +99,22 @@ export function BillingPageClient({
                    <Badge variant="outline" className="text-[10px] py-0 h-5 text-primary border-primary/30 bg-primary/5">Claim Available</Badge>
                 )}
               </div>
-              <div className="flex items-baseline gap-2">
-                <h2 className="text-5xl font-black tracking-tighter text-foreground">{credits}</h2>
-                <span className="text-lg font-medium text-muted-foreground">Credits</span>
+              <div className="flex flex-col sm:flex-row sm:items-end gap-4 mt-1">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-5xl font-black tracking-tighter text-foreground">{credits}</h2>
+                  <span className="text-lg font-medium text-muted-foreground">Credits</span>
+                </div>
+                {!hasClaimed && (
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={handleClaimCredits} 
+                    isLoading={isLoading === 'claim'}
+                    className="mb-1.5"
+                  >
+                    Claim {CLAIM_BONUS_CREDITS} Free Credits
+                  </Button>
+                )}
               </div>
             </div>
           </div>

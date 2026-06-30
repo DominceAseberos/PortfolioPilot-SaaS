@@ -35,34 +35,64 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     setData(prev => ({ ...prev, [field]: value }))
   }
 
-  const updateWorkEntry = (index: number, field: string, value: string) => {
-    const newEntries = [...(data.workEntries || [])]
-    newEntries[index] = { ...newEntries[index], [field]: value }
-    updateField('workEntries', newEntries)
+  const updateSectionText = (sectionIndex: number, text: string) => {
+    const newSections = [...(data.sections || [])]
+    const sec = newSections[sectionIndex]
+    if (sec.type === 'text') {
+      newSections[sectionIndex] = { ...sec, text }
+      updateField('sections', newSections)
+    }
   }
 
-  const updateProject = (index: number, field: string, value: string) => {
-    const newProjects = [...(data.projects || [])]
-    newProjects[index] = { ...newProjects[index], [field]: value }
-    updateField('projects', newProjects)
+  const removeSectionListItem = (sectionIndex: number, itemIndex: number) => {
+    const newSections = [...(data.sections || [])]
+    const sec = newSections[sectionIndex]
+    if (sec.type === 'list') {
+      newSections[sectionIndex] = { ...sec, items: (sec.items || []).filter((_, i) => i !== itemIndex) }
+      updateField('sections', newSections)
+    }
   }
 
-  const updateEducation = (index: number, field: string, value: string) => {
-    const newEdu = [...(data.education || [])]
-    newEdu[index] = { ...newEdu[index], [field]: value }
-    updateField('education', newEdu)
-  }
-
-  const removeSkill = (index: number) => {
-    updateField('skills', (data.skills || []).filter((_, i) => i !== index))
-  }
-
-  const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const addSectionListItem = (e: React.KeyboardEvent<HTMLInputElement>, sectionIndex: number) => {
     const val = e.currentTarget.value.trim()
     if (e.key === 'Enter' && val) {
       e.preventDefault()
-      updateField('skills', [...(data.skills || []), val])
+      const newSections = [...(data.sections || [])]
+      const sec = newSections[sectionIndex]
+      if (sec.type === 'list') {
+        newSections[sectionIndex] = { ...sec, items: [...(sec.items || []), val] }
+        updateField('sections', newSections)
+      }
       e.currentTarget.value = ''
+    }
+  }
+
+  const updateSectionEntry = (sectionIndex: number, entryIndex: number, field: string, value: string) => {
+    const newSections = [...(data.sections || [])]
+    const sec = newSections[sectionIndex]
+    if (sec.type === 'entries') {
+      const newEntries = [...(sec.entries || [])]
+      newEntries[entryIndex] = { ...newEntries[entryIndex], [field]: value }
+      newSections[sectionIndex] = { ...sec, entries: newEntries }
+      updateField('sections', newSections)
+    }
+  }
+
+  const removeSectionEntry = (sectionIndex: number, entryIndex: number) => {
+    const newSections = [...(data.sections || [])]
+    const sec = newSections[sectionIndex]
+    if (sec.type === 'entries') {
+      newSections[sectionIndex] = { ...sec, entries: (sec.entries || []).filter((_, i) => i !== entryIndex) }
+      updateField('sections', newSections)
+    }
+  }
+
+  const addSectionEntry = (sectionIndex: number) => {
+    const newSections = [...(data.sections || [])]
+    const sec = newSections[sectionIndex]
+    if (sec.type === 'entries') {
+      newSections[sectionIndex] = { ...sec, entries: [...(sec.entries || []), { title: '' }] }
+      updateField('sections', newSections)
     }
   }
 
@@ -113,109 +143,97 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         </div>
       </section>
 
-      {/* Professional Summary */}
-      <section className="space-y-4 relative">
-        <div className="flex items-center justify-between border-b border-border/50 pb-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Professional Summary</h3>
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>
-        </div>
-        <textarea 
-          className="w-full px-3 py-2 bg-background border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)] rounded-lg text-sm min-h-[100px] leading-relaxed resize-y" 
-          value={data.summary} 
-          onChange={e => updateField('summary', e.target.value)} 
-        />
-      </section>
+      {/* Dynamic Sections */}
+      {(data.sections || []).map((section, sIndex) => {
+        if (section.type === 'text') {
+          return (
+            <section key={sIndex} className="space-y-4 relative">
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
+                {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
+              </div>
+              <textarea 
+                className="w-full px-3 py-2 bg-background border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)] rounded-lg text-sm min-h-[100px] leading-relaxed resize-y" 
+                value={section.text || ''} 
+                onChange={e => updateSectionText(sIndex, e.target.value)} 
+              />
+            </section>
+          )
+        }
+        
+        if (section.type === 'list') {
+          return (
+            <section key={sIndex} className="space-y-4">
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
+                {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(section.items || []).map((item, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted border border-border/50 group">
+                    {item}
+                    <button type="button" onClick={() => removeSectionListItem(sIndex, i)} className="text-muted-foreground hover:text-red-500 opacity-50 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
+                  </span>
+                ))}
+                <input 
+                  type="text" 
+                  placeholder="Type and press Enter to add..." 
+                  className="px-2.5 py-1 text-xs bg-transparent border border-dashed border-border rounded-md focus:outline-none focus:border-primary w-48"
+                  onKeyDown={(e) => addSectionListItem(e, sIndex)}
+                />
+              </div>
+            </section>
+          )
+        }
 
-      {/* Skills */}
-      <section className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Skills</h3>
-        <div className="flex flex-wrap gap-2">
-          {(data.skills || []).map((skill, i) => {
-            return (
-              <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted border border-border/50 group">
-                {skill}
-                <button type="button" onClick={() => removeSkill(i)} className="text-muted-foreground hover:text-red-500 opacity-50 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
-              </span>
-            )
-          })}
-          <input 
-            type="text" 
-            placeholder="Type and press Enter to add..." 
-            className="px-2.5 py-1 text-xs bg-transparent border border-dashed border-border rounded-md focus:outline-none focus:border-primary w-48"
-            onKeyDown={addSkill}
-          />
-        </div>
-      </section>
-
-      {/* Experience */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between border-b border-border/50 pb-2">
-           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Experience</h3>
-        </div>
-        <div className="space-y-4">
-          {(data.workEntries || []).map((work, i) => (
-            <div key={i} className="p-4 rounded-xl border border-border/50 bg-card space-y-3 relative group">
-               <button type="button" onClick={() => updateField('workEntries', (data.workEntries || []).filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
-                 <div>
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Role</label>
-                   <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm font-semibold" value={work.role} onChange={e => updateWorkEntry(i, 'role', e.target.value)} />
-                 </div>
-                 <div>
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Company</label>
-                   <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={work.company} onChange={e => updateWorkEntry(i, 'company', e.target.value)} />
-                 </div>
-                 <div className="sm:col-span-2">
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Dates</label>
-                   <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={work.dates} onChange={e => updateWorkEntry(i, 'dates', e.target.value)} />
-                 </div>
-                 <div className="sm:col-span-2">
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block flex items-center justify-between">
-                     Description
-                     {work.isEnhanced && <span className="text-blue-500 flex items-center gap-1"><Sparkles className="h-3 w-3"/> AI Enhanced</span>}
-                   </label>
-                   <textarea className={`w-full px-2.5 py-1.5 bg-background border rounded-md text-sm min-h-[80px] resize-y ${work.isEnhanced ? 'border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.1)]' : 'border-border/50'}`} value={work.description} onChange={e => updateWorkEntry(i, 'description', e.target.value)} />
-                 </div>
-               </div>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => updateField('workEntries', [...(data.workEntries || []), { role: '', company: '', dates: '', description: '' }])}>
-             <Plus className="h-4 w-4 mr-2" /> Add Experience
-          </Button>
-        </div>
-      </section>
-
-      {/* Projects */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between border-b border-border/50 pb-2">
-           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Projects</h3>
-        </div>
-        <div className="space-y-4">
-          {(data.projects || []).map((proj, i) => (
-            <div key={i} className={`p-4 rounded-xl border space-y-3 relative group ${proj.isNew ? 'border-green-500/30 bg-green-500/5' : 'border-border/50 bg-card'}`}>
-               <button type="button" onClick={() => updateField('projects', (data.projects || []).filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
-               {proj.isNew && <Badge variant="outline" className="absolute -top-2.5 left-4 bg-background text-green-600 border-green-500/30 text-[10px] uppercase">Added from GitHub</Badge>}
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
-                 <div>
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Project Name</label>
-                   <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm font-semibold" value={proj.name} onChange={e => updateProject(i, 'name', e.target.value)} />
-                 </div>
-                 <div>
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Link URL</label>
-                   <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={proj.link} onChange={e => updateProject(i, 'link', e.target.value)} />
-                 </div>
-                 <div className="sm:col-span-2">
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Description</label>
-                   <textarea className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm min-h-[60px] resize-y" value={proj.description} onChange={e => updateProject(i, 'description', e.target.value)} />
-                 </div>
-               </div>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => updateField('projects', [...(data.projects || []), { name: '', link: '', description: '' }])}>
-             <Plus className="h-4 w-4 mr-2" /> Add Project
-          </Button>
-        </div>
-      </section>
+        if (section.type === 'entries') {
+          return (
+            <section key={sIndex} className="space-y-4">
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
+                 {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
+              </div>
+              <div className="space-y-4">
+                {(section.entries || []).map((entry, i) => (
+                  <div key={i} className={`p-4 rounded-xl border border-border/50 bg-card space-y-3 relative group ${entry.isEnhanced ? 'border-blue-500/30 bg-blue-500/5' : ''}`}>
+                     <button type="button" onClick={() => removeSectionEntry(sIndex, i)} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
+                       <div>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Title / Role</label>
+                         <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm font-semibold" value={entry.title || ''} onChange={e => updateSectionEntry(sIndex, i, 'title', e.target.value)} />
+                       </div>
+                       <div>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Subtitle / Company</label>
+                         <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={entry.subtitle || ''} onChange={e => updateSectionEntry(sIndex, i, 'subtitle', e.target.value)} />
+                       </div>
+                       <div>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Dates</label>
+                         <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={entry.dates || ''} onChange={e => updateSectionEntry(sIndex, i, 'dates', e.target.value)} />
+                       </div>
+                       <div>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Link URL</label>
+                         <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={entry.link || ''} onChange={e => updateSectionEntry(sIndex, i, 'link', e.target.value)} />
+                       </div>
+                       <div className="sm:col-span-2">
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block flex items-center justify-between">
+                           Description
+                           {entry.isEnhanced && <span className="text-blue-500 flex items-center gap-1"><Sparkles className="h-3 w-3"/> AI Enhanced</span>}
+                         </label>
+                         <textarea className={`w-full px-2.5 py-1.5 bg-background border rounded-md text-sm min-h-[80px] resize-y ${entry.isEnhanced ? 'border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.1)]' : 'border-border/50'}`} value={entry.description || ''} onChange={e => updateSectionEntry(sIndex, i, 'description', e.target.value)} />
+                       </div>
+                     </div>
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => addSectionEntry(sIndex)}>
+                   <Plus className="h-4 w-4 mr-2" /> Add Entry
+                </Button>
+              </div>
+            </section>
+          )
+        }
+        
+        return null;
+      })}
 
     </div>
   )
