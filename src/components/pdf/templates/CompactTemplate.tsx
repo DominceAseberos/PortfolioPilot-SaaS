@@ -2,13 +2,14 @@ import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
 import { renderDescription } from './pdfUtils'
-import './fonts'
+import { allocateResumeSections, getPrimaryResumeRole } from '@/features/resume/services/resume-template-allocation.service'
+import { PDF_FONT_FAMILY } from './fonts'
 
 const HEADER_BG = '#0f172a'
 const ACCENT = '#0284c7' // slightly deeper sky blue
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Inter', fontSize: 9.5, color: '#000000', lineHeight: 1.3, backgroundColor: '#ffffff' },
+  page: { fontFamily: PDF_FONT_FAMILY, fontSize: 9.5, color: '#000000', lineHeight: 1.3, backgroundColor: '#ffffff' },
   // Header bar
   header: { backgroundColor: HEADER_BG, padding: '24 32 20 32' },
   name: { fontSize: 22, fontWeight: 700, color: '#ffffff', marginBottom: 12, lineHeight: 1.1 },
@@ -44,16 +45,12 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
   if (data.github) contactParts.push(data.github.replace(/^https?:\/\//, ''))
   if (data.website) contactParts.push(data.website.replace(/^https?:\/\//, ''))
 
-  const topRole = data.sections 
-    ? data.sections.find(s => s.type === 'entries')?.entries?.[0]?.title || ''
-    : data.workEntries?.[0]?.role || ''
-
+  const topRole = getPrimaryResumeRole(data)
   const hasSections = data.sections && data.sections.length > 0
-  const summarySection = hasSections ? data.sections.find(s => s.title.toLowerCase().includes('summary') || s.title.toLowerCase().includes('profile') || s.type === 'text') : null
-  
-  const rightTitles = ['skill', 'education', 'certif', 'language']
-  const rightSections = hasSections ? data.sections.filter(s => s !== summarySection && rightTitles.some(t => s.title.toLowerCase().includes(t))) : []
-  const leftSections = hasSections ? data.sections.filter(s => s !== summarySection && !rightTitles.some(t => s.title.toLowerCase().includes(t))) : []
+  const allocation = allocateResumeSections(data, 'compact')
+  const summarySection = hasSections ? allocation.summary : null
+  const leftSections = hasSections ? allocation.primary : []
+  const rightSections = hasSections ? allocation.secondary : []
 
   return (
     <Document>

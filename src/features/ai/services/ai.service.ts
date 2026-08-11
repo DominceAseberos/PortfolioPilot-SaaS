@@ -11,9 +11,11 @@ import type {
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 
 import { DynamicSection } from '../../../types/resume'
-import { aiDynamicSectionSchema, aiResumeExtractionSchema, aiResumeScoreSchema } from './ai.schemas'
+import { aiDynamicSectionSchema, aiResumeExtractionSchema, aiResumeOptimizationSchema, aiResumeScoreSchema } from './ai.schemas'
 import { enforceProtectedResumeFacts, isProjectSection, isSkillSection } from '@/features/resume/services/resume-enhancement-policy.service'
 import { enforceGitHubProjectEvidence, enforceGitHubSkillEvidence } from '@/features/resume/services/resume-evidence-policy.service'
+import { applyResumeOptimizationRewrites, buildResumeOptimizationTargets } from '@/features/resume/services/resume-content-optimization.service'
+import type { ResumeTemplateId } from '@/features/resume/services/resume-layout.service'
 
 export interface AIAnalysisResult {
   score: number
@@ -437,6 +439,43 @@ export async function generateImprovedResumeContent(
     return mergeResumeSections(originalSections, enhancements)
   } catch (error) {
     logger.error('AI improved resume generation pipeline failed', { error: String(error) })
+    return originalSections
+  }
+}
+
+export async function optimizeResumeContentForLayout(
+  originalSections: DynamicSection[],
+  templateId: ResumeTemplateId
+): Promise<DynamicSection[]> {
+  const client = createClient()
+  if (!client) return originalSections
+
+  const targets = buildResumeOptimizationTargets(originalSections, templateId)
+  if (targets.length === 0) return originalSections
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: `You are a conservative resume copy editor. Shorten ONLY the supplied text fields to their exact word budgets. Preserve every factual claim, proper noun, credential, technology, organization, date, metric, number, and URL already present. Do not add facts, remove the meaning of achievements, change titles, change employers, change dates, or rewrite any field not supplied. Return JSON only: {"rewrites":[{"id":"same id","text":"shorter text"}]}. If a field cannot be safely shortened, omit it.`,
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({ templateId, targets: targets.map(({ id, original, maxWords }) => ({ id, original, maxWords })) }),
+        },
+      ],
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) return originalSections
+    const parsed = aiResumeOptimizationSchema.parse(JSON.parse(content))
+    return applyResumeOptimizationRewrites(originalSections, targets, parsed.rewrites)
+  } catch (error) {
+    logger.error('AI resume layout optimization failed', { error: String(error) })
     return originalSections
   }
 }

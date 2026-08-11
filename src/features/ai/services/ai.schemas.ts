@@ -65,5 +65,16 @@ export const aiResumeScoreSchema = z.object({
   recommendations: stringArray.catch([]),
 })
 
+export const aiResumeOptimizationSchema = z.object({
+  rewrites: z.preprocess(
+    (value) => (Array.isArray(value) ? value : []),
+    z.array(z.object({
+      id: z.string().min(1),
+      text: z.string().min(1),
+    }))
+  ).catch([]),
+})
+
 export type AIResumeExtraction = z.infer<typeof aiResumeExtractionSchema>
 export type AIResumeScore = z.infer<typeof aiResumeScoreSchema>
+export type AIResumeOptimization = z.infer<typeof aiResumeOptimizationSchema>

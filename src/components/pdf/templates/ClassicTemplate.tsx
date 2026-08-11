@@ -2,10 +2,11 @@ import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
 import { renderDescription } from './pdfUtils'
-import './fonts'
+import { allocateResumeSections } from '@/features/resume/services/resume-template-allocation.service'
+import { PDF_FONT_FAMILY } from './fonts'
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.3 },
+  page: { padding: 40, fontFamily: PDF_FONT_FAMILY, fontSize: 10, color: '#000000', lineHeight: 1.3 },
   header: { marginBottom: 24, textAlign: 'center' },
   name: { fontSize: 26, fontWeight: 700, marginBottom: 16, color: '#000000', lineHeight: 1.1 },
   contactRow: { textAlign: 'center', fontSize: 9.5, color: '#000000', marginTop: 4 },
@@ -33,6 +34,8 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
   if (data.github) contactParts.push(data.github)
   if (data.website) contactParts.push(data.website)
 
+  const allocation = allocateResumeSections(data, 'classic')
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -44,7 +47,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
         </View>
 
         {data.sections && data.sections.length > 0 ? (
-          data.sections.map((section, idx) => (
+          allocation.ordered.map((section, idx) => (
             <View key={idx} style={styles.section}>
               <Text style={styles.sectionTitle} minPresenceAhead={30}>{section.title}</Text>
               <View style={styles.divider} />

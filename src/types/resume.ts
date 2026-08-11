@@ -19,6 +19,7 @@ export interface DynamicSection {
   type: 'text' | 'list' | 'entries';
   semanticType?: ResumeSemanticSectionType; // Profession-agnostic meaning assigned by extraction/classification
   classificationConfidence?: number; // 0..1; low confidence stays reviewable instead of being guessed
+  manualOrder?: number; // User-controlled order within a template-compatible region
   text?: string;
   items?: string[];
   entries?: {

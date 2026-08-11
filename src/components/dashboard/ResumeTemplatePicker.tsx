@@ -1,10 +1,10 @@
 'use client'
-import React, { useState } from 'react'
+import React from 'react'
 import { BlobProvider } from '@react-pdf/renderer'
 import { CheckCircle2, ArrowRight, Sparkles } from 'lucide-react'
 import { RESUME_TEMPLATES, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import type { ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
-import { analyzeResumePreflight } from '@/features/resume/services/resume-layout.service'
+import { recommendResumeTemplate } from '@/features/resume/services/resume-template-recommendation.service'
 import { Button } from '@/components/common/Button'
 
 interface ResumeTemplatePickerProps {
@@ -38,6 +38,9 @@ function TemplateMiniPreview({ data, templateId }: { data: ImprovedResumeData; t
 }
 
 export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: ResumeTemplatePickerProps) {
+  const recommendation = recommendResumeTemplate(data)
+  const recommendedTemplate = RESUME_TEMPLATES.find((template) => template.id === recommendation.templateId)
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -48,7 +51,7 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
           </div>
           <h2 className="text-lg font-bold">Choose Your Resume Template</h2>
         </div>
-        <p className="text-xs text-muted-foreground ml-11">Pick a style that best fits your target role. You can edit all content in the next step.</p>
+        <p className="text-xs text-muted-foreground ml-11">Recommended: <span className="font-semibold text-foreground">{recommendedTemplate?.name}</span>. {recommendation.reason}</p>
       </div>
 
       {/* Template cards */}
@@ -56,7 +59,8 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-5xl mx-auto">
           {RESUME_TEMPLATES.map((template) => {
             const isSelected = selected === template.id
-            const preflight = analyzeResumePreflight(data, template.id)
+            const isRecommended = recommendation.templateId === template.id
+            const preflight = recommendation.preflights[template.id]
             const fitLabel = preflight.fit === 'comfortable' ? 'Comfortable fit' : preflight.fit === 'tight' ? 'Tight fit' : 'Overflow risk'
             return (
               <button
@@ -90,6 +94,9 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
                       style={{ backgroundColor: template.accentColor }}
                     />
                     <h3 className="font-bold text-sm">{template.name}</h3>
+                    {isRecommended && (
+                      <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">Recommended</span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{template.description}</p>
                   <div className="mb-3 flex items-center justify-between gap-2 text-[10px] font-semibold">

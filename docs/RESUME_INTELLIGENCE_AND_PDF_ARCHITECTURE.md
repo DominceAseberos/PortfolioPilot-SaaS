@@ -709,7 +709,7 @@ Goal: improve PDF rendering immediately without changing source-analysis behavio
 - [x] Restrict protected fields
 - [x] Return AI changes as operations/diffs
 - [x] Add verification pass
-- [ ] Add low-confidence confirmation queue
+- [x] Add low-confidence confirmation queue
 - [x] Add adversarial hallucination tests
 - [x] Update checklist
 
@@ -734,7 +734,17 @@ Goal: improve PDF rendering immediately without changing source-analysis behavio
 - Targeted tests passed: 25/25 before layout-extraction work.
 - TypeScript passed.
 
-Next Phase 5 priority: expose low-confidence classifications for user confirmation in the editor.
+#### Cycle 9 implementation notes
+
+- Added a reusable section-classification review control in the Improved Resume editor.
+- Sections classified as `unknown` or below the 0.75 confidence threshold now require user confirmation before the system treats the classification as authoritative.
+- Manual confirmation updates only semantic classification metadata; original section titles/items/entries remain unchanged.
+- Users can explicitly leave a section as `Needs Review` instead of being forced into an incorrect category.
+- Added regression coverage for threshold behavior and content-preserving manual confirmation.
+- Resume/PDF regression run passed: 36/36 tests across 10 suites.
+- TypeScript passed.
+
+Phase 5 is now complete.
 
 ### Phase 6 - Layout-aware source extraction
 
@@ -762,13 +772,26 @@ Remaining Phase 6 work: scanned/image-only PDF OCR strategy. This is intentional
 
 ### Phase 7 - Advanced template intelligence
 
-- [ ] Automatic recommended template based on content density
-- [ ] Template-specific section allocation rules
-- [ ] Reorderable sections
-- [ ] Optional content optimization to target one page
-- [ ] User-visible diff before AI shortening
-- [ ] Generated-PDF regression suite
-- [ ] Update checklist
+- [x] Automatic recommended template based on content density
+- [x] Template-specific section allocation rules
+- [x] Reorderable sections
+- [x] Optional content optimization to target one page
+- [x] User-visible diff before AI shortening
+- [x] Generated-PDF regression suite
+- [x] Update checklist
+
+#### Cycles 9-14 implementation notes
+
+- Low-confidence or unknown semantic section classifications now surface a manual confirmation control in the editor; confirming a type preserves the original content and raises classification confidence to 1.0.
+- Modern and Compact now allocate sections by semantic type rather than literal English heading keywords, so profession-specific headings such as Clinical Competencies remain correctly placed.
+- Template recommendations are deterministic from content density and semantic balance; the picker can recommend Modern, Classic, or Compact and preselects the recommendation.
+- Sections can be reordered manually. Summary remains pinned while explicit user order is preserved by Classic and within the required main/sidebar regions of Modern and Compact.
+- Tight/overflowing resumes can request a conservative layout-optimization proposal. Only existing summary and entry-description text is eligible for shortening; protected titles, organizations, dates, links, and other facts are not rewritten.
+- Optimization is proposal-first: the editor displays before/after text and predicted layout score/page changes, and nothing changes until the user explicitly applies the proposal.
+- Deterministic optimization guards reject word-budget violations, new URLs, and newly invented numeric claims. Regression coverage includes an attempted 25-patient -> 100-patient hallucination.
+- Added a dedicated native ESM generated-PDF regression command (`npm run test:pdf`) because React-PDF/Yoga is ESM-native and does not execute safely through the existing CommonJS Jest runtime.
+- Real PDF regression renders nurse, teacher, and developer fixtures through Classic, Modern, and Compact, then re-extracts PDF text with `unpdf` to verify profession-specific content survives rendering.
+- Final Phase 7 validation: 50/50 targeted Jest tests passed, 9/9 generated PDFs passed, TypeScript passed, and `git diff --check` passed.
 
 ## 24. Recursive Implementation Loop
 

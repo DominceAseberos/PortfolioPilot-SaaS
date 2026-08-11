@@ -4,7 +4,12 @@ import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus,
 import { BlobProvider, PDFDownloadLink } from '@react-pdf/renderer'
 import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
-import { analyzeResumePreflight } from '@/features/resume/services/resume-layout.service'
+import { SectionClassificationReview } from '@/components/dashboard/SectionClassificationReview'
+import { analyzeResumePreflight, type ResumePreflightResult } from '@/features/resume/services/resume-layout.service'
+import type { ResumeChangeOperation } from '@/features/resume/services/resume-diff.service'
+import { getSectionSemanticType, reorderResumeSections } from '@/features/resume/services/resume-template-allocation.service'
+import { recommendResumeTemplate } from '@/features/resume/services/resume-template-recommendation.service'
+import { normalizeManualSectionClassification } from '@/features/resume/services/resume-section-classification.service'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import type { DynamicSection, ResumeSemanticSectionType } from '@/types/resume'
@@ -15,30 +20,23 @@ export interface ImprovedResumeModalProps {
   onClose: () => void
 }
 
-const SECTION_TYPE_OPTIONS: { value: ResumeSemanticSectionType; label: string }[] = [
-  { value: 'summary', label: 'Summary' },
-  { value: 'skills', label: 'Skills' },
-  { value: 'experience', label: 'Experience' },
-  { value: 'education', label: 'Education' },
-  { value: 'projects', label: 'Projects' },
-  { value: 'certifications', label: 'Certifications' },
-  { value: 'licenses', label: 'Licenses' },
-  { value: 'awards', label: 'Awards' },
-  { value: 'languages', label: 'Languages' },
-  { value: 'volunteer', label: 'Volunteer' },
-  { value: 'publications', label: 'Publications' },
-  { value: 'training', label: 'Training' },
-  { value: 'custom', label: 'Other / Custom' },
-  { value: 'unknown', label: 'Needs Review' },
-]
+interface ResumeOptimizationProposal {
+  sections: DynamicSection[]
+  operations: ResumeChangeOperation[]
+  before: ResumePreflightResult
+  after: ResumePreflightResult
+}
 
 export default function ImprovedResumeModal({ initialData, resumeFile, onClose }: ImprovedResumeModalProps) {
   const [data, setData] = useState<ImprovedResumeData>(initialData)
   const [activeTab, setActiveTab] = useState<'original' | 'edit' | 'preview'>('edit')
   const [step, setStep] = useState<'pick-template' | 'edit'>('pick-template')
-  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateId>('classic')
+  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateId>(() => recommendResumeTemplate(initialData).templateId)
   const [compareMode, setCompareMode] = useState(false)
   const [previewData, setPreviewData] = useState<ImprovedResumeData>(initialData)
+  const [optimizationProposal, setOptimizationProposal] = useState<ResumeOptimizationProposal | null>(null)
+  const [optimizing, setOptimizing] = useState(false)
+  const [optimizationError, setOptimizationError] = useState<string | null>(null)
   const preflight = analyzeResumePreflight(data, selectedTemplate)
 
   useEffect(() => {
@@ -56,8 +54,15 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     }
   }, [resumeFile])
 
+  useEffect(() => {
+    setOptimizationProposal(null)
+    setOptimizationError(null)
+  }, [selectedTemplate])
+
   // Simple handlers
   const updateField = <K extends keyof ImprovedResumeData>(field: K, value: ImprovedResumeData[K]) => {
+    setOptimizationProposal(null)
+    setOptimizationError(null)
     setData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -122,6 +127,75 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     }
   }
 
+  const updateSectionClassification = (sectionIndex: number, semanticType: ResumeSemanticSectionType) => {
+    const newSections = [...(data.sections || [])]
+    const section = newSections[sectionIndex]
+    if (!section) return
+    newSections[sectionIndex] = normalizeManualSectionClassification(section, semanticType)
+    updateField('sections', newSections)
+  }
+
+  const moveSection = (sectionIndex: number, direction: -1 | 1) => {
+    updateField('sections', reorderResumeSections(data.sections || [], sectionIndex, direction))
+  }
+
+  const requestLayoutOptimization = async () => {
+    setOptimizing(true)
+    setOptimizationError(null)
+    setOptimizationProposal(null)
+    try {
+      const response = await fetch('/api/resume/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data, templateId: selectedTemplate }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload?.error || 'Could not optimize resume content')
+      if (!Array.isArray(payload.operations) || payload.operations.length === 0) {
+        setOptimizationError('No safe shortening was found. Keep two pages or edit the longest sections manually.')
+        return
+      }
+      setOptimizationProposal(payload as ResumeOptimizationProposal)
+    } catch (error) {
+      setOptimizationError(error instanceof Error ? error.message : 'Could not optimize resume content')
+    } finally {
+      setOptimizing(false)
+    }
+  }
+
+  const applyLayoutOptimization = () => {
+    if (!optimizationProposal) return
+    const sections = optimizationProposal.sections
+    setOptimizationProposal(null)
+    setOptimizationError(null)
+    setData(prev => ({ ...prev, sections }))
+  }
+
+  const renderSectionHeader = (section: DynamicSection, sectionIndex: number) => {
+    const isSummary = getSectionSemanticType(section) === 'summary'
+    return (
+      <>
+        <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
+            {!isSummary && (
+              <>
+                <button type="button" onClick={() => moveSection(sectionIndex, -1)} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Move ${section.title} up`} title="Move section up">
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" onClick={() => moveSection(sectionIndex, 1)} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Move ${section.title} down`} title="Move section down">
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        <SectionClassificationReview section={section} onChange={(semanticType) => updateSectionClassification(sectionIndex, semanticType)} />
+      </>
+    )
+  }
+
   // Edit Panel Sections
   const renderEditPanel = () => (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -139,6 +213,45 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           <ul className="text-xs text-muted-foreground space-y-1 pl-5 list-disc">
             {preflight.warnings.slice(0, 3).map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}
           </ul>
+        )}
+
+        {preflight.fit !== 'comfortable' && !optimizationProposal && (
+          <div className="pt-2 flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" variant="outline" className="gap-2" onClick={requestLayoutOptimization} disabled={optimizing}>
+              <Sparkles className="h-3.5 w-3.5" />
+              {optimizing ? 'Finding safe shortening...' : 'Optimize for this template'}
+            </Button>
+            <span className="text-[10px] text-muted-foreground">Proposes shorter wording first; nothing is applied automatically.</span>
+          </div>
+        )}
+
+        {optimizationError && <p className="text-xs text-amber-600">{optimizationError}</p>}
+
+        {optimizationProposal && (
+          <div className="mt-3 rounded-lg border border-blue-500/20 bg-background/70 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-blue-600">Optimization proposal</p>
+                <p className="text-[10px] text-muted-foreground">Review every rewrite before applying it.</p>
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">
+                {optimizationProposal.before.score}/100 → {optimizationProposal.after.score}/100 · ~{optimizationProposal.before.estimatedPages}p → ~{optimizationProposal.after.estimatedPages}p
+              </span>
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {optimizationProposal.operations.map((operation, index) => (
+                <div key={`${operation.target}-${index}`} className="rounded-md border border-border/50 p-2 text-[11px] space-y-1.5">
+                  <p className="font-semibold">{operation.sectionTitle}</p>
+                  <p className="text-muted-foreground line-through">{operation.before}</p>
+                  <p>{operation.after}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={() => setOptimizationProposal(null)}>Keep current text</Button>
+              <Button type="button" size="sm" onClick={applyLayoutOptimization}>Apply proposal</Button>
+            </div>
+          </div>
         )}
       </div>
       
@@ -190,10 +303,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         if (section.type === 'text') {
           return (
             <section key={sIndex} className="space-y-4 relative">
-              <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
-                {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
-              </div>
+              {renderSectionHeader(section, sIndex)}
               <textarea 
                 className="w-full px-3 py-2 bg-background border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)] rounded-lg text-sm min-h-[100px] leading-relaxed resize-y" 
                 value={section.text || ''} 
@@ -206,10 +316,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         if (section.type === 'list') {
           return (
             <section key={sIndex} className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
-                {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
-              </div>
+              {renderSectionHeader(section, sIndex)}
               <div className="flex flex-wrap gap-2">
                 {(section.items || []).map((item, i) => (
                   <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted border border-border/50 group">
@@ -231,10 +338,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         if (section.type === 'entries') {
           return (
             <section key={sIndex} className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
-                 {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
-              </div>
+              {renderSectionHeader(section, sIndex)}
               <div className="space-y-4">
                 {(section.entries || []).map((entry, i) => (
                   <div key={i} className={`p-4 rounded-xl border border-border/50 bg-card space-y-3 relative group ${entry.isEnhanced ? 'border-blue-500/30 bg-blue-500/5' : ''}`}>

@@ -2,7 +2,8 @@ import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer'
 import type { ImprovedResumeData } from '../ImprovedResumeTemplate'
 import { renderDescription } from './pdfUtils'
-import './fonts'
+import { allocateResumeSections, getPrimaryResumeRole } from '@/features/resume/services/resume-template-allocation.service'
+import { PDF_FONT_FAMILY } from './fonts'
 
 const ACCENT = '#4f46e5'
 const SIDEBAR_BG = '#1e293b' // Softer slate/zinc instead of harsh navy
@@ -10,7 +11,7 @@ const SIDEBAR_TEXT = '#f8fafc'
 const SIDEBAR_MUTED = '#cbd5e1'
 
 const styles = StyleSheet.create({
-  page: { flexDirection: 'row', fontFamily: 'Inter', fontSize: 10, color: '#000000', lineHeight: 1.3 },
+  page: { flexDirection: 'row', fontFamily: PDF_FONT_FAMILY, fontSize: 10, color: '#000000', lineHeight: 1.3 },
   // Sidebar
   sidebar: { width: '35%', backgroundColor: SIDEBAR_BG, padding: '36 20', minHeight: '100%' },
   sidebarName: { fontSize: 20, fontWeight: 700, color: '#ffffff', marginBottom: 6, lineHeight: 1.2 },
@@ -37,15 +38,13 @@ const styles = StyleSheet.create({
 })
 
 export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
-  // Legacy role fallback
-  const role = data.sections 
-    ? data.sections.find(s => s.type === 'entries')?.entries?.[0]?.title || ''
-    : data.workEntries?.[0]?.role || ''
-
-  const sidebarTitles = ['skill', 'education', 'certif', 'language', 'contact']
   const hasSections = data.sections && data.sections.length > 0
-  const sidebarSections = hasSections ? data.sections.filter(s => sidebarTitles.some(t => s.title.toLowerCase().includes(t))) : []
-  const mainSections = hasSections ? data.sections.filter(s => !sidebarTitles.some(t => s.title.toLowerCase().includes(t))) : []
+  const allocation = allocateResumeSections(data, 'modern')
+  const role = getPrimaryResumeRole(data)
+  const sidebarSections = hasSections ? allocation.secondary : []
+  const mainSections = hasSections
+    ? allocation.summary ? [allocation.summary, ...allocation.primary] : allocation.primary
+    : []
 
   return (
     <Document>
