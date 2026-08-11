@@ -32,7 +32,7 @@ export function LandingHero() {
 
         <div className="grid lg:grid-cols-2 gap-12 items-center mb-16">
           <div className="max-w-2xl text-left flex flex-col items-start">
-            <ScrollReveal animation="fade-up" delay={100}>
+            <ScrollReveal animation="fade-up" delay={100} initialVisible>
               <div className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-muted/20 px-3 py-1.5 text-sm font-medium shadow-sm backdrop-blur-sm">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75"></span>
@@ -42,20 +42,20 @@ export function LandingHero() {
               </div>
             </ScrollReveal>
 
-            <ScrollReveal animation="fade-up" delay={200}>
+            <ScrollReveal animation="fade-up" delay={200} initialVisible>
               <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-left">
                 Get Recruiter-Style Feedback
                 <span className="text-blue-600 block">Instantly</span>
               </h1>
             </ScrollReveal>
 
-            <ScrollReveal animation="fade-up" delay={300}>
+            <ScrollReveal animation="fade-up" delay={300} initialVisible>
               <p className="text-muted-foreground mt-6 text-lg leading-relaxed text-left max-w-xl">
                 Upload your portfolio, GitHub profile, or resume to get an actionable, top-tier technical assessment before you even apply.
               </p>
             </ScrollReveal>
 
-            <ScrollReveal animation="fade-up" delay={400} className="w-full">
+            <ScrollReveal animation="fade-up" delay={400} className="w-full" initialVisible>
               <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-start">
                 <Link href="/dashboard/reviews">
                   <Button size="lg" className="group relative w-full sm:w-auto overflow-hidden bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.6)]">
@@ -79,7 +79,7 @@ export function LandingHero() {
             </ScrollReveal>
           </div>
 
-          <ScrollReveal animation="fade-in" delay={500} duration={1200} className="w-full">
+          <ScrollReveal animation="fade-in" delay={500} duration={1200} className="w-full" initialVisible>
             <HeroAnimation />
           </ScrollReveal>
         </div>

@@ -10,6 +10,8 @@ interface ScrollRevealProps {
   delay?: number // in ms
   duration?: number // in ms
   threshold?: number
+  /** Render visible in the initial HTML instead of waiting for client hydration. */
+  initialVisible?: boolean
 }
 
 export function ScrollReveal({
@@ -19,11 +21,14 @@ export function ScrollReveal({
   delay = 0,
   duration = 1000,
   threshold = 0.1,
+  initialVisible = false,
 }: ScrollRevealProps) {
-  const [isVisible, setIsVisible] = useState(false)
+  const [isVisible, setIsVisible] = useState(initialVisible)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (initialVisible) return
+
     const currentRef = ref.current
     if (!currentRef) return
 
@@ -49,7 +54,7 @@ export function ScrollReveal({
     return () => {
       observer.disconnect()
     }
-  }, [threshold])
+  }, [threshold, initialVisible])
 
   // Initial invisible states (Hardware Accelerated)
   const baseStyles = {
