@@ -1,5 +1,6 @@
 import React from 'react'
 import { Text, View, StyleSheet } from '@react-pdf/renderer'
+import { parseDescriptionBlocks } from '@/features/resume/services/resume-layout.service'
 
 const utilStyles = StyleSheet.create({
   bulletRow: {
@@ -23,25 +24,21 @@ const utilStyles = StyleSheet.create({
 export function renderDescription(text: string | undefined, textStyle?: any, bulletColor: string = '#000000') {
   if (!text) return null
 
-  const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean)
+  const blocks = parseDescriptionBlocks(text)
   
-  return lines.map((line, i) => {
-    // Check if line is a bullet point
-    const isBullet = /^[•\-\*]\s*/.test(line)
-    
-    if (isBullet) {
-      const cleanLine = line.replace(/^[•\-\*]\s*/, '')
+  return blocks.map((block, i) => {
+    if (block.type === 'bullet') {
       return (
-        <View key={i} style={utilStyles.bulletRow} wrap={false}>
+        <View key={i} style={utilStyles.bulletRow} >
           <Text style={[{ color: bulletColor }, textStyle, utilStyles.bulletPoint]}>•</Text>
-          <Text style={[textStyle, utilStyles.bulletContent]}>{cleanLine}</Text>
+          <Text style={[textStyle, utilStyles.bulletContent]}>{block.text}</Text>
         </View>
       )
     }
     
     return (
-      <Text key={i} style={[textStyle, utilStyles.paragraph]} wrap={false}>
-        {line}
+      <Text key={i} style={[textStyle, utilStyles.paragraph]} >
+        {block.text}
       </Text>
     )
   })

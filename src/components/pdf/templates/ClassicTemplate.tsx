@@ -46,7 +46,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
         {data.sections && data.sections.length > 0 ? (
           data.sections.map((section, idx) => (
             <View key={idx} style={styles.section}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={styles.sectionTitle} minPresenceAhead={30}>{section.title}</Text>
               <View style={styles.divider} />
               
               {section.type === 'text' && section.text && (
@@ -55,13 +55,13 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
               
               {section.type === 'list' && section.items && (
                 <View style={styles.skillsContainer}>
-                  {section.items.map((item, i) => <Text key={i} style={styles.skillText} wrap={false}>{item}</Text>)}
+                  {section.items.map((item, i) => <Text key={i} style={styles.skillText}>{item}</Text>)}
                 </View>
               )}
               
               {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                <View key={i} style={{ marginBottom: 10 }} wrap={false}>
-                  <View style={styles.entryHeader}>
+                <View key={i} style={{ marginBottom: 10 }}>
+                  <View style={styles.entryHeader} minPresenceAhead={24}>
                     {entry.link && /^https?:\/\//.test(entry.link)
                       ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#2563eb' }}>{entry.title}</Link>
                       : <Text style={styles.entryTitle}>{entry.title || 'Title'}</Text>}
@@ -84,7 +84,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
           <>
             {data.summary && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Professional Summary</Text>
+                <Text style={styles.sectionTitle} minPresenceAhead={30}>Professional Summary</Text>
                 <View style={styles.divider} />
                 <Text style={styles.summaryText}>{data.summary}</Text>
               </View>
@@ -92,21 +92,21 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
 
             {(data.skills?.length ?? 0) > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Skills</Text>
+                <Text style={styles.sectionTitle} minPresenceAhead={30}>Skills</Text>
                 <View style={styles.divider} />
                 <View style={styles.skillsContainer}>
-                  {(data.skills || []).map((skill, i) => <Text key={i} style={styles.skillText} wrap={false}>{skill}</Text>)}
+                  {(data.skills || []).map((skill, i) => <Text key={i} style={styles.skillText}>{skill}</Text>)}
                 </View>
               </View>
             )}
 
             {(data.workEntries?.length ?? 0) > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Experience</Text>
+                <Text style={styles.sectionTitle} minPresenceAhead={30}>Experience</Text>
                 <View style={styles.divider} />
                 {(data.workEntries || []).map((work, i) => (
-                  <View key={i} style={{ marginBottom: 10 }} wrap={false}>
-                    <View style={styles.entryHeader}>
+                  <View key={i} style={{ marginBottom: 10 }}>
+                    <View style={styles.entryHeader} minPresenceAhead={24}>
                       <Text style={styles.entryTitle}>{work.role || 'Role Title'}</Text>
                       <Text style={styles.entryDates}>{work.dates}</Text>
                     </View>
@@ -125,11 +125,11 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
 
             {(data.projects?.length ?? 0) > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Projects</Text>
+                <Text style={styles.sectionTitle} minPresenceAhead={30}>Projects</Text>
                 <View style={styles.divider} />
                 {(data.projects || []).map((proj, i) => (
-                  <View key={i} style={{ marginBottom: 8 }} wrap={false}>
-                    <View style={styles.entryHeader}>
+                  <View key={i} style={{ marginBottom: 8 }}>
+                    <View style={styles.entryHeader} minPresenceAhead={24}>
                       {proj.link && /^https?:\/\//.test(proj.link)
                         ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#2563eb' }}>{proj.name}</Link>
                         : <Text style={styles.entryTitle}>{proj.name}</Text>}
@@ -146,11 +146,11 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
 
             {(data.education?.length ?? 0) > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Education</Text>
+                <Text style={styles.sectionTitle} minPresenceAhead={30}>Education</Text>
                 <View style={styles.divider} />
                 {(data.education || []).map((edu, i) => (
-                  <View key={i} style={{ marginBottom: 8 }} wrap={false}>
-                    <View style={styles.entryHeader}>
+                  <View key={i} style={{ marginBottom: 8 }}>
+                    <View style={styles.entryHeader} minPresenceAhead={24}>
                       <Text style={styles.entryTitle}>{edu.degree}</Text>
                       <Text style={styles.entryDates}>{edu.dates}</Text>
                     </View>

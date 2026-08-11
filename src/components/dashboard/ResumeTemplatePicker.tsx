@@ -4,6 +4,7 @@ import { BlobProvider } from '@react-pdf/renderer'
 import { CheckCircle2, ArrowRight, Sparkles } from 'lucide-react'
 import { RESUME_TEMPLATES, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import type { ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
+import { analyzeResumePreflight } from '@/features/resume/services/resume-layout.service'
 import { Button } from '@/components/common/Button'
 
 interface ResumeTemplatePickerProps {
@@ -55,6 +56,8 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-5xl mx-auto">
           {RESUME_TEMPLATES.map((template) => {
             const isSelected = selected === template.id
+            const preflight = analyzeResumePreflight(data, template.id)
+            const fitLabel = preflight.fit === 'comfortable' ? 'Comfortable fit' : preflight.fit === 'tight' ? 'Tight fit' : 'Overflow risk'
             return (
               <button
                 key={template.id}
@@ -88,7 +91,11 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
                     />
                     <h3 className="font-bold text-sm">{template.name}</h3>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{template.description}</p>
+                  <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{template.description}</p>
+                  <div className="mb-3 flex items-center justify-between gap-2 text-[10px] font-semibold">
+                    <span className={preflight.fit === 'overflow-risk' ? 'text-red-500' : preflight.fit === 'tight' ? 'text-amber-500' : 'text-emerald-600'}>{fitLabel}</span>
+                    <span className="text-muted-foreground">~{preflight.estimatedPages} page{preflight.estimatedPages === 1 ? '' : 's'}</span>
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {template.tags.map((tag) => (
                       <span

@@ -1,9 +1,27 @@
+export type ResumeSemanticSectionType =
+  | 'summary'
+  | 'skills'
+  | 'experience'
+  | 'education'
+  | 'projects'
+  | 'certifications'
+  | 'licenses'
+  | 'awards'
+  | 'languages'
+  | 'volunteer'
+  | 'publications'
+  | 'training'
+  | 'custom'
+  | 'unknown'
+
 export interface DynamicSection {
   title: string;                 // The EXACT header from the original PDF
-  type: 'text' | 'list' | 'entries'; 
-  text?: string;                 
-  items?: string[];              
-  entries?: {                    
+  type: 'text' | 'list' | 'entries';
+  semanticType?: ResumeSemanticSectionType; // Profession-agnostic meaning assigned by extraction/classification
+  classificationConfidence?: number; // 0..1; low confidence stays reviewable instead of being guessed
+  text?: string;
+  items?: string[];
+  entries?: {
     title: string;
     subtitle?: string;
     dates?: string;

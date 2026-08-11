@@ -73,13 +73,13 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                 {section.type === 'list' && section.items && (
                   <View style={styles.skillRow}>
                     {section.items.map((item, i) => (
-                      <Text key={i} style={styles.skillPill} wrap={false}>{item}</Text>
+                      <Text key={i} style={styles.skillPill}>{item}</Text>
                     ))}
                   </View>
                 )}
 
                 {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                  <View key={i} style={{ marginBottom: 8 }} wrap={false}>
+                  <View key={i} style={{ marginBottom: 8 }}>
                     <Text style={{ ...styles.sidebarText, fontWeight: 700 }}>{entry.title}</Text>
                     {entry.subtitle && <Text style={styles.sidebarMuted}>{entry.subtitle}</Text>}
                     {entry.dates && <Text style={{ ...styles.sidebarMuted, marginTop: 2 }}>{entry.dates}</Text>}
@@ -95,7 +95,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                   <Text style={styles.sidebarSectionTitle}>Skills</Text>
                   <View style={styles.skillRow}>
                     {(data.skills || []).map((skill, i) => (
-                      <Text key={i} style={styles.skillPill} wrap={false}>{skill}</Text>
+                      <Text key={i} style={styles.skillPill}>{skill}</Text>
                     ))}
                   </View>
                 </View>
@@ -105,7 +105,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                 <View style={styles.sidebarSection}>
                   <Text style={styles.sidebarSectionTitle}>Education</Text>
                   {(data.education || []).map((edu, i) => (
-                    <View key={i} style={{ marginBottom: 8 }} wrap={false}>
+                    <View key={i} style={{ marginBottom: 8 }}>
                       <Text style={{ ...styles.sidebarText, fontWeight: 700 }}>{edu.degree}</Text>
                       {edu.school && <Text style={styles.sidebarMuted}>{edu.school}</Text>}
                       {edu.dates && <Text style={{ ...styles.sidebarMuted, marginTop: 2 }}>{edu.dates}</Text>}
@@ -122,7 +122,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
           {hasSections ? (
             mainSections.map((section, idx) => (
               <View key={`main-${idx}`} style={styles.section}>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionTitle} minPresenceAhead={30}>{section.title}</Text>
                 <View style={styles.sectionDivider} />
                 
                 {section.type === 'text' && section.text && (
@@ -132,14 +132,14 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                 {section.type === 'list' && section.items && (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
                     {section.items.map((item, i) => (
-                      <Text key={i} style={{ backgroundColor: '#f1f5f9', padding: '3 6', borderRadius: 4, fontSize: 8.5, color: '#000000', fontWeight: 600 }} wrap={false}>{item}</Text>
+                      <Text key={i} style={{ backgroundColor: '#f1f5f9', padding: '3 6', borderRadius: 4, fontSize: 8.5, color: '#000000', fontWeight: 600 }}>{item}</Text>
                     ))}
                   </View>
                 )}
                 
                 {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                  <View key={i} style={{ marginBottom: 10 }} wrap={false}>
-                    <View style={styles.entryHeader}>
+                  <View key={i} style={{ marginBottom: 10 }}>
+                    <View style={styles.entryHeader} minPresenceAhead={24}>
                       {entry.link && /^https?:\/\//.test(entry.link)
                         ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{entry.title}</Link>
                         : <Text style={styles.entryTitle}>{entry.title}</Text>}
@@ -162,7 +162,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
             <>
               {data.summary && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Profile</Text>
+                  <Text style={styles.sectionTitle} minPresenceAhead={30}>Profile</Text>
                   <View style={styles.sectionDivider} />
                   <Text style={styles.summaryText}>{data.summary}</Text>
                 </View>
@@ -170,11 +170,11 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
 
               {(data.workEntries?.length ?? 0) > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Experience</Text>
+                  <Text style={styles.sectionTitle} minPresenceAhead={30}>Experience</Text>
                   <View style={styles.sectionDivider} />
                   {(data.workEntries || []).map((work, i) => (
-                    <View key={i} style={{ marginBottom: 10 }} wrap={false}>
-                      <View style={styles.entryHeader}>
+                    <View key={i} style={{ marginBottom: 10 }}>
+                      <View style={styles.entryHeader} minPresenceAhead={24}>
                         <Text style={styles.entryTitle}>{work.role}</Text>
                         <Text style={styles.entryDates}>{work.dates}</Text>
                       </View>
@@ -193,11 +193,11 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
 
               {(data.projects?.length ?? 0) > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Projects</Text>
+                  <Text style={styles.sectionTitle} minPresenceAhead={30}>Projects</Text>
                   <View style={styles.sectionDivider} />
                   {(data.projects || []).map((proj, i) => (
-                    <View key={i} style={{ marginBottom: 8 }} wrap={false}>
-                      <View style={styles.entryHeader}>
+                    <View key={i} style={{ marginBottom: 8 }}>
+                      <View style={styles.entryHeader} minPresenceAhead={24}>
                         {proj.link && /^https?:\/\//.test(proj.link)
                           ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{proj.name}</Link>
                           : <Text style={styles.entryTitle}>{proj.name}</Text>}

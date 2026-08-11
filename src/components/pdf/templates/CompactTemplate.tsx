@@ -72,7 +72,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
             <>
               {summarySection && summarySection.text && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>{summarySection.title}</Text>
+                  <Text style={styles.sectionTitle} minPresenceAhead={30}>{summarySection.title}</Text>
                   <View style={styles.divider} />
                   <Text style={styles.summaryText}>{summarySection.text}</Text>
                 </View>
@@ -83,19 +83,19 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                 <View style={styles.colLeft}>
                   {leftSections.map((section, idx) => (
                     <View key={`left-${idx}`} style={styles.section}>
-                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                      <Text style={styles.sectionTitle} minPresenceAhead={30}>{section.title}</Text>
                       <View style={styles.divider} />
                       {section.type === 'list' && section.items && (
                         <View style={styles.skillsRow}>
                           {section.items.map((item, i) => (
-                            <Text key={i} style={styles.skillTag} wrap={false}>{item}</Text>
+                            <Text key={i} style={styles.skillTag}>{item}</Text>
                           ))}
                         </View>
                       )}
 
                       {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                        <View key={i} style={{ marginBottom: 8 }} wrap={false}>
-                          <View style={styles.entryHeader}>
+                        <View key={i} style={{ marginBottom: 8 }}>
+                          <View style={styles.entryHeader} minPresenceAhead={24}>
                             {entry.link && /^https?:\/\//.test(entry.link)
                               ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{entry.title}</Link>
                               : <Text style={styles.entryTitle}>{entry.title}</Text>}
@@ -119,19 +119,19 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                 <View style={styles.colRight}>
                   {rightSections.map((section, idx) => (
                     <View key={`right-${idx}`} style={styles.section}>
-                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                      <Text style={styles.sectionTitle} minPresenceAhead={30}>{section.title}</Text>
                       <View style={styles.divider} />
                       
                       {section.type === 'list' && section.items && (
                         <View style={styles.skillsRow}>
                           {section.items.map((item, i) => (
-                            <Text key={i} style={styles.skillTag} wrap={false}>{item}</Text>
+                            <Text key={i} style={styles.skillTag}>{item}</Text>
                           ))}
                         </View>
                       )}
 
                       {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                        <View key={i} style={styles.eduEntry} wrap={false}>
+                        <View key={i} style={styles.eduEntry}>
                           <Text style={styles.entryTitle}>{entry.title}</Text>
                           {entry.subtitle && <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>}
                           {entry.dates && <Text style={styles.entryDates}>{entry.dates}</Text>}
@@ -147,7 +147,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
             <>
               {data.summary && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Summary</Text>
+                  <Text style={styles.sectionTitle} minPresenceAhead={30}>Summary</Text>
                   <View style={styles.divider} />
                   <Text style={styles.summaryText}>{data.summary}</Text>
                 </View>
@@ -157,11 +157,11 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                 <View style={styles.colLeft}>
                   {(data.workEntries?.length ?? 0) > 0 && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Experience</Text>
+                      <Text style={styles.sectionTitle} minPresenceAhead={30}>Experience</Text>
                       <View style={styles.divider} />
                       {(data.workEntries || []).map((work, i) => (
-                        <View key={i} style={{ marginBottom: 8 }} wrap={false}>
-                          <View style={styles.entryHeader}>
+                        <View key={i} style={{ marginBottom: 8 }}>
+                          <View style={styles.entryHeader} minPresenceAhead={24}>
                             <Text style={styles.entryTitle}>{work.role}</Text>
                             <Text style={styles.entryDates}>{work.dates}</Text>
                           </View>
@@ -180,11 +180,11 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
 
                   {(data.projects?.length ?? 0) > 0 && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Projects</Text>
+                      <Text style={styles.sectionTitle} minPresenceAhead={30}>Projects</Text>
                       <View style={styles.divider} />
                       {(data.projects || []).map((proj, i) => (
-                        <View key={i} style={{ marginBottom: 7 }} wrap={false}>
-                          <View style={styles.entryHeader}>
+                        <View key={i} style={{ marginBottom: 7 }}>
+                          <View style={styles.entryHeader} minPresenceAhead={24}>
                             {proj.link && /^https?:\/\//.test(proj.link)
                               ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#0284c7' }}>{proj.name}</Link>
                               : <Text style={styles.entryTitle}>{proj.name}</Text>}
@@ -203,11 +203,11 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
                 <View style={styles.colRight}>
                   {(data.skills?.length ?? 0) > 0 && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Skills</Text>
+                      <Text style={styles.sectionTitle} minPresenceAhead={30}>Skills</Text>
                       <View style={styles.divider} />
                       <View style={styles.skillsRow}>
                         {(data.skills || []).map((skill, i) => (
-                          <Text key={i} style={styles.skillTag} wrap={false}>{skill}</Text>
+                          <Text key={i} style={styles.skillTag}>{skill}</Text>
                         ))}
                       </View>
                     </View>
@@ -215,10 +215,10 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
 
                   {(data.education?.length ?? 0) > 0 && (
                     <View style={{ ...styles.section, marginTop: 6 }}>
-                      <Text style={styles.sectionTitle}>Education</Text>
+                      <Text style={styles.sectionTitle} minPresenceAhead={30}>Education</Text>
                       <View style={styles.divider} />
                       {(data.education || []).map((edu, i) => (
-                        <View key={i} style={styles.eduEntry} wrap={false}>
+                        <View key={i} style={styles.eduEntry}>
                           <Text style={styles.entryTitle}>{edu.degree}</Text>
                           {edu.school && <Text style={styles.entrySubtitle}>{edu.school}</Text>}
                           {edu.dates && <Text style={styles.entryDates}>{edu.dates}</Text>}

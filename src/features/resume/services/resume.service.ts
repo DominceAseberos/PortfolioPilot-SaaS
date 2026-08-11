@@ -6,7 +6,9 @@ import { resumeLinkExtractionService } from './resume-link-extraction.service'
 export class ResumeService {
   async analyze(fileBuffer: Buffer, fileName: string): Promise<ResumeAnalysis> {
     try {
-      const text = await this.extractText(fileBuffer)
+      const extracted = await this.extractDocumentText(fileBuffer)
+      const text = extracted.plainText
+      const aiInput = extracted.structuredText || text
 
       if (!text || text.trim().length === 0) {
         return {
@@ -25,7 +27,7 @@ export class ResumeService {
       const detectedGithub = detectedLinks.github[0]?.normalized ?? null
       const detectedLinkedIn = detectedLinks.linkedin[0]?.normalized ?? null
 
-      const aiResult = await analyzeResumeWithAI(text)
+      const aiResult = await analyzeResumeWithAI(aiInput)
       const ruleResult = this.ruleBasedAnalyze(text)
 
       if (aiResult) {
@@ -43,7 +45,10 @@ export class ResumeService {
             linkedin: aiResult.linkedin || detectedLinkedIn || ruleResult.details?.linkedin || null,
             github: aiResult.github || detectedGithub || ruleResult.details?.github || null,
             workEntries: aiResult.sections
-              .filter(s => s.type === 'entries' && !/(education|university|college|degree|project|portfolio)/i.test(s.title))
+              .filter(s => s.type === 'entries' && (
+                s.semanticType === 'experience' ||
+                (s.semanticType === 'unknown' && /(experience|employment|work history|professional background)/i.test(s.title))
+              ))
               .flatMap(s => s.entries || [])
               .map(e => ({
                 company: e.subtitle || '',
@@ -52,7 +57,10 @@ export class ResumeService {
                 description: e.description || ''
               })),
             education: aiResult.sections
-              .filter(s => s.type === 'entries' && /(education|university|college|degree)/i.test(s.title))
+              .filter(s => s.type === 'entries' && (
+                s.semanticType === 'education' ||
+                (s.semanticType === 'unknown' && /(education|university|college|degree|academic)/i.test(s.title))
+              ))
               .flatMap(s => s.entries || [])
               .map(e => ({
                 degree: e.title || '',
@@ -60,7 +68,10 @@ export class ResumeService {
                 dates: e.dates || ''
               })),
             projects: aiResult.sections
-              .filter(s => s.type === 'entries' && /(project|portfolio)/i.test(s.title))
+              .filter(s => s.type === 'entries' && (
+                s.semanticType === 'projects' ||
+                (s.semanticType === 'unknown' && /(project|portfolio|case stud|work sample)/i.test(s.title))
+              ))
               .flatMap(s => s.entries || [])
               .map(e => ({
                 name: e.title || '',
@@ -68,7 +79,10 @@ export class ResumeService {
                 description: e.description || ''
               })),
             skills: aiResult.sections
-              .filter(s => s.type === 'list' || /(skill|technolog|tool|expert|proficien)/i.test(s.title))
+              .filter(s => s.type === 'list' && (
+                s.semanticType === 'skills' ||
+                (s.semanticType === 'unknown' && /(skill|competenc|expertise|proficien|tool|abilit|knowledge)/i.test(s.title))
+              ))
               .flatMap(s => s.items || [])
               .map(s => ({ name: s, found: true })),
             sections: aiResult.sections.length > 0 ? aiResult.sections : ruleResult.details?.sections || [],
@@ -157,7 +171,7 @@ export class ResumeService {
     // Structural Categories
     if (/\b(experience|employment|work history|career|professional background)\b/.test(content)) score += 2
     if (/\b(education|university|college|degree|bachelor|master|phd|academic)\b/.test(content)) score += 2
-    if (/\b(skills|technologies|proficiencies|expertise|tools)\b/.test(content)) score += 2
+    if (/\b(skills?|competencies|expertise|proficiencies|tools?|abilities|knowledge)\b/.test(content)) score += 2
     if (/\b(resume|cv|curriculum vitae)\b/.test(content)) score += 1
 
     // Require a minimum score of 5 to pass
@@ -181,27 +195,9 @@ export class ResumeService {
     const linkedin = this.extractLinkedIn(text)
     const githubUrl = this.extractGithub(text)
     const workEntries = this.extractWorkEntries(text)
-    const skillsList = [
-      'javascript',
-      'typescript',
-      'python',
-      'react',
-      'node',
-      'sql',
-      'aws',
-      'docker',
-      'git',
-      'api',
-      'agile',
-      'leadership',
-      'communication',
-      'teamwork',
-      'problem.solving',
-    ]
-
-    const skills: ResumeSkill[] = skillsList.map((s) => ({
-      name: s,
-      found: new RegExp(s.replace('.', '\\.'), 'i').test(text),
+    const skills: ResumeSkill[] = this.extractGenericSkills(text).map((name) => ({
+      name,
+      found: true,
     }))
 
     const sections: ResumeSection[] = [
@@ -213,7 +209,7 @@ export class ResumeService {
         name: 'Education',
         found: /(education|university|college|degree|bachelor|master|phd)/i.test(text),
       },
-      { name: 'Skills', found: /skills|technologies|tools|proficiencies/i.test(text) },
+      { name: 'Skills', found: /skills?|competenc|expertise|proficien|tools?|abilities|knowledge/i.test(text) },
       { name: 'Projects', found: /projects|portfolio/i.test(text) },
     ]
 
@@ -316,6 +312,56 @@ export class ResumeService {
     }
   }
 
+  public extractGenericSkills(text: string): string[] {
+    const lines = text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+    const skillHeadingPattern = /^(.{0,45}?(?:skills?|competencies|expertise|proficiencies|tools?|abilities|knowledge))\s*:?[ \t]*(.*)$/i
+    const stopHeadingPattern = /^(experience|employment|work history|education|projects?|certifications?|licenses?|awards?|languages?|volunteer|publications?|training|references?|summary|profile|objective)\b/i
+    const results: string[] = []
+    const seen = new Set<string>()
+    let collecting = false
+
+    const addItems = (raw: string) => {
+      const cleaned = raw.replace(/^[•●▪◦‣⁃*\-–—]\s*/, '').trim()
+      if (!cleaned) return
+
+      const colonIndex = cleaned.indexOf(':')
+      const value = colonIndex > 0 && colonIndex < 30 ? cleaned.slice(colonIndex + 1).trim() : cleaned
+      const parts = value.split(/[,;|•]/).map((item) => item.trim()).filter(Boolean)
+
+      for (const item of parts.length > 0 ? parts : [value]) {
+        if (item.length < 2 || item.length > 80) continue
+        if (/https?:\/\/|@/.test(item)) continue
+        if (/[.!?]$/.test(item) && item.split(/\s+/).length > 10) continue
+        const key = item.toLowerCase().replace(/\s+/g, ' ')
+        if (seen.has(key)) continue
+        seen.add(key)
+        results.push(item)
+      }
+    }
+
+    for (const line of lines) {
+      const headingMatch = line.match(skillHeadingPattern)
+      if (headingMatch && headingMatch[1].split(/\s+/).length <= 6) {
+        collecting = true
+        if (headingMatch[2]) addItems(headingMatch[2])
+        continue
+      }
+
+      if (collecting && stopHeadingPattern.test(line)) {
+        collecting = false
+        continue
+      }
+
+      if (collecting) addItems(line)
+    }
+
+    return results.slice(0, 60)
+  }
+
   private extractName(text: string): string | null {
     const lines = text
       .split('\n')
@@ -388,13 +434,28 @@ export class ResumeService {
     return entries.slice(0, 10)
   }
 
-  public async extractText(buffer: Buffer): Promise<string> {
+  public async extractDocumentText(buffer: Buffer): Promise<{ plainText: string; structuredText: string; usedLayoutExtraction: boolean }> {
+    try {
+      const { extractResumeLayout } = await import('./resume-layout-extraction.service')
+      const layout = await extractResumeLayout(buffer)
+      if (layout.plainText.length > 50) {
+        return {
+          plainText: layout.plainText,
+          structuredText: layout.structuredText,
+          usedLayoutExtraction: true,
+        }
+      }
+      throw new Error('layout extraction returned too little text')
+    } catch (layoutError) {
+      logger.warn('Layout-aware PDF extraction failed, using text fallback', { error: String(layoutError) })
+    }
+
     try {
       const { extractText } = await import('unpdf')
       const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
       const result = await extractText(uint8)
       const text = (Array.isArray(result.text) ? result.text.join('\n') : result.text || '').trim()
-      if (text && text.length > 50) return text
+      if (text && text.length > 50) return { plainText: text, structuredText: text, usedLayoutExtraction: false }
       throw new Error('unpdf returned too little text')
     } catch (err) {
       logger.warn('unpdf failed, trying pdf-parse fallback', { error: String(err) })
@@ -405,7 +466,7 @@ export class ResumeService {
         const result = await parser.getText()
         await parser.destroy()
         const text = result.text?.trim()
-        if (text && text.length > 50) return text
+        if (text && text.length > 50) return { plainText: text, structuredText: text, usedLayoutExtraction: false }
       } catch (innerErr) {
         logger.warn('pdf-parse fallback also failed', { error: String(innerErr) })
       }
@@ -415,9 +476,15 @@ export class ResumeService {
         .replace(/[^ -~]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
-      if (cleaned.length > 100 && !cleaned.includes('%PDF-')) return cleaned
+      if (cleaned.length > 100 && !cleaned.includes('%PDF-')) {
+        return { plainText: cleaned, structuredText: cleaned, usedLayoutExtraction: false }
+      }
       throw new Error('Failed to extract text from PDF')
     }
+  }
+
+  public async extractText(buffer: Buffer): Promise<string> {
+    return (await this.extractDocumentText(buffer)).plainText
   }
 }
 

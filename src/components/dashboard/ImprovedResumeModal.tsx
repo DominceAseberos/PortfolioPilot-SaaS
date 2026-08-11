@@ -4,8 +4,10 @@ import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus,
 import { BlobProvider, PDFDownloadLink } from '@react-pdf/renderer'
 import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
+import { analyzeResumePreflight } from '@/features/resume/services/resume-layout.service'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
+import type { DynamicSection, ResumeSemanticSectionType } from '@/types/resume'
 
 export interface ImprovedResumeModalProps {
   initialData: ImprovedResumeData
@@ -13,12 +15,36 @@ export interface ImprovedResumeModalProps {
   onClose: () => void
 }
 
+const SECTION_TYPE_OPTIONS: { value: ResumeSemanticSectionType; label: string }[] = [
+  { value: 'summary', label: 'Summary' },
+  { value: 'skills', label: 'Skills' },
+  { value: 'experience', label: 'Experience' },
+  { value: 'education', label: 'Education' },
+  { value: 'projects', label: 'Projects' },
+  { value: 'certifications', label: 'Certifications' },
+  { value: 'licenses', label: 'Licenses' },
+  { value: 'awards', label: 'Awards' },
+  { value: 'languages', label: 'Languages' },
+  { value: 'volunteer', label: 'Volunteer' },
+  { value: 'publications', label: 'Publications' },
+  { value: 'training', label: 'Training' },
+  { value: 'custom', label: 'Other / Custom' },
+  { value: 'unknown', label: 'Needs Review' },
+]
+
 export default function ImprovedResumeModal({ initialData, resumeFile, onClose }: ImprovedResumeModalProps) {
   const [data, setData] = useState<ImprovedResumeData>(initialData)
   const [activeTab, setActiveTab] = useState<'original' | 'edit' | 'preview'>('edit')
   const [step, setStep] = useState<'pick-template' | 'edit'>('pick-template')
   const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateId>('classic')
   const [compareMode, setCompareMode] = useState(false)
+  const [previewData, setPreviewData] = useState<ImprovedResumeData>(initialData)
+  const preflight = analyzeResumePreflight(data, selectedTemplate)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewData(data), 250)
+    return () => window.clearTimeout(timer)
+  }, [data])
   
   // Create object URL for original resume
   const [originalUrl, setOriginalUrl] = useState<string | null>(null)
@@ -99,6 +125,22 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   // Edit Panel Sections
   const renderEditPanel = () => (
     <div className="space-y-8 animate-in fade-in duration-300">
+      <div className={`rounded-xl border p-4 space-y-2 ${preflight.fit === 'overflow-risk' ? 'border-red-500/30 bg-red-500/5' : preflight.fit === 'tight' ? 'border-amber-500/30 bg-amber-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" /> Layout Preflight
+          </h3>
+          <span className="text-xs font-semibold">{preflight.score}/100 · ~{preflight.estimatedPages} page{preflight.estimatedPages === 1 ? '' : 's'}</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {preflight.fit === 'comfortable' ? 'This template should fit comfortably with the current content.' : preflight.fit === 'tight' ? 'This template is getting dense. Review long sections before export.' : 'This template has overflow risk. Prefer another page, a better-fitting template, or content optimization instead of tiny text.'}
+        </p>
+        {preflight.warnings.length > 0 && (
+          <ul className="text-xs text-muted-foreground space-y-1 pl-5 list-disc">
+            {preflight.warnings.slice(0, 3).map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}
+          </ul>
+        )}
+      </div>
       
       {/* AI Recommendations Sidebar/Banner */}
       {(data.recommendations || []).length > 0 && (
@@ -348,10 +390,10 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
          <div className={`w-full ${compareMode ? 'sm:w-1/2' : 'sm:w-1/4'} h-full bg-muted/20 flex-col ${activeTab === 'preview' ? 'flex' : 'hidden sm:flex'}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Eye className="h-4 w-4"/> Live PDF Preview</span>
-             <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20 gap-1"><CheckCircle2 className="h-3 w-3"/> ATS Friendly</Badge>
+             <Badge variant="secondary" className={`text-[10px] gap-1 ${preflight.fit === 'overflow-risk' ? 'bg-red-500/10 text-red-600 border-red-500/20' : preflight.fit === 'tight' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-green-500/10 text-green-600 border-green-500/20'}`}><CheckCircle2 className="h-3 w-3"/> {preflight.fit === 'comfortable' ? 'Fits comfortably' : preflight.fit === 'tight' ? 'Tight layout' : 'Overflow risk'} · ~{preflight.estimatedPages}p</Badge>
            </div>
            <div className="flex-1 p-4 overflow-hidden relative flex flex-col items-center justify-center">
-             <BlobProvider document={<ResumeTemplateRenderer data={data} templateId={selectedTemplate} />}>
+             <BlobProvider document={<ResumeTemplateRenderer data={previewData} templateId={selectedTemplate} />}>
                {({ blob, url, loading, error }) => {
                  try {
                    if (error) {

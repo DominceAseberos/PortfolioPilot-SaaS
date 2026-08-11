@@ -11,6 +11,9 @@ import type {
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 
 import { DynamicSection } from '../../../types/resume'
+import { aiDynamicSectionSchema, aiResumeExtractionSchema, aiResumeScoreSchema } from './ai.schemas'
+import { enforceProtectedResumeFacts, isProjectSection, isSkillSection } from '@/features/resume/services/resume-enhancement-policy.service'
+import { enforceGitHubProjectEvidence, enforceGitHubSkillEvidence } from '@/features/resume/services/resume-evidence-policy.service'
 
 export interface AIAnalysisResult {
   score: number
@@ -48,9 +51,14 @@ export async function analyzeResumeWithAI(text: string, scrapedContext?: string)
 Do NOT score the resume. Do NOT generate strengths or weaknesses.
 
 CRITICAL RULES:
-1. Split any comma-separated skills (e.g., "Python, Java, C++") into individual items in an array: ["Python", "Java", "C++"].
-2. Standardize all dates.
-3. You MUST use 'list' type for Skills sections, and 'entries' type for Experience/Projects/Education sections.
+1. This system supports every profession. Do NOT assume the candidate is a developer or technical worker.
+2. Preserve unfamiliar, industry-specific, multilingual, and profession-specific terms exactly as written instead of replacing them with familiar vocabulary.
+3. Split comma-separated list items into individual items when the surrounding section clearly represents a list.
+4. Standardize date formatting only when the source date is unambiguous; never invent missing dates.
+5. Use 'list' for list-like sections, 'entries' for repeated structured records, and 'text' for narrative sections.
+6. Classify every section into the generic semantic ontology. If meaning is unclear, use semanticType: 'unknown' instead of guessing.
+7. Do not create placeholder sections or facts that are not supported by the source.
+8. Keep exact employer, school, credential, project, award, publication, and domain terminology from the source.
 
 Return this EXACT structure ONLY:
 {
@@ -60,19 +68,21 @@ Return this EXACT structure ONLY:
   "github": "GitHub URL or null",
   "sections": [
     {
-      "title": "Exact Header from PDF (e.g. SKILLS, EXPERIENCE, PROJECTS)",
-      "type": "text | list | entries", 
+      "title": "Exact Header from PDF",
+      "type": "text | list | entries",
+      "semanticType": "summary | skills | experience | education | projects | certifications | licenses | awards | languages | volunteer | publications | training | custom | unknown",
+      "classificationConfidence": 0.0,
       "text": "Extracted paragraph for text sections",
-      "items": ["item1", "item2"], 
-      "entries": [{"title": "Role/Project", "subtitle": "Company", "dates": "...", "description": "..."}],
-      "acceptsAIImprovements": true // True ONLY for sections containing skills, technical proficiencies, projects, or open source work!
+      "items": ["item1", "item2"],
+      "entries": [{"title": "Exact source title", "subtitle": "Exact source organization/subtitle", "dates": "...", "description": "..."}],
+      "acceptsAIImprovements": false
     }
   ],
   "predictedSeniority": "Junior | Mid-Level | Senior | Lead | Executive",
   "tone": "Confident | Passive | Action-Oriented | Vague"
 }
 
-If the resume lacks any technical skills or projects section, create empty placeholder sections for them (e.g. "Skills" with type "list" and "Projects" with type "entries") and set acceptsAIImprovements: true. Use null for missing fields.`,
+Use null for missing identity fields. Preserve all meaningful source sections, including uncommon profession-specific sections. Set acceptsAIImprovements true only when wording/content enrichment is safe for that section; never use it as permission to alter protected factual fields.`,
         },
         {
           role: 'user',
@@ -86,7 +96,14 @@ If the resume lacks any technical skills or projects section, create empty place
 
     const cleanContent = extractResponse.choices?.[0]?.message?.content
     if (!cleanContent) return null
-    const cleanData = JSON.parse(cleanContent)
+    const extractionValidation = aiResumeExtractionSchema.safeParse(JSON.parse(cleanContent))
+    if (!extractionValidation.success) {
+      logger.warn('AI resume extraction failed schema validation', {
+        issues: extractionValidation.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
+      })
+      return null
+    }
+    const cleanData = extractionValidation.data
 
     // LAYER 2: DEEP ANALYSIS & SCORING
     const analyzeResponse = await client.chat.completions.create({
@@ -94,7 +111,7 @@ If the resume lacks any technical skills or projects section, create empty place
       messages: [
         {
           role: 'system',
-          content: `You are an expert tech recruiter. Analyze the perfectly structured JSON resume provided and return JSON grading it.
+          content: `You are an expert cross-industry recruiter. Evaluate the structured resume in the context of the candidate's own profession and evidence. Do not apply software-engineering expectations to non-technical candidates. Return JSON grading it.
 
 Return this EXACT structure:
 {
@@ -118,7 +135,7 @@ Strengths, weaknesses, and recommendations should be highly personalized to the 
     })
 
     const scoreContent = analyzeResponse.choices?.[0]?.message?.content
-    const scoreData = scoreContent ? JSON.parse(scoreContent) : { score: 50, strengths: [], weaknesses: [], recommendations: [] }
+    const scoreData = aiResumeScoreSchema.parse(scoreContent ? JSON.parse(scoreContent) : {})
 
     return {
       score: scoreData.score ?? 50,
@@ -142,15 +159,15 @@ Strengths, weaknesses, and recommendations should be highly personalized to the 
 
 async function extractAndMergeSkills(client: OpenAI, currentSections: DynamicSection[], githubRepos: any[]): Promise<DynamicSection | null> {
   try {
-    const existingSkillsSection = currentSections.find(s => s.type === 'list' && s.acceptsAIImprovements)
-      || currentSections.find(s => s.type === 'list' && (s.title.toLowerCase().includes('skill') || s.title.toLowerCase().includes('tech')))
+    const existingSkillsSection = currentSections.find(isSkillSection)
+    if (githubRepos.length === 0) return existingSkillsSection ?? null
 
     const response = await client.chat.completions.create({
       model: 'llama-3.1-8b-instant',
       messages: [
         {
           role: 'system',
-          content: `You are an expert technical resume writer. Your job is to extract new technical skills from the provided GitHub repositories and merge them seamlessly into the user's existing Skills section. If no Skills section is provided, create a new one from scratch based on the GitHub data.
+          content: `You are an evidence-aware resume writer. Merge skills that are clearly supported by the provided GitHub repositories into the user's existing Skills section. Preserve every original profession-specific skill exactly; do not replace unfamiliar domain vocabulary with technical vocabulary. If there is no relevant GitHub evidence, keep the original skills unchanged.
           
 CRITICAL RULES:
 1. Do NOT delete or drop ANY of the user's original skills.
@@ -175,7 +192,14 @@ CRITICAL RULES:
     
     const content = response.choices?.[0]?.message?.content
     if (!content) return null
-    return JSON.parse(content)
+    const parsed = aiDynamicSectionSchema.parse({
+      ...JSON.parse(content),
+      type: 'list',
+      semanticType: 'skills',
+      classificationConfidence: 0.95,
+      acceptsAIImprovements: true,
+    })
+    return enforceGitHubSkillEvidence(existingSkillsSection, parsed, githubRepos)
   } catch (error) {
     logger.error('extractAndMergeSkills failed', { error: String(error) })
     return null
@@ -184,8 +208,8 @@ CRITICAL RULES:
 
 async function weaveProjects(client: OpenAI, currentSections: DynamicSection[], githubRepos: any[], githubUsername?: string): Promise<DynamicSection | null> {
   try {
-    const existingProjectsSection = currentSections.find(s => s.type === 'entries' && s.acceptsAIImprovements)
-      || currentSections.find(s => s.type === 'entries' && (s.title.toLowerCase().includes('project') || s.title.toLowerCase().includes('open source') || s.title.toLowerCase().includes('experience')))
+    const existingProjectsSection = currentSections.find(isProjectSection)
+    if (githubRepos.length === 0) return existingProjectsSection ?? null
 
     const response = await client.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -224,7 +248,14 @@ CRITICAL RULES:
 
     const content = response.choices?.[0]?.message?.content
     if (!content) return null
-    return JSON.parse(content)
+    const parsed = aiDynamicSectionSchema.parse({
+      ...JSON.parse(content),
+      type: 'entries',
+      semanticType: 'projects',
+      classificationConfidence: 0.95,
+      acceptsAIImprovements: true,
+    })
+    return enforceGitHubProjectEvidence(existingProjectsSection, parsed, githubRepos)
   } catch (error) {
     logger.error('weaveProjects failed', { error: String(error) })
     return null
@@ -238,11 +269,13 @@ async function generateProfessionalSummary(client: OpenAI, skillsSection: Dynami
       messages: [
         {
           role: 'system',
-          content: `You are an expert technical resume writer. Your job is to write a highly professional, concise 3-sentence summary (profile) for the candidate.
+          content: `You are an expert cross-industry resume writer. Write a professional, concise 3-sentence summary for the candidate using only the supplied evidence.
           
 CRITICAL RULES:
-1. Base the summary tightly around their technical skills and project history.
-2. Sound confident, action-oriented, and impactful.
+1. Adapt to the candidate's actual profession and evidence; do not assume a software or technical career.
+2. Base the summary on the strongest supplied skills, projects, experience, or work evidence without inventing missing facts.
+3. Preserve meaningful profession-specific terminology.
+4. Sound confident, action-oriented, and concise.
 3. Return ONLY a JSON object representing the Summary section matching this schema:
 {
   "title": "Professional Summary",
@@ -276,7 +309,7 @@ async function extractExperienceFromPortfolio(client: OpenAI, portfolioMarkdown:
       messages: [
         {
           role: 'system',
-          content: `You are an expert technical resume writer. Extract the candidate's work experience and education from the provided portfolio markdown.
+          content: `You are an evidence-aware cross-industry resume writer. Extract only work experience and education that are explicitly supported by the provided portfolio markdown. Preserve exact organization names, roles, credentials, and dates; do not infer employment from projects or portfolio pieces.
           
 CRITICAL RULES:
 1. Identify all job roles, companies, dates, and bullet points of their professional work experience.
@@ -342,8 +375,8 @@ async function fetchAIResumeEnhancements(
     experiencePromise
   ]) as [DynamicSection | null, DynamicSection | null, DynamicSection | null]
 
-  const skillsForSummary = skills || originalSections.find(s => s.type === 'list' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('skill'))) || null
-  const projectsForSummary = projects || originalSections.find(s => s.type === 'entries' && (s.acceptsAIImprovements || s.title.toLowerCase().includes('project') || s.title.toLowerCase().includes('experience'))) || null
+  const skillsForSummary = skills || originalSections.find(isSkillSection) || null
+  const projectsForSummary = projects || originalSections.find(isProjectSection) || originalSections.find(s => s.semanticType === 'experience' || /(experience|employment|work history)/i.test(s.title)) || null
   const summary = await generateProfessionalSummary(client, skillsForSummary, projectsForSummary, githubRepos)
 
   return { skills, projects, experience, summary }
@@ -369,8 +402,8 @@ function mergeResumeSections(
   for (const section of originalSections) {
     if (section.type === 'text' && section.title.toLowerCase().includes('summary')) continue
     
-    const isSkillsTarget = section.type === 'list' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('skill') || section.title.toLowerCase().includes('tech'))
-    const isProjectsTarget = section.type === 'entries' && (section.acceptsAIImprovements || section.title.toLowerCase().includes('project') || section.title.toLowerCase().includes('experience') || section.title.toLowerCase().includes('open source'))
+    const isSkillsTarget = isSkillSection(section)
+    const isProjectsTarget = isProjectSection(section)
 
     if (isSkillsTarget && skills && !pushedSkills) {
       finalSections.push(skills)
@@ -387,7 +420,7 @@ function mergeResumeSections(
   if (projects && !pushedProjects) finalSections.push(projects)
   if (skills && !pushedSkills) finalSections.push(skills)
 
-  return finalSections
+  return enforceProtectedResumeFacts(originalSections, finalSections)
 }
 
 export async function generateImprovedResumeContent(

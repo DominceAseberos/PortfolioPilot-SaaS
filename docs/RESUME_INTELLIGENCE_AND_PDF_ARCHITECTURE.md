@@ -1,0 +1,813 @@
+# PortfolioPilot Resume Intelligence & PDF Architecture
+
+> Status: Active implementation plan
+> Last updated: 2026-08-11
+> Scope: Resume extraction, cross-source enrichment, AI classification, editing, template mapping, pagination, PDF preflight, and export reliability.
+
+## 1. Goal
+
+Make PortfolioPilot reliably transform information from uploaded resumes, GitHub, portfolios, and manual edits into accurate, profession-agnostic, ATS-friendly PDF resumes without hallucinated facts, misplaced information, overflowing layouts, or template corruption.
+
+The system must work for developers and non-developers alike. It must not depend on a fixed developer vocabulary.
+
+## 2. Core Principles
+
+1. Sources decide facts.
+2. AI may classify, normalize, summarize, and improve wording, but must not invent factual claims without evidence.
+3. Unknown information must remain unknown instead of being guessed.
+4. All sources must normalize into one canonical resume model before template rendering.
+5. Templates decide presentation only; they do not interpret source meaning.
+6. Layout must adapt within safe limits, then paginate instead of shrinking into unreadable text.
+7. Preview and download must be generated from the same normalized document.
+8. Every AI boundary must be schema-validated.
+9. Every uncertain classification must carry confidence and provenance.
+10. Existing functionality must remain backward-compatible during migration.
+
+## 3. Problems in the Current Implementation
+
+### 3.1 Extraction loses document structure
+
+The current PDF pipeline extracts mostly plain text. Plain-text extraction loses:
+
+- page position
+- column position
+- font hierarchy
+- boldness
+- bullet grouping
+- indentation
+- section boundaries
+- visual ordering
+
+The LLM then has to reconstruct structure from a degraded representation.
+
+### 3.2 Resume data is too loosely structured
+
+Current dynamic entries use:
+
+```ts
+{
+  title: string
+  subtitle?: string
+  dates?: string
+  description?: string
+}
+```
+
+`description` contains paragraphs and/or bullets as one string. PDF rendering later re-detects bullets from punctuation. This is fragile.
+
+### 3.3 AI output is JSON but not fully schema-enforced
+
+`response_format: { type: 'json_object' }` ensures JSON syntax, but not semantic correctness. Invalid section shapes, malformed links, unsupported categories, or unexpected values can still pass through.
+
+### 3.4 Developer-biased fallback vocabulary
+
+The rule-based resume fallback contains a hardcoded developer skill list. This cannot robustly classify nurses, teachers, chefs, accountants, tradespeople, researchers, designers, or other professions.
+
+### 3.5 Templates are not layout-aware
+
+The templates currently render whatever content they receive. Multiple complete entries use `wrap={false}`, which can create large blank spaces or bad pagination when entries do not fit on the remaining page.
+
+### 3.6 No authoritative PDF preflight
+
+The UI labels PDFs as ATS-friendly without a final automated validation of:
+
+- overflow risk
+- page density
+- empty sections
+- duplicate content
+- minimum font size
+- orphan headings
+- suspiciously long bullets
+- malformed links
+
+## 4. Target Architecture
+
+```text
+                         INPUT SOURCES
+                              |
+          +-------------------+-------------------+
+          |                   |                   |
+      Resume PDF           GitHub             Portfolio
+          |                   |                   |
+          v                   v                   v
+   Layout-aware parser    GitHub API        Web extractor
+          |                   |                   |
+          +-------------------+-------------------+
+                              |
+                              v
+                       Evidence Store
+                              |
+                              v
+                   Structural Classification
+                              |
+                              v
+                    Semantic Classification
+                              |
+                              v
+                     Generic Resume Ontology
+                              |
+                              v
+                      Conflict Resolver
+                              |
+                              v
+                    Canonical Resume Model
+                              |
+                    +---------+---------+
+                    |                   |
+                    v                   v
+               AI Enhancer        User Editor
+                    |                   |
+                    +---------+---------+
+                              |
+                              v
+                    Evidence Verification
+                              |
+                              v
+                      Template Adapter
+                              |
+          +-------------------+-------------------+
+          |                   |                   |
+       Classic             Modern             Compact
+          |                   |                   |
+          +-------------------+-------------------+
+                              |
+                              v
+                       Layout Planner
+                              |
+                              v
+                        React-PDF
+                              |
+                              v
+                        PDF Preflight
+                              |
+                              v
+                    Preview == Download
+```
+
+## 5. Canonical Resume Model
+
+All source types eventually normalize into this model.
+
+```ts
+type ResumeSource = 'resume' | 'github' | 'portfolio' | 'user' | 'ai'
+
+type EvidenceStatus = 'verified' | 'inferred' | 'conflict' | 'unknown'
+
+interface EvidenceRef {
+  source: ResumeSource
+  evidence?: string
+  sourceUrl?: string
+  confidence: number
+}
+
+interface CanonicalField<T> {
+  value: T | null
+  status: EvidenceStatus
+  evidence: EvidenceRef[]
+  aiModified?: boolean
+}
+
+interface CanonicalResume {
+  identity: {
+    name: CanonicalField<string>
+    email: CanonicalField<string>
+    phone: CanonicalField<string>
+    location: CanonicalField<string>
+    linkedin: CanonicalField<string>
+    github: CanonicalField<string>
+    website: CanonicalField<string>
+  }
+  summary: CanonicalField<string>
+  experience: CanonicalExperience[]
+  education: CanonicalEducation[]
+  projects: CanonicalProject[]
+  skills: CanonicalSkill[]
+  certifications: CanonicalCertification[]
+  awards: CanonicalAward[]
+  languages: CanonicalLanguage[]
+  volunteer: CanonicalExperience[]
+  publications: CanonicalPublication[]
+  customSections: CanonicalCustomSection[]
+}
+```
+
+The canonical model is intentionally profession-agnostic.
+
+## 6. Generic Resume Ontology
+
+The semantic classifier routes content into generic resume concepts rather than profession-specific keyword lists.
+
+```text
+Identity
+Contact
+Professional Summary
+Experience
+  Role
+  Organization
+  Dates
+  Responsibilities
+  Achievements
+Education
+Skills
+  Technical
+  Professional
+  Domain
+  Tools
+  Methods
+Projects
+Certifications
+Licenses
+Awards
+Languages
+Volunteer Work
+Publications
+Training
+Custom / Other
+Unknown
+```
+
+Unknown is a valid outcome. The system must not force ambiguous content into an incorrect category.
+
+## 7. Source Authority Rules
+
+Authority varies by fact type.
+
+### Identity and employment
+
+```text
+User-confirmed value
+    > Resume
+    > Portfolio
+    > GitHub
+    > AI inference
+```
+
+### GitHub repository facts
+
+```text
+GitHub API
+    > Portfolio
+    > Resume
+    > AI inference
+```
+
+### Portfolio links
+
+```text
+Fetched portfolio DOM
+    > Resume text
+    > AI inference
+```
+
+Conflicting high-confidence sources produce `status: 'conflict'`; they are not silently merged.
+
+## 8. AI Responsibilities
+
+### Allowed
+
+- classify ambiguous sections
+- identify relationships between nearby text
+- normalize wording
+- split lists
+- summarize verified source material
+- improve action-oriented language
+- deduplicate semantically equivalent skills
+- map unknown terminology into generic ontology categories
+
+### Not allowed without evidence
+
+- invent employers
+- invent job titles
+- invent dates
+- invent schools or degrees
+- invent technologies
+- invent project metrics
+- invent certifications
+- invent URLs
+- convert GitHub projects into employment
+- infer seniority as a factual job title
+
+## 9. AI Pipeline
+
+Do not use one giant prompt.
+
+### Pass A: extraction
+
+Extraction only. No rewriting or scoring.
+
+### Pass B: schema validation
+
+Parse through Zod. Invalid structures are rejected or repaired.
+
+### Pass C: semantic classification
+
+Classify ambiguous information using section context and neighboring text.
+
+### Pass D: evidence verification
+
+Every generated factual field must point back to source evidence.
+
+### Pass E: enhancement
+
+Only editable writing fields are rewritten.
+
+### Pass F: verification
+
+Compare enhanced output against the evidence store. Reject unsupported facts.
+
+## 10. AI Editable vs Protected Fields
+
+### Protected by default
+
+- name
+- email
+- phone
+- organization names
+- job titles
+- dates
+- school names
+- degree names
+- URLs
+- certification names
+- numeric metrics
+
+### AI editable
+
+- professional summary
+- responsibility wording
+- project descriptions
+- bullet wording
+- section summaries
+
+AI may propose protected-field corrections, but they require source evidence or user confirmation.
+
+## 11. Profession-Agnostic Classification
+
+The system must use context, not only vocabulary.
+
+Example:
+
+```text
+Section: Clinical Skills
+Items:
+- Phlebotomy
+- Wound Care
+- Patient Assessment
+```
+
+Even without a predefined medical dictionary, structural context strongly indicates these are skills.
+
+For ambiguous phrases, semantic classification receives:
+
+```json
+{
+  "text": "Forklift NC II",
+  "sectionTitle": "Certifications",
+  "previousText": "",
+  "nextText": "",
+  "source": "resume"
+}
+```
+
+Allowed categories include `unknown`.
+
+## 12. Structured Bullets
+
+Entries should migrate from:
+
+```ts
+description?: string
+```
+
+toward:
+
+```ts
+bullets?: string[]
+description?: string
+```
+
+During migration, a normalizer converts existing descriptions into structured bullet/paragraph blocks.
+
+This enables deterministic pagination between bullets.
+
+## 13. Template Contracts
+
+Templates consume canonical data through adapters.
+
+### Classic
+
+```text
+Header
+Summary
+Experience
+Projects
+Skills
+Education
+Other sections
+```
+
+### Modern
+
+```text
+Sidebar:
+- Contact
+- Skills
+- Education
+- Certifications / Languages
+
+Main:
+- Summary
+- Experience
+- Projects
+- Other high-priority content
+```
+
+### Compact
+
+```text
+Header
+Summary
+Two-column body
+  Left: Experience / Projects
+  Right: Skills / Education / Certifications
+```
+
+Templates never decide whether an item is Experience or Project. Classification happens before rendering.
+
+## 14. Layout Capacity Profiles
+
+Each template exposes a layout profile.
+
+Example:
+
+```ts
+interface ResumeLayoutProfile {
+  id: 'classic' | 'modern' | 'compact'
+  preferredPages: number
+  minimumFontSize: number
+  preferredSummaryWords: number
+  preferredBulletWords: number
+  preferredBulletsPerEntry: number
+  preferredSkillCount: number
+  densityThresholds: {
+    comfortable: number
+    warning: number
+    overflow: number
+  }
+}
+```
+
+The profile is advisory. Content is never silently deleted to satisfy it.
+
+## 15. Progressive Layout Strategy
+
+When content is dense:
+
+1. Normal spacing
+2. Reduce safe section spacing
+3. Reduce safe entry spacing
+4. Use template's compact typography profile
+5. Optimize wording with user-visible suggestion
+6. Add another page
+
+Never reduce below the template's minimum readable font size.
+
+## 16. Pagination Rules
+
+1. Entry headers should stay with at least the first content line.
+2. Bullets may break between lines/items.
+3. Entire large entries should not be `wrap={false}`.
+4. Section headings should not be stranded at the bottom of a page.
+5. Sidebars must have independent capacity checks.
+6. Long URLs must display shortened text while retaining the full link target.
+
+## 17. PDF Preflight
+
+Before download, compute a deterministic report.
+
+Checks:
+
+- valid identity/contact values
+- empty sections
+- empty entries
+- duplicated skills
+- duplicated projects
+- suspicious duplicate bullets
+- very long summary
+- very long bullets
+- excessive skill count
+- invalid URLs
+- likely single-page overflow
+- template-specific sidebar overload
+- minimum font profile
+- page count recommendation
+
+Output:
+
+```ts
+interface ResumePreflightResult {
+  score: number
+  fit: 'comfortable' | 'tight' | 'overflow-risk'
+  estimatedPages: number
+  warnings: ResumePreflightWarning[]
+  recommendations: string[]
+}
+```
+
+## 18. Editor Improvements
+
+The editor should eventually expose:
+
+- live PDF fit indicator
+- template fit status
+- page-count estimate
+- source badges (`Resume`, `GitHub`, `Portfolio`, `AI`)
+- confidence warnings
+- accepted/rejected AI changes
+- section reordering
+- entry reordering
+- bullet-level editing
+- content optimization suggestions
+- conflict resolution UI
+
+Example:
+
+```text
+Next.js            Verified - GitHub
+React              Verified - Resume
+Project Management AI inferred - Review
+```
+
+## 19. Template Picker Improvements
+
+Template cards should show content-aware fit:
+
+```text
+Classic
+Recommended
+Estimated 1 page
+
+Modern
+Tight
+Sidebar may be crowded
+
+Compact
+Comfortable
+Estimated 1 page
+```
+
+## 20. Performance Strategy
+
+1. Keep normalization and preflight deterministic and local.
+2. Avoid calling the LLM for information parsers can identify reliably.
+3. Run independent extraction calls concurrently where safe.
+4. Cache normalized source data for repeated template switches.
+5. Do not regenerate AI content when only the template changes.
+6. Debounce PDF preview generation during typing.
+7. Generate template mini-previews from the same cached normalized resume.
+8. Prefer small classification models for routing and larger models only for difficult rewriting.
+9. Limit source evidence sent to AI to relevant chunks.
+10. Preserve already-verified fields between edits.
+
+## 21. Robustness Additions
+
+Potential follow-up improvements:
+
+- layout-aware PDF extraction preserving blocks and coordinates
+- OCR fallback for scanned resumes (separate, bounded pipeline)
+- multilingual section-title classification
+- profession/domain inference without forcing one occupation
+- custom sections for uncommon professions
+- embedding-assisted semantic deduplication
+- user-confirmation queue for low-confidence fields
+- deterministic conflict resolver
+- AI operation/diff format instead of full-document regeneration
+- snapshot tests for canonical resume normalization
+- generated-PDF integration tests
+- regression fixture library across many professions
+
+## 22. Test Matrix
+
+Minimum fixture coverage should eventually include:
+
+- software developer
+- nurse
+- teacher
+- accountant
+- chef
+- designer
+- mechanic / skilled trade
+- researcher / academic
+- student with no work history
+- multi-column resume
+- one-page resume
+- two-page resume
+- resume with no skills heading
+- resume with custom sections
+- scanned PDF fallback
+- conflicting GitHub identity
+- unknown terminology
+- unusually long skill names
+- very long URLs
+- 30+ skills
+- 5+ work entries
+- duplicate projects across Resume + GitHub + Portfolio
+
+## 23. Implementation Order
+
+### Phase 1 - Safe PDF layout foundation
+
+Goal: improve PDF rendering immediately without changing source-analysis behavior.
+
+- [x] Add structured description parser for paragraphs/bullets
+- [x] Add layout profiles for Classic / Modern / Compact
+- [x] Add deterministic preflight/density analyzer
+- [x] Remove unsafe whole-entry `wrap={false}` usage
+- [x] Protect section/entry headings using page-presence rules
+- [x] Add unit tests for parser and preflight
+- [x] Type-check
+- [x] Targeted test suite
+- [x] Update checklist after passing
+
+#### Cycle 1 implementation notes
+
+- Centralized description parsing across PDF templates.
+- Added Classic/Modern/Compact capacity profiles and preflight scoring.
+- Large entries can paginate instead of being forced as one unbreakable block.
+- Added page-presence protection to section titles and entry headers.
+- Targeted tests passed: 5/5.
+- TypeScript passed.
+
+### Phase 2 - Editor fit intelligence
+
+- [x] Display preflight fit in template picker
+- [x] Display fit/page estimate in live editor
+- [x] Add actionable overflow warnings
+- [x] Debounce expensive PDF preview regeneration if needed
+- [x] Add tests
+- [x] Update checklist
+
+#### Cycle 2 implementation notes
+
+- Template cards now show Comfortable / Tight / Overflow Risk based on the user's actual content.
+- Template cards show estimated page count before selection.
+- Improved Resume editor shows preflight score, fit, page estimate, and top layout warnings.
+- Removed the unconditional "ATS Friendly" status and replaced it with measured layout status.
+- Live PDF preview updates are debounced by 250ms to avoid regenerating a PDF on every keystroke; download still uses current data.
+- Targeted layout tests remained 5/5 passing.
+- TypeScript passed.
+
+### Phase 3 - AI schema hardening
+
+- [x] Add Zod schemas for extraction AI output
+- [x] Add Zod schemas for AI scoring output
+- [x] Normalize malformed AI arrays/nullable fields
+- [x] Add explicit `unknown` classifications
+- [x] Remove developer-only vocabulary as authoritative extraction logic
+- [x] Add profession-agnostic classification tests
+- [x] Update checklist
+
+#### Cycle 3 implementation notes
+
+- Added Zod validation for resume extraction and recruiter scoring responses.
+- AI sections now carry a profession-agnostic semantic type plus classification confidence.
+- Invalid semantic categories fall back to `unknown` instead of being guessed.
+- Removed automatic developer-specific Skills/Projects placeholders from extraction.
+- Resume scoring prompt is being shifted from tech-only assumptions toward cross-industry evaluation.
+- Rule-based fallback now extracts open-ended Skills/Competencies from source text instead of checking a JavaScript/Python/React/etc. vocabulary.
+- Added regression coverage for nursing and teaching terminology.
+- Targeted tests passed: 10/10 across the new layout and AI schema suites.
+- TypeScript passed.
+
+### Phase 4 - Canonical resume + provenance
+
+- [x] Define canonical resume types
+- [x] Define evidence/provenance types
+- [x] Build adapter from existing `ImprovedResumeData`
+- [x] Add conflict status
+- [x] Add source authority resolver
+- [x] Add canonical validation
+- [x] Add regression tests
+- [x] Update checklist
+
+#### Cycle 4 implementation notes
+
+- Added canonical resume, field, evidence, source, conflict, and authority-context types.
+- Added adapter from current `ImprovedResumeData` into the canonical model.
+- Every canonical value can now retain its source and confidence.
+- Matching facts merge evidence instead of duplicating the value.
+- Conflicting facts are marked `conflict` and keep both candidates.
+- Identity authority currently prefers User > Resume > Portfolio > GitHub > AI; GitHub-specific facts can use a GitHub-first authority context.
+- Added generic semantic-title fallback for uncommon sections while preserving `custom` and `unknown`.
+- Targeted tests passed: 14/14 across layout, AI schema, and canonical provenance suites.
+- TypeScript passed.
+
+### Phase 5 - Evidence-controlled AI enhancement
+
+- [x] Separate extraction from rewriting
+- [x] Require evidence for added factual claims
+- [x] Restrict protected fields
+- [x] Return AI changes as operations/diffs
+- [x] Add verification pass
+- [ ] Add low-confidence confirmation queue
+- [x] Add adversarial hallucination tests
+- [x] Update checklist
+
+#### Cycle 5-6 implementation notes
+
+- GitHub project enrichment can no longer target Experience merely because a section allows AI improvements.
+- Added explicit Skills and Projects section selectors using semantic classification and safe title fallbacks.
+- Added deterministic protected-fact enforcement for Experience, Education, Certifications, Licenses, Awards, Volunteer, Publications, and Training.
+- Existing job titles, organizations, dates, education facts, and protected links are restored after AI rewriting; hallucinated extra protected entries are discarded.
+- Project enrichment remains allowed to add project entries, while protected employment facts remain isolated.
+- `/api/resume/improve` now returns deterministic `operations` alongside enhanced sections for auditable add/remove/rewrite diffs.
+- Added adversarial tests where AI attempts to turn a Staff Nurse into a Senior Medical Director and invent a second employer; protected facts survive unchanged.
+- Targeted tests passed: 21/21 across five resume/PDF safety suites.
+- TypeScript passed.
+
+#### Cycle 7 implementation notes
+
+- Newly added GitHub skills now survive only when the skill appears in actual repository evidence such as language, topics, description, README summary, or verified repository metadata.
+- Newly added projects now survive only when they match an actual GitHub repository name/link.
+- Unsupported AI additions are deterministically removed while original resume content is retained.
+- GitHub skills/projects enrichment skips its LLM calls entirely when no GitHub repositories are available, reducing latency and API usage.
+- Targeted tests passed: 25/25 before layout-extraction work.
+- TypeScript passed.
+
+Next Phase 5 priority: expose low-confidence classifications for user confirmation in the editor.
+
+### Phase 6 - Layout-aware source extraction
+
+- [x] Preserve pages/blocks/coordinates from PDFs
+- [x] Detect columns and headings
+- [x] Preserve bullet groups
+- [x] Resolve reading order
+- [ ] Add scanned-PDF strategy
+- [x] Validate against multi-column fixtures
+- [x] Update checklist
+
+#### Cycle 8 implementation notes
+
+- Confirmed the installed `unpdf` version exposes structured text items with x/y, width/height, font size, font family, direction, and line-break metadata, so no new extraction dependency was needed.
+- Added layout geometry grouping with typography-based heading detection and bullet preservation.
+- Added large-horizontal-gap splitting so same-row content from separate columns is not merged.
+- Added two-column detection and column-aware reading order.
+- Resume analysis now uses structured layout text for AI interpretation while preserving plain text for deterministic validation/scoring.
+- Layout extraction is primary but safely falls back to the existing `unpdf.extractText`, `pdf-parse`, and final raw-text paths.
+- Multi-column regression test initially exposed an inter-column merge bug; the algorithm was fixed before production integration.
+- Resume/PDF regression run passed: 31/31 tests across 9 suites.
+- TypeScript passed.
+
+Remaining Phase 6 work: scanned/image-only PDF OCR strategy. This is intentionally isolated because it requires a separate bounded OCR path and should not weaken the reliable selectable-text pipeline.
+
+### Phase 7 - Advanced template intelligence
+
+- [ ] Automatic recommended template based on content density
+- [ ] Template-specific section allocation rules
+- [ ] Reorderable sections
+- [ ] Optional content optimization to target one page
+- [ ] User-visible diff before AI shortening
+- [ ] Generated-PDF regression suite
+- [ ] Update checklist
+
+## 24. Recursive Implementation Loop
+
+After every implementation cycle:
+
+1. Run targeted unit tests.
+2. Run TypeScript type-check.
+3. Run relevant lint/build checks if bounded execution permits.
+4. If passing, mark completed tasks in this document.
+5. Record implementation notes and any newly discovered risks.
+6. Re-rank remaining tasks by impact, dependency, and regression risk.
+7. Implement the next highest-value task.
+8. Repeat.
+
+## 25. Current Priority Decision
+
+The first implementation should be **Phase 1 - Safe PDF layout foundation**.
+
+Reason:
+
+- It has immediate user-visible benefit.
+- It does not require replacing the current AI pipeline.
+- It reduces overflow and blank-page risk.
+- It creates reusable primitives needed by later template intelligence.
+- It is testable with deterministic unit tests.
+- It has lower regression risk than immediately replacing the resume data model.
+
+## 26. Definition of Done for the Resume/PDF Pipeline
+
+The pipeline is considered robust when:
+
+- the same verified information renders consistently across all templates
+- switching templates never changes factual content
+- long content paginates instead of overflowing
+- unknown terminology is preserved
+- non-developer resumes classify correctly
+- AI-added factual claims require evidence
+- conflicting sources are surfaced rather than silently resolved
+- all AI outputs are schema validated
+- preview and downloaded PDF match
+- preflight reports template fit before download
+- automated regression tests cover diverse professions and long/complex resumes
