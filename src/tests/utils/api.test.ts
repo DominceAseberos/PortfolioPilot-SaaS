@@ -1,3 +1,12 @@
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (body: unknown, init?: { status?: number }) => ({
+      status: init?.status ?? 200,
+      json: async () => body,
+    }),
+  },
+}))
+
 import { successResponse, errorResponse } from '@/utils/api'
 
 describe('API utilities', () => {
