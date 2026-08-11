@@ -23,8 +23,16 @@ jest.mock('next/server', () => ({
 import { POST } from '@/app/api/reviews/validate-resume/route'
 import { resumeService } from '@/features/resume/services/resume.service'
 import { resumeLinkExtractionService } from '@/features/resume/services/resume-link-extraction.service'
+import { ResumePdfExtractionError } from '@/features/resume/services/resume-scanned-pdf.service'
+
+const arrayBufferFrom = (value: string) => Uint8Array.from(Buffer.from(value)).buffer
+const pdfArrayBuffer = () => arrayBufferFrom('%PDF-1.4\n')
 
 describe('/api/reviews/validate-resume', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   it('returns detected link validation metadata for valid resumes', async () => {
     jest.mocked(resumeService.extractText).mockResolvedValue(`
       Jane Dev
@@ -57,8 +65,8 @@ describe('/api/reviews/validate-resume', () => {
 
     const file = {
       type: 'application/pdf',
-      size: 3,
-      arrayBuffer: async () => new ArrayBuffer(3),
+      size: 9,
+      arrayBuffer: async () => pdfArrayBuffer(),
     }
 
     const response = await POST({
@@ -69,5 +77,44 @@ describe('/api/reviews/validate-resume', () => {
     expect(json.success).toBe(true)
     expect(json.data.detectedLinks.github[0].username).toBe('jane-dev')
     expect(json.data.detectedLinks.portfolioCandidates[0].normalized).toBe('https://janedev.dev')
+  })
+
+  it('returns a specific scanned-PDF response for image-only resumes', async () => {
+    jest.mocked(resumeService.extractText).mockRejectedValue(
+      new ResumePdfExtractionError('SCANNED_PDF', 'scanned', 1, 1)
+    )
+
+    const file = {
+      type: 'application/pdf',
+      size: 9,
+      arrayBuffer: async () => pdfArrayBuffer(),
+    }
+
+    const response = await POST({
+      formData: async () => ({ get: () => file }),
+    } as unknown as Request)
+    const json = await response.json()
+
+    expect(response.status).toBe(422)
+    expect(json.success).toBe(false)
+    expect(json.code).toBe('SCANNED_PDF')
+    expect(json.message).toMatch(/scanned|image-only/i)
+  })
+
+  it('rejects files with a fake PDF MIME type but no PDF signature', async () => {
+    const file = {
+      type: 'application/pdf',
+      size: 4,
+      arrayBuffer: async () => arrayBufferFrom('NOPE'),
+    }
+
+    const response = await POST({
+      formData: async () => ({ get: () => file }),
+    } as unknown as Request)
+    const json = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(json.message).toMatch(/not a valid PDF/i)
+    expect(resumeService.extractText).not.toHaveBeenCalled()
   })
 })

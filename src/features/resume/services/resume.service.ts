@@ -2,6 +2,7 @@ import type { ResumeAnalysis, ResumeSkill, ResumeSection } from '@/types'
 import { logger } from '@/lib/logger'
 import { analyzeResumeWithAI } from '@/features/ai/services/ai.service'
 import { resumeLinkExtractionService } from './resume-link-extraction.service'
+import { createResumePdfExtractionError, getResumePdfExtractionErrorCode, inspectPdfWithoutReadableText, isPdfBuffer } from './resume-scanned-pdf.service'
 
 export class ResumeService {
   async analyze(fileBuffer: Buffer, fileName: string): Promise<ResumeAnalysis> {
@@ -108,16 +109,10 @@ export class ResumeService {
       return ruleResult
     } catch (error) {
       logger.error('Resume analysis failed', { error: String(error), fileName })
-      
-      if (error instanceof Error && error.message === 'NOT_A_RESUME') {
-        return {
-          score: 0,
-          strengths: [],
-          weaknesses: ['The uploaded document does not appear to be a Resume or CV'],
-          recommendations: ['Please upload a valid personal Resume or CV document in PDF format.'],
-        }
-      }
-      
+
+      if (getResumePdfExtractionErrorCode(error)) throw error
+      if (error instanceof Error && error.message === 'NOT_A_RESUME') throw error
+
       return {
         score: 0,
         strengths: [],
@@ -478,6 +473,10 @@ export class ResumeService {
         .trim()
       if (cleaned.length > 100 && !cleaned.includes('%PDF-')) {
         return { plainText: cleaned, structuredText: cleaned, usedLayoutExtraction: false }
+      }
+      if (isPdfBuffer(buffer)) {
+        const inspection = await inspectPdfWithoutReadableText(buffer)
+        throw createResumePdfExtractionError(inspection)
       }
       throw new Error('Failed to extract text from PDF')
     }

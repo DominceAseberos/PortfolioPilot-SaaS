@@ -4,6 +4,7 @@ import { successResponse, errorResponse } from '@/utils/api'
 import { FILE_UPLOAD } from '@/constants'
 import { createClient } from '@/lib/supabase/server'
 import { creditRepository } from '@/features/credits/repositories/credit.repository'
+import { getResumePdfExtractionErrorCode, isPdfBuffer } from '@/features/resume/services/resume-scanned-pdf.service'
 
 import { getAnalysisCost } from '@/config/pricing'
 
@@ -33,6 +34,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('File must be a PDF', 400)
     }
 
+    const buffer = Buffer.from(await file.arrayBuffer())
+    if (!isPdfBuffer(buffer)) {
+      return errorResponse('The uploaded file is not a valid PDF.', 400)
+    }
+
     const credits = await creditRepository.getUserCredits(user.id)
     if (credits < CREDIT_COST) {
       return errorResponse(`Insufficient credits. You need ${CREDIT_COST} credits to analyze a resume.`, 402)
@@ -43,9 +49,34 @@ export async function POST(request: NextRequest) {
       return errorResponse('Failed to deduct credits. Please try again.', 500)
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const result = await resumeService.analyze(buffer, file.name)
-    return successResponse(result, 'Resume analysis complete')
+    try {
+      const result = await resumeService.analyze(buffer, file.name)
+      return successResponse(result, 'Resume analysis complete')
+    } catch (error) {
+      let refunded = false
+      try {
+        await creditRepository.addCreditsAdmin(user.id, CREDIT_COST)
+        refunded = true
+      } catch (refundError) {
+        console.error('Failed to refund resume analysis credit:', refundError)
+      }
+
+      if (!refunded) {
+        return errorResponse('Resume analysis failed and the automatic credit refund could not be confirmed. Please contact support before retrying.', 500)
+      }
+
+      const extractionCode = getResumePdfExtractionErrorCode(error)
+      if (extractionCode === 'SCANNED_PDF') {
+        return errorResponse('This PDF appears to be scanned or image-only. OCR it or export it as a searchable PDF, then try again. Your credit was refunded.', 422)
+      }
+      if (extractionCode === 'UNREADABLE_PDF') {
+        return errorResponse('This PDF has no readable text layer. Export a fresh searchable PDF and try again. Your credit was refunded.', 422)
+      }
+      if (error instanceof Error && error.message === 'NOT_A_RESUME') {
+        return errorResponse('The uploaded document does not appear to be a Resume or CV. Your credit was refunded.', 400)
+      }
+      return errorResponse('Resume analysis failed. Your credit was refunded.', 500)
+    }
   } catch {
     return errorResponse('Resume analysis failed', 500)
   }

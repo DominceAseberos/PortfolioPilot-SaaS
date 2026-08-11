@@ -51,7 +51,9 @@ async function main() {
   const React = await import('react')
   const { renderToBuffer } = await import('@react-pdf/renderer')
   const { extractText } = await import('unpdf')
+  const { jsPDF } = await import('jspdf')
   const { ResumeTemplateRenderer } = await import('../../components/pdf/ImprovedResumeTemplate')
+  const { inspectPdfWithoutReadableText } = await import('../../features/resume/services/resume-scanned-pdf.service')
 
   let rendered = 0
   for (const fixture of fixtures) {
@@ -73,7 +75,15 @@ async function main() {
     }
   }
 
-  console.log(`Generated PDF regression passed: ${rendered} PDFs`)
+  const scanned = new jsPDF()
+  scanned.addImage({ data: new Uint8ClampedArray([255, 255, 255, 255]), width: 1, height: 1 }, 'RGBA', 15, 15, 100, 100)
+  const scannedBuffer = Buffer.from(scanned.output('arraybuffer'))
+  const scanInspection = await inspectPdfWithoutReadableText(scannedBuffer)
+  assert.equal(scanInspection.code, 'SCANNED_PDF', 'Image-only PDF should be detected as scanned')
+  assert.ok(scanInspection.detectedImageCount > 0, 'Scanned PDF should contain an image drawing operator')
+  console.log('PASS scanned/image-only detection')
+
+  console.log(`Generated PDF regression passed: ${rendered} PDFs + scanned detection`)
 }
 
 main().catch((error) => {

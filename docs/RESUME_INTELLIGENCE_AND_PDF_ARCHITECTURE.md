@@ -752,7 +752,7 @@ Phase 5 is now complete.
 - [x] Detect columns and headings
 - [x] Preserve bullet groups
 - [x] Resolve reading order
-- [ ] Add scanned-PDF strategy
+- [x] Add scanned-PDF strategy
 - [x] Validate against multi-column fixtures
 - [x] Update checklist
 
@@ -768,7 +768,16 @@ Phase 5 is now complete.
 - Resume/PDF regression run passed: 31/31 tests across 9 suites.
 - TypeScript passed.
 
-Remaining Phase 6 work: scanned/image-only PDF OCR strategy. This is intentionally isolated because it requires a separate bounded OCR path and should not weaken the reliable selectable-text pipeline.
+#### Cycle 15 scanned-PDF strategy notes
+
+- Scanned/image-only detection runs only after layout-aware extraction, `unpdf.extractText`, `pdf-parse`, and the safe raw-text fallback have all failed, so normal searchable PDFs pay no scan-inspection cost.
+- Actual PDF magic bytes are verified before validation or paid analysis; a forged `application/pdf` MIME type is rejected before credits are touched.
+- Image-only PDFs are detected from PDF.js image drawing operators rather than pixel decoding, avoiding failures caused by unsupported embedded image codecs.
+- Extraction failures are typed as `SCANNED_PDF` or `UNREADABLE_PDF`, allowing the API to return actionable messages instead of a generic parser error.
+- PortfolioPilot deliberately does not bundle a CPU-heavy OCR engine into the normal request path. Users are guided to OCR/export a searchable PDF; a future OCR provider can attach at the typed scan boundary without changing the selectable-text pipeline.
+- Paid resume analysis now refunds the deducted credit when analysis fails after charging, including scanned, unreadable, or non-resume inputs. If the refund RPC itself fails, the API does not falsely claim success and instead asks the user to contact support.
+- Regression coverage includes fake-PDF signatures, typed scan responses, confirmed credit refund, refund-failure messaging, and a real generated image-only PDF.
+- Final resume/PDF validation passed: 58/58 targeted Jest tests across 15 suites, 9/9 generated resume PDFs plus real scanned-PDF detection, TypeScript, and `git diff --check`.
 
 ### Phase 7 - Advanced template intelligence
 

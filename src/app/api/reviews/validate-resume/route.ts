@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { resumeService } from '@/features/resume/services/resume.service'
 import { resumeLinkExtractionService } from '@/features/resume/services/resume-link-extraction.service'
+import { getResumePdfExtractionErrorCode, isPdfBuffer } from '@/features/resume/services/resume-scanned-pdf.service'
 import { FILE_UPLOAD } from '@/constants'
 
 export async function POST(req: Request) {
@@ -29,17 +30,35 @@ export async function POST(req: Request) {
       )
     }
 
-    // Convert File to Buffer
+    // Convert File to Buffer and verify the actual file signature before parsing.
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
+    if (!isPdfBuffer(buffer)) {
+      return NextResponse.json(
+        { success: false, message: 'The uploaded file is not a valid PDF.' },
+        { status: 400 }
+      )
+    }
 
-    // Extract text using the newly public extractText method
     let text = ''
     try {
       text = await resumeService.extractText(buffer)
-    } catch {
+    } catch (error) {
+      const extractionCode = getResumePdfExtractionErrorCode(error)
+      if (extractionCode === 'SCANNED_PDF') {
+        return NextResponse.json(
+          { success: false, code: extractionCode, message: 'This PDF appears to be scanned or image-only. Please OCR it or export it as a searchable PDF, then upload it again.' },
+          { status: 422 }
+        )
+      }
+      if (extractionCode === 'UNREADABLE_PDF') {
+        return NextResponse.json(
+          { success: false, code: extractionCode, message: 'This PDF has no readable text layer. Please export a fresh searchable PDF and try again.' },
+          { status: 422 }
+        )
+      }
       return NextResponse.json(
-        { success: false, message: 'Could not extract text from the PDF. It may be a scanned image or protected.' },
+        { success: false, message: 'Could not extract readable text from the PDF.' },
         { status: 400 }
       )
     }
