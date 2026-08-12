@@ -1,5 +1,6 @@
 import type { DynamicSection } from '@/types/resume'
 import { RESUME_LAYOUT_PROFILES, parseDescriptionBlocks, type ResumeTemplateId } from './resume-layout.service'
+import { appendAiEvidenceToEntryDescription, appendAiEvidenceToSectionText } from './resume-provenance.service'
 
 export interface ResumeOptimizationTarget {
   id: string
@@ -87,7 +88,7 @@ export function applyResumeOptimizationRewrites(
 ): DynamicSection[] {
   const targetMap = new Map(targets.map((target) => [target.id, target]))
   const rewriteMap = new Map(rewrites.map((rewrite) => [rewrite.id, rewrite.text]))
-  const next = sections.map((section) => ({
+  const next: DynamicSection[] = sections.map((section) => ({
     ...section,
     entries: section.type === 'entries' ? (section.entries ?? []).map((entry) => ({ ...entry })) : section.entries,
     items: section.type === 'list' ? [...(section.items ?? [])] : section.items,
@@ -101,9 +102,13 @@ export function applyResumeOptimizationRewrites(
 
     if (target.kind === 'text' && section.type === 'text') {
       section.text = proposed.trim()
+      next[target.sectionIndex] = appendAiEvidenceToSectionText(section)
     } else if (target.kind === 'description' && section.type === 'entries' && typeof target.entryIndex === 'number') {
       const entry = section.entries?.[target.entryIndex]
-      if (entry) entry.description = proposed.trim()
+      if (entry) {
+        entry.description = proposed.trim()
+        next[target.sectionIndex] = appendAiEvidenceToEntryDescription(section, target.entryIndex)
+      }
     }
   }
 

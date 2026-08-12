@@ -5,14 +5,24 @@ import { BlobProvider, PDFDownloadLink } from '@react-pdf/renderer'
 import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
 import { SectionClassificationReview } from '@/components/dashboard/SectionClassificationReview'
+import { ResumeEvidenceBadge } from '@/components/dashboard/ResumeEvidenceBadge'
 import { analyzeResumePreflight, type ResumePreflightResult } from '@/features/resume/services/resume-layout.service'
 import type { ResumeChangeOperation } from '@/features/resume/services/resume-diff.service'
 import { getSectionSemanticType, reorderResumeSections } from '@/features/resume/services/resume-template-allocation.service'
 import { recommendResumeTemplate } from '@/features/resume/services/resume-template-recommendation.service'
 import { normalizeManualSectionClassification } from '@/features/resume/services/resume-section-classification.service'
+import {
+  collectEntryEvidence,
+  markEntryFieldAsUserEdited,
+  markListItemAsUserAdded,
+  markResumeIdentityFieldAsUserEdited,
+  markSectionTextAsUserEdited,
+  normalizeResumeEvidenceKey,
+} from '@/features/resume/services/resume-provenance.service'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import type { DynamicSection, ResumeSemanticSectionType } from '@/types/resume'
+import type { ResumeEntryEvidenceField, ResumeIdentityEvidenceField } from '@/types/resume-provenance'
 
 export interface ImprovedResumeModalProps {
   initialData: ImprovedResumeData
@@ -66,11 +76,21 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     setData(prev => ({ ...prev, [field]: value }))
   }
 
+  const updateIdentityField = (field: ResumeIdentityEvidenceField, value: string) => {
+    setOptimizationProposal(null)
+    setOptimizationError(null)
+    setData(prev => ({
+      ...prev,
+      [field]: value,
+      identityEvidence: markResumeIdentityFieldAsUserEdited(prev, field),
+    }))
+  }
+
   const updateSectionText = (sectionIndex: number, text: string) => {
     const newSections = [...(data.sections || [])]
     const sec = newSections[sectionIndex]
     if (sec.type === 'text') {
-      newSections[sectionIndex] = { ...sec, text }
+      newSections[sectionIndex] = markSectionTextAsUserEdited({ ...sec, text })
       updateField('sections', newSections)
     }
   }
@@ -91,20 +111,23 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       const newSections = [...(data.sections || [])]
       const sec = newSections[sectionIndex]
       if (sec.type === 'list') {
-        newSections[sectionIndex] = { ...sec, items: [...(sec.items || []), val] }
+        newSections[sectionIndex] = markListItemAsUserAdded(
+          { ...sec, items: [...(sec.items || []), val] },
+          val
+        )
         updateField('sections', newSections)
       }
       e.currentTarget.value = ''
     }
   }
 
-  const updateSectionEntry = (sectionIndex: number, entryIndex: number, field: string, value: string) => {
+  const updateSectionEntry = (sectionIndex: number, entryIndex: number, field: ResumeEntryEvidenceField, value: string) => {
     const newSections = [...(data.sections || [])]
     const sec = newSections[sectionIndex]
     if (sec.type === 'entries') {
       const newEntries = [...(sec.entries || [])]
       newEntries[entryIndex] = { ...newEntries[entryIndex], [field]: value }
-      newSections[sectionIndex] = { ...sec, entries: newEntries }
+      newSections[sectionIndex] = markEntryFieldAsUserEdited({ ...sec, entries: newEntries }, entryIndex, field)
       updateField('sections', newSections)
     }
   }
@@ -178,7 +201,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{section.title}</h3>
           <div className="flex items-center gap-1.5 shrink-0">
-            {section.acceptsAIImprovements && <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] gap-1"><Sparkles className="h-3 w-3"/> AI Generated</Badge>}
+            <ResumeEvidenceBadge evidence={section.provenance?.section} />
             {!isSummary && (
               <>
                 <button type="button" onClick={() => moveSection(sectionIndex, -1)} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Move ${section.title} up`} title="Move section up">
@@ -195,6 +218,13 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       </>
     )
   }
+
+  const renderIdentityLabel = (field: ResumeIdentityEvidenceField, label: string) => (
+    <label className="text-xs font-semibold mb-1.5 flex items-center justify-between gap-2">
+      <span>{label}</span>
+      <ResumeEvidenceBadge evidence={data.identityEvidence?.[field]} compact />
+    </label>
+  )
 
   // Edit Panel Sections
   const renderEditPanel = () => (
@@ -272,28 +302,28 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Contact Info</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-semibold mb-1.5 block">Full Name</label>
-            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.name} onChange={e => updateField('name', e.target.value)} />
+            {renderIdentityLabel('name', 'Full Name')}
+            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.name} onChange={e => updateIdentityField('name', e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold mb-1.5 block">Email</label>
-            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.email} onChange={e => updateField('email', e.target.value)} />
+            {renderIdentityLabel('email', 'Email')}
+            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.email} onChange={e => updateIdentityField('email', e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold mb-1.5 block">Phone</label>
-            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.phone} onChange={e => updateField('phone', e.target.value)} />
+            {renderIdentityLabel('phone', 'Phone')}
+            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.phone} onChange={e => updateIdentityField('phone', e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold mb-1.5 block">LinkedIn</label>
-            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.linkedin} onChange={e => updateField('linkedin', e.target.value)} />
+            {renderIdentityLabel('linkedin', 'LinkedIn')}
+            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.linkedin} onChange={e => updateIdentityField('linkedin', e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold mb-1.5 block">GitHub</label>
-            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.github} onChange={e => updateField('github', e.target.value)} />
+            {renderIdentityLabel('github', 'GitHub')}
+            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.github} onChange={e => updateIdentityField('github', e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold mb-1.5 block">Website / Portfolio</label>
-            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.website} onChange={e => updateField('website', e.target.value)} />
+            {renderIdentityLabel('website', 'Website / Portfolio')}
+            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.website} onChange={e => updateIdentityField('website', e.target.value)} />
           </div>
         </div>
       </section>
@@ -321,6 +351,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                 {(section.items || []).map((item, i) => (
                   <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted border border-border/50 group">
                     {item}
+                    <ResumeEvidenceBadge evidence={section.provenance?.items?.[normalizeResumeEvidenceKey(item)]} compact />
                     <button type="button" onClick={() => removeSectionListItem(sIndex, i)} className="text-muted-foreground hover:text-red-500 opacity-50 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
                   </span>
                 ))}
@@ -342,28 +373,29 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
               <div className="space-y-4">
                 {(section.entries || []).map((entry, i) => (
                   <div key={i} className={`p-4 rounded-xl border border-border/50 bg-card space-y-3 relative group ${entry.isEnhanced ? 'border-blue-500/30 bg-blue-500/5' : ''}`}>
+                     <div className="pr-8 min-h-5"><ResumeEvidenceBadge evidence={collectEntryEvidence(entry)} compact /></div>
                      <button type="button" onClick={() => removeSectionEntry(sIndex, i)} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
                        <div>
-                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Title / Role</label>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center justify-between gap-2"><span>Title / Role</span><ResumeEvidenceBadge evidence={entry.fieldEvidence?.title} compact /></label>
                          <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm font-semibold" value={entry.title || ''} onChange={e => updateSectionEntry(sIndex, i, 'title', e.target.value)} />
                        </div>
                        <div>
-                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Subtitle / Company</label>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center justify-between gap-2"><span>Subtitle / Company</span><ResumeEvidenceBadge evidence={entry.fieldEvidence?.subtitle} compact /></label>
                          <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={entry.subtitle || ''} onChange={e => updateSectionEntry(sIndex, i, 'subtitle', e.target.value)} />
                        </div>
                        <div>
-                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Dates</label>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center justify-between gap-2"><span>Dates</span><ResumeEvidenceBadge evidence={entry.fieldEvidence?.dates} compact /></label>
                          <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={entry.dates || ''} onChange={e => updateSectionEntry(sIndex, i, 'dates', e.target.value)} />
                        </div>
                        <div>
-                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Link URL</label>
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center justify-between gap-2"><span>Link URL</span><ResumeEvidenceBadge evidence={entry.fieldEvidence?.link} compact /></label>
                          <input className="w-full px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm" value={entry.link || ''} onChange={e => updateSectionEntry(sIndex, i, 'link', e.target.value)} />
                        </div>
                        <div className="sm:col-span-2">
-                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block flex items-center justify-between">
-                           Description
-                           {entry.isEnhanced && <span className="text-blue-500 flex items-center gap-1"><Sparkles className="h-3 w-3"/> AI Enhanced</span>}
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center justify-between gap-2">
+                           <span>Description</span>
+                           <ResumeEvidenceBadge evidence={entry.fieldEvidence?.description} compact />
                          </label>
                          <textarea className={`w-full px-2.5 py-1.5 bg-background border rounded-md text-sm min-h-[80px] resize-y ${entry.isEnhanced ? 'border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.1)]' : 'border-border/50'}`} value={entry.description || ''} onChange={e => updateSectionEntry(sIndex, i, 'description', e.target.value)} />
                        </div>

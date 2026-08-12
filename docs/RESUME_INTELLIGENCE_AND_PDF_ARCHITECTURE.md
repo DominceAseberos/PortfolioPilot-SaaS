@@ -1,7 +1,7 @@
 # PortfolioPilot Resume Intelligence & PDF Architecture
 
 > Status: Active implementation plan
-> Last updated: 2026-08-11
+> Last updated: 2026-08-12
 > Scope: Resume extraction, cross-source enrichment, AI classification, editing, template mapping, pagination, PDF preflight, and export reliability.
 
 ## 1. Goal
@@ -801,6 +801,30 @@ Phase 5 is now complete.
 - Added a dedicated native ESM generated-PDF regression command (`npm run test:pdf`) because React-PDF/Yoga is ESM-native and does not execute safely through the existing CommonJS Jest runtime.
 - Real PDF regression renders nurse, teacher, and developer fixtures through Classic, Modern, and Compact, then re-extracts PDF text with `unpdf` to verify profession-specific content survives rendering.
 - Final Phase 7 validation: 50/50 targeted Jest tests passed, 9/9 generated PDFs passed, TypeScript passed, and `git diff --check` passed.
+
+### Phase 8 - Provenance & User Trust
+
+- [x] Preserve source/evidence metadata through the live `DynamicSection` model
+- [x] Mark original resume, GitHub, portfolio, AI, and user-edited content separately
+- [x] Preserve provenance through layout optimization rewrites
+- [x] Show compact source/evidence badges in the resume editor
+- [x] Add regression tests for provenance retention and manual edits
+- [x] Run full Jest, generated-PDF, TypeScript, and diff-hygiene validation
+- [x] Update checklist and implementation notes
+
+#### Cycle 16 implementation notes
+
+- Added shared live provenance types for Resume, GitHub, Portfolio, AI wording, and user edits without replacing the existing string-based rendering model.
+- Original uploaded resume content is normalized with Resume evidence before enrichment, so provenance survives even when the AI endpoint is unavailable.
+- `/api/resume/improve` now decorates enhanced sections with deterministic evidence after AI generation instead of trusting the model to self-report its sources.
+- Evidence-backed GitHub skills/projects retain repository provenance; rewritten descriptions preserve the original Resume source and append GitHub/AI evidence rather than replacing history.
+- Portfolio-derived experience is marked as Portfolio evidence, with AI listed only on fields whose wording was generated or rewritten.
+- Contact/identity fields now carry source evidence, including GitHub profile and Portfolio URL fallbacks.
+- Manual editor changes append a `You` source marker while keeping prior evidence, so edits remain auditable instead of destroying provenance.
+- Layout optimization preserves the existing evidence chain and appends AI evidence only to accepted rewritten fields.
+- Replaced misleading binary `AI Generated` / `AI Enhanced` labels with compact per-source badges at identity, section, skill, entry, and entry-field levels.
+- Provenance-specific regression tests cover original Resume evidence, GitHub additions, Portfolio-derived experience, manual edits, and AI layout rewrites.
+- Final validation passed: 23/23 Jest suites, 87/87 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
 
 ## 24. Recursive Implementation Loop
 

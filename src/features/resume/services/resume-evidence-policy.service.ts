@@ -7,29 +7,40 @@ export interface GitHubResumeEvidence {
   topics?: string[]
   readmeSummary?: string | null
   aiResumeDescription?: string | null
+  html_url?: string | null
+  url?: string | null
 }
 
 const normalized = (value?: string | null) => (value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 const compact = (value?: string | null) => normalized(value).replace(/\s+/g, '')
 const repoText = (repo: GitHubResumeEvidence) => normalized([repo.name, repo.description, repo.language, ...(repo.topics ?? []), repo.readmeSummary, repo.aiResumeDescription].filter(Boolean).join(' '))
 
-export function skillHasGitHubEvidence(skill: string, repos: GitHubResumeEvidence[]): boolean {
+export function matchingGitHubReposForSkill(skill: string, repos: GitHubResumeEvidence[]): GitHubResumeEvidence[] {
   const skillText = normalized(skill)
   const skillCompact = compact(skill)
-  if (skillText.length < 2) return false
-  return repos.some((repo) => {
+  if (skillText.length < 2) return []
+  return repos.filter((repo) => {
     const evidence = repoText(repo)
     return evidence.includes(skillText) || (skillCompact.length >= 3 && evidence.replace(/\s+/g, '').includes(skillCompact))
   })
 }
 
-export function projectHasGitHubEvidence(title: string, link: string | undefined, repos: GitHubResumeEvidence[]): boolean {
+export function skillHasGitHubEvidence(skill: string, repos: GitHubResumeEvidence[]): boolean {
+  return matchingGitHubReposForSkill(skill, repos).length > 0
+}
+
+export function matchingGitHubReposForProject(title: string, link: string | undefined, repos: GitHubResumeEvidence[]): GitHubResumeEvidence[] {
   const project = compact(title)
   const linkText = compact(link)
-  return !!project && repos.some((repo) => {
+  if (!project) return []
+  return repos.filter((repo) => {
     const repoName = compact(repo.name)
     return !!repoName && (project === repoName || project.includes(repoName) || repoName.includes(project) || linkText.includes(repoName))
   })
+}
+
+export function projectHasGitHubEvidence(title: string, link: string | undefined, repos: GitHubResumeEvidence[]): boolean {
+  return matchingGitHubReposForProject(title, link, repos).length > 0
 }
 
 export function enforceGitHubSkillEvidence(original: DynamicSection | undefined, candidate: DynamicSection | null, repos: GitHubResumeEvidence[]): DynamicSection | null {

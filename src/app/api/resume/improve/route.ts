@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateImprovedResumeContent } from '@/features/ai/services/ai.service'
 import { diffResumeSections } from '@/features/resume/services/resume-diff.service'
+import { decorateEnhancedResumeProvenance } from '@/features/resume/services/resume-provenance.service'
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { originalSections, githubRepos, githubUsername, portfolioMarkdown } = body
+    const { originalSections, githubRepos, githubUsername, portfolioMarkdown, portfolioUrl } = body
 
     if (!originalSections) {
       return NextResponse.json({ error: 'Missing originalSections' }, { status: 400 })
@@ -26,8 +27,14 @@ export async function POST(req: Request) {
       portfolioMarkdown
     )
 
-    const operations = diffResumeSections(originalSections, enhancedSections)
-    return NextResponse.json({ sections: enhancedSections, operations })
+    const sectionsWithProvenance = decorateEnhancedResumeProvenance(originalSections, enhancedSections, {
+      githubRepos: githubRepos || [],
+      githubUsername,
+      portfolioMarkdown,
+      portfolioUrl,
+    })
+    const operations = diffResumeSections(originalSections, sectionsWithProvenance)
+    return NextResponse.json({ sections: sectionsWithProvenance, operations })
   } catch (error) {
     console.error('Error in /api/resume/improve:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

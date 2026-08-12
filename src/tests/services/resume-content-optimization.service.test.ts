@@ -1,5 +1,6 @@
 import { applyResumeOptimizationRewrites, buildResumeOptimizationTargets } from '@/features/resume/services/resume-content-optimization.service'
 import type { DynamicSection } from '@/types/resume'
+import { ensureOriginalResumeProvenance } from '@/features/resume/services/resume-provenance.service'
 
 describe('resume content optimization', () => {
   const sections: DynamicSection[] = [
@@ -45,6 +46,19 @@ describe('resume content optimization', () => {
     expect(entry?.dates).toBe('2024 - Present')
     expect(entry?.description).toContain('25 patients')
     expect(entry?.description).not.toEqual(sections[1].type === 'entries' ? sections[1].entries?.[0].description : '')
+  })
+
+  it('preserves original provenance and appends AI evidence to accepted rewrites', () => {
+    const withProvenance = ensureOriginalResumeProvenance(sections)
+    const targets = buildResumeOptimizationTargets(withProvenance, 'classic')
+    const descriptionTarget = targets.find((target) => target.kind === 'description')!
+    const next = applyResumeOptimizationRewrites(withProvenance, targets, [{
+      id: descriptionTarget.id,
+      text: 'Managed care for 25 patients per shift, coordinating medication administration, discharge education, charting, handoffs, safety checks, infection control, and multidisciplinary communication.',
+    }])
+
+    const entry = next[1].type === 'entries' ? next[1].entries?.[0] : undefined
+    expect(entry?.fieldEvidence?.description?.map((item) => item.source)).toEqual(['resume', 'ai'])
   })
 
   it('rejects a rewrite that invents a new numeric claim', () => {

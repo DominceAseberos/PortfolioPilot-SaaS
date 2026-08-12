@@ -1,3 +1,5 @@
+import type { EvidenceRef, ResumeEntryEvidenceField, ResumeIdentityEvidenceField, ResumeSectionProvenance } from './resume-provenance'
+
 export type ResumeSemanticSectionType =
   | 'summary'
   | 'skills'
@@ -20,6 +22,7 @@ export interface DynamicSection {
   semanticType?: ResumeSemanticSectionType; // Profession-agnostic meaning assigned by extraction/classification
   classificationConfidence?: number; // 0..1; low confidence stays reviewable instead of being guessed
   manualOrder?: number; // User-controlled order within a template-compatible region
+  provenance?: ResumeSectionProvenance;
   text?: string;
   items?: string[];
   entries?: {
@@ -29,6 +32,7 @@ export interface DynamicSection {
     description?: string;
     link?: string;
     isEnhanced?: boolean;        // Identifies AI-injected items
+    fieldEvidence?: Partial<Record<ResumeEntryEvidenceField, EvidenceRef[]>>;
   }[];
   acceptsAIImprovements: boolean; // Safe-lock to allow GitHub data injection
 }
@@ -40,6 +44,7 @@ export interface ImprovedResumeData {
   linkedin: string
   github: string
   website: string
+  identityEvidence?: Partial<Record<ResumeIdentityEvidenceField, EvidenceRef[]>>
   
   // Dynamic structure
   sections: DynamicSection[]

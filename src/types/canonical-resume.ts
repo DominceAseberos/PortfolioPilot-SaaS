@@ -1,15 +1,9 @@
 import type { ResumeSemanticSectionType } from './resume'
+import type { EvidenceRef, ResumeSource } from './resume-provenance'
 
-export type ResumeSource = 'resume' | 'github' | 'portfolio' | 'user' | 'ai'
+export type { EvidenceRef, ResumeSource } from './resume-provenance'
 export type EvidenceStatus = 'verified' | 'inferred' | 'conflict' | 'unknown'
 export type ResumeAuthorityContext = 'identity' | 'github-fact' | 'generic'
-
-export interface EvidenceRef {
-  source: ResumeSource
-  evidence?: string
-  sourceUrl?: string
-  confidence: number
-}
 
 export interface CanonicalCandidate<T> {
   value: T

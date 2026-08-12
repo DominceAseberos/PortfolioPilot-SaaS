@@ -1,5 +1,6 @@
 import { AIMismatch, GitHubAnalysis, ResumeDetails } from '../../types'
 import { DynamicSection, ImprovedResumeData } from '../../types/resume'
+import { ensureOriginalResumeProvenance, makeResumeEvidence } from './services/resume-provenance.service'
 
 export interface BuildResumeOptions {
   details: ResumeDetails | null | undefined
@@ -28,9 +29,11 @@ export async function buildImprovedResume({
   const resumeProjectNames = new Set<string>()
 
   // Make sure we have an array of dynamic sections to work with
-  const originalSections: DynamicSection[] = Array.isArray(details?.sections) 
-    ? details.sections.filter((s): s is DynamicSection => 'type' in s) 
-    : []
+  const originalSections: DynamicSection[] = ensureOriginalResumeProvenance(
+    Array.isArray(details?.sections)
+      ? details.sections.filter((s): s is DynamicSection => 'type' in s)
+      : []
+  )
 
   originalSections.forEach(section => {
     if (section.type === 'list' && Array.isArray(section.items)) {
@@ -58,7 +61,8 @@ export async function buildImprovedResume({
           originalSections,
           githubRepos: rawRepos,
           githubUsername,
-          portfolioMarkdown
+          portfolioMarkdown,
+          portfolioUrl
         })
       })
       if (response.ok) {
@@ -78,6 +82,22 @@ export async function buildImprovedResume({
     linkedin: details?.linkedin ?? '',
     github: details?.github ?? (githubUsername ? `https://github.com/${githubUsername}` : ''),
     website: portfolioUrl ?? '',
+    identityEvidence: {
+      name: details?.name
+        ? [makeResumeEvidence('resume', 1, 'Uploaded resume')]
+        : githubAnalysis?.details?.profile?.name
+          ? [makeResumeEvidence('github', 1, 'GitHub profile', githubUsername ? `https://github.com/${githubUsername}` : undefined)]
+          : [],
+      email: details?.email ? [makeResumeEvidence('resume', 1, 'Uploaded resume')] : [],
+      phone: [],
+      linkedin: details?.linkedin ? [makeResumeEvidence('resume', 1, 'Uploaded resume')] : [],
+      github: details?.github
+        ? [makeResumeEvidence('resume', 1, 'Uploaded resume')]
+        : githubUsername
+          ? [makeResumeEvidence('github', 1, 'GitHub profile', `https://github.com/${githubUsername}`)]
+          : [],
+      website: portfolioUrl ? [makeResumeEvidence('portfolio', 1, 'Portfolio URL', portfolioUrl)] : [],
+    },
     sections: enhancedSections,
     
     // Legacy fallback bindings (for templates that haven't been updated yet)
