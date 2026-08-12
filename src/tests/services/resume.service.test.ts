@@ -36,6 +36,33 @@ describe('ResumeService', () => {
       expect(result.details?.location).toBe('Davao City, Philippines')
     })
 
+    it('scores a non-developer resume without requiring GitHub or LinkedIn', async () => {
+      const content = Buffer.from(`
+        Maria Santos
+        Registered Nurse
+        maria@example.com
+        Mobile: 0917 123 4567
+        Location: Davao City, Philippines
+
+        PROFESSIONAL PRACTICE
+        Staff Nurse | Example Hospital | 2024 - Present
+        Administered medications safely and coordinated multidisciplinary handoffs for 25 patients per shift.
+
+        EDUCATION
+        Bachelor of Science in Nursing
+
+        CLINICAL SKILLS
+        Patient Assessment, Wound Care, IV Therapy, Medication Administration
+      `)
+
+      const result = await service.analyze(content, 'nurse-resume.pdf')
+      expect(result.score).toBeGreaterThanOrEqual(80)
+      expect(result.details?.github).toBeNull()
+      expect(result.details?.linkedin).toBeNull()
+      expect(result.recommendations.join(' ')).not.toMatch(/github|code repositories|technical skills/i)
+      expect(result.strengths).toContain('Contact phone included')
+    })
+
     it('should analyze a resume with poor content', async () => {
       const content = Buffer.from('My name is John.')
       const result = await service.analyze(content, 'resume.pdf')

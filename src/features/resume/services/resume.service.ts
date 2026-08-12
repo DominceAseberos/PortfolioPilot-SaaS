@@ -191,8 +191,10 @@ export class ResumeService {
     const email = this.extractEmail(text)
     const phone = this.extractPhone(text)
     const location = this.extractLocation(text)
-    const linkedin = this.extractLinkedIn(text)
-    const githubUrl = this.extractGithub(text)
+    const detectedLinks = resumeLinkExtractionService.extract(text)
+    const linkedin = detectedLinks.linkedin[0]?.normalized ?? null
+    const githubUrl = detectedLinks.github[0]?.normalized ?? null
+    const hasPortfolio = detectedLinks.portfolioCandidates.length > 0
     const workEntries = this.extractWorkEntries(text)
     const skills: ResumeSkill[] = this.extractGenericSkills(text).map((name) => ({
       name,
@@ -202,7 +204,7 @@ export class ResumeService {
     const sections: ResumeSection[] = [
       {
         name: 'Work Experience',
-        found: /(experience|work|employment|job|role|position)/i.test(text),
+        found: /(experience|employment|work history|professional practice|clinical practice|teaching experience|career|role|position)/i.test(text),
       },
       {
         name: 'Education',
@@ -214,12 +216,13 @@ export class ResumeService {
 
     const wordCount = text.split(/\s+/).length
     const hasEmail = !!email
+    const hasPhone = !!phone
     const hasLinkedIn = !!linkedin
     const hasGithub = !!githubUrl
     const hasMetrics =
-      /\d+%|\d+x|\$\d+|[0-9]+ (users|customers|clients|revenue|growth|improvement)/i.test(text)
+      /\d+%|\d+x|\$\d+|\b[0-9]+\s+(users|customers|clients|patients|students|cases|projects|records|orders|appointments|accounts|transactions|events|campaigns|classes|units|team members|revenue|growth|improvement)\b/i.test(text)
     const hasActionVerbs =
-      /(developed|designed|implemented|led|managed|created|improved|optimized|built|delivered)/i.test(
+      /(developed|designed|implemented|led|managed|created|improved|optimized|built|delivered|administered|coordinated|assessed|treated|supported|taught|facilitated|prepared|maintained|operated|reconciled|served|assisted|monitored|organized|trained|analyzed|resolved)/i.test(
         text
       )
 
@@ -227,23 +230,23 @@ export class ResumeService {
     const weaknesses: string[] = []
     const recommendations: string[] = []
     let passed = 0
-    const total = 8
+    const total = 7
 
     const foundSkills = skills.filter((s) => s.found).map((s) => s.name)
     if (foundSkills.length >= 3) {
       strengths.push(`Mentions relevant skills (${foundSkills.slice(0, 5).join(', ')})`)
       passed++
     } else {
-      weaknesses.push('Few relevant skills mentioned')
-      recommendations.push('Add more technical and soft skills relevant to your target role')
+      weaknesses.push('Few role-relevant skills or competencies detected')
+      recommendations.push('Add more skills, competencies, tools, methods, or domain knowledge relevant to your target role')
     }
 
     if (sections.find((s) => s.name === 'Work Experience')?.found) {
       strengths.push('Includes work experience section')
       passed++
     } else {
-      weaknesses.push('No work experience section found')
-      recommendations.push('Add a work experience section')
+      weaknesses.push('No experience or professional-practice section found')
+      recommendations.push('Add relevant experience, practicum, volunteer work, training, or other role-related practice when available')
     }
 
     if (sections.find((s) => s.name === 'Education')?.found) {
@@ -256,7 +259,7 @@ export class ResumeService {
       passed++
     } else
       recommendations.push(
-        'Add metrics to demonstrate impact (e.g., "increased performance by 30%")'
+        'Add measurable outcomes where appropriate (for example volume handled, time saved, quality, growth, accuracy, or service results)'
       )
 
     if (hasActionVerbs) {
@@ -269,15 +272,14 @@ export class ResumeService {
       passed++
     } else recommendations.push('Include your email address')
 
-    if (hasGithub) {
-      strengths.push('Links to code repositories')
+    if (hasPhone) {
+      strengths.push('Contact phone included')
       passed++
-    } else recommendations.push('Add links to your GitHub or other code repositories')
+    } else recommendations.push('Include a phone number when appropriate for applications in your region')
 
-    if (hasLinkedIn) {
-      strengths.push('LinkedIn profile included')
-      passed++
-    } else recommendations.push('Add your LinkedIn profile URL')
+    if (hasLinkedIn) strengths.push('LinkedIn profile included')
+    if (hasGithub) strengths.push('GitHub profile included')
+    if (hasPortfolio) strengths.push('Professional portfolio or work-sample link included')
 
     if (wordCount > 800)
       recommendations.push('Resume seems long - consider keeping it to one page for most roles')

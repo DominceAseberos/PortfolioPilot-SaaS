@@ -903,6 +903,31 @@ Phase 5 is now complete.
 - Native PDF regression uses a nurse fixture with a narrative paragraph plus structured bullets and verifies the bullet survives all three active templates.
 - Final validation passed: 25/25 Jest suites, 102/102 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
 
+### Phase 12 - Profession-Neutral Deterministic Fallback
+
+- [x] Remove GitHub/LinkedIn as mandatory fallback score requirements
+- [x] Replace developer-specific skill/repository recommendations with role-neutral guidance
+- [x] Expand action-verb detection across clinical, education, operations, finance, service, and other professions
+- [x] Expand quantifiable-impact detection beyond users/revenue/software-oriented wording
+- [x] Broaden deterministic experience-heading recognition without hardcoding occupations
+- [x] Keep GitHub/LinkedIn/portfolio as optional strengths when present
+- [x] Add non-developer fallback regression fixtures with no GitHub
+- [x] Run full Jest, generated-PDF, TypeScript, and diff-hygiene validation
+- [x] Update checklist and implementation notes
+
+#### Cycle 20 implementation notes
+
+- Removed GitHub and LinkedIn from mandatory deterministic resume scoring. Candidates can now achieve a full fallback score without developer/social-profile signals.
+- Contact phone becomes the seventh generic scoring criterion alongside skills, experience, education, measurable impact, action verbs, and email.
+- GitHub, LinkedIn, and portfolio/work-sample links are still surfaced as strengths when present, but their absence no longer produces penalties or developer-specific recommendations.
+- Replaced `technical and soft skills` guidance with role-neutral skills/competencies/tools/methods/domain-knowledge guidance.
+- Missing-experience guidance now includes practicum, volunteer work, training, and other role-related practice for students and career changers.
+- Expanded action-verb recognition with cross-industry verbs such as administered, coordinated, assessed, taught, facilitated, reconciled, served, monitored, trained, analyzed, and resolved.
+- Expanded metric detection to patients, students, cases, records, orders, appointments, accounts, transactions, events, campaigns, classes, units, team members, and existing commercial/software metrics.
+- Expanded experience-heading recognition to professional, clinical, and teaching practice without creating occupation-specific dictionaries.
+- Added a nursing fallback fixture with no GitHub or LinkedIn; it scores strongly, detects phone/location/clinical skills, and produces no GitHub/code/technical-skills recommendation.
+- Final validation passed: 25/25 Jest suites, 103/103 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
