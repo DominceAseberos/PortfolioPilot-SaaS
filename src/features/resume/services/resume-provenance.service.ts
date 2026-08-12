@@ -105,6 +105,7 @@ export function ensureOriginalResumeProvenance(sections: DynamicSection[]): Dyna
     const entries = (section.entries ?? []).map((entry) => ({
       ...entry,
       fieldEvidence: entry.fieldEvidence ?? entryFieldEvidenceFromSource(entry, resumeEvidence()),
+      bulletEvidence: entry.bulletEvidence ?? (entry.bullets?.length ? [resumeEvidence()] : undefined),
     }))
     return { ...section, provenance, entries }
   })
@@ -222,7 +223,28 @@ function decorateEntrySection(
       nextFieldEvidence[field] = [aiEvidence()]
     }
 
-    return { ...entry, fieldEvidence: nextFieldEvidence }
+    const currentBullets = (entry.bullets ?? []).map((bullet) => bullet.trim()).filter(Boolean)
+    const previousBullets = (previous?.bullets ?? []).map((bullet) => bullet.trim()).filter(Boolean)
+    let bulletEvidence: EvidenceRef[] | undefined
+    if (currentBullets.length > 0) {
+      if (previous && JSON.stringify(currentBullets) === JSON.stringify(previousBullets)) {
+        bulletEvidence = previous.bulletEvidence?.length ? previous.bulletEvidence : [resumeEvidence()]
+      } else if (previous) {
+        bulletEvidence = mergeResumeEvidence(
+          previous.bulletEvidence?.length ? previous.bulletEvidence : [resumeEvidence()],
+          section.semanticType === 'projects' ? githubRefs : undefined,
+          [aiEvidence()]
+        )
+      } else if (isPortfolioEntry) {
+        bulletEvidence = mergeResumeEvidence([portfolioEvidence(context.portfolioUrl)], [aiEvidence()])
+      } else if (githubRefs.length > 0) {
+        bulletEvidence = mergeResumeEvidence(githubRefs, [aiEvidence()])
+      } else {
+        bulletEvidence = [aiEvidence()]
+      }
+    }
+
+    return { ...entry, fieldEvidence: nextFieldEvidence, bulletEvidence }
   })
 
   const sectionEvidence = original
@@ -317,6 +339,18 @@ export function markEntryFieldAsUserEdited(
   return { ...section, entries }
 }
 
+export function markEntryBulletsAsUserEdited(section: DynamicSection, entryIndex: number): DynamicSection {
+  if (section.type !== 'entries') return section
+  const entries = [...(section.entries ?? [])]
+  const entry = entries[entryIndex]
+  if (!entry) return section
+  entries[entryIndex] = {
+    ...entry,
+    bulletEvidence: mergeResumeEvidence(entry.bulletEvidence, [userEvidence()]),
+  }
+  return { ...section, entries }
+}
+
 export function appendAiEvidenceToSectionText(section: DynamicSection): DynamicSection {
   return {
     ...section,
@@ -342,6 +376,18 @@ export function appendAiEvidenceToEntryDescription(section: DynamicSection, entr
   return { ...section, entries }
 }
 
+export function appendAiEvidenceToEntryBullets(section: DynamicSection, entryIndex: number): DynamicSection {
+  if (section.type !== 'entries') return section
+  const entries = [...(section.entries ?? [])]
+  const entry = entries[entryIndex]
+  if (!entry) return section
+  entries[entryIndex] = {
+    ...entry,
+    bulletEvidence: mergeResumeEvidence(entry.bulletEvidence, [aiEvidence()]),
+  }
+  return { ...section, entries }
+}
+
 export function collectEntryEvidence(entry: NonNullable<DynamicSection['entries']>[number]): EvidenceRef[] {
-  return mergeResumeEvidence(...Object.values(entry.fieldEvidence ?? {}))
+  return mergeResumeEvidence(...Object.values(entry.fieldEvidence ?? {}), entry.bulletEvidence)
 }

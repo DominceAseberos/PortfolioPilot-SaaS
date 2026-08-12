@@ -14,6 +14,7 @@ import { recommendResumeTemplate } from '@/features/resume/services/resume-templ
 import { normalizeManualSectionClassification } from '@/features/resume/services/resume-section-classification.service'
 import {
   collectEntryEvidence,
+  markEntryBulletsAsUserEdited,
   markEntryFieldAsUserEdited,
   markListItemAsUserAdded,
   markResumeIdentityFieldAsUserEdited,
@@ -134,6 +135,17 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       const newEntries = [...(sec.entries || [])]
       newEntries[entryIndex] = { ...newEntries[entryIndex], [field]: value }
       newSections[sectionIndex] = markEntryFieldAsUserEdited({ ...sec, entries: newEntries }, entryIndex, field)
+      updateField('sections', newSections)
+    }
+  }
+
+  const updateSectionEntryBullets = (sectionIndex: number, entryIndex: number, bullets: string[]) => {
+    const newSections = [...(data.sections || [])]
+    const sec = newSections[sectionIndex]
+    if (sec.type === 'entries') {
+      const newEntries = [...(sec.entries || [])]
+      newEntries[entryIndex] = { ...newEntries[entryIndex], bullets }
+      newSections[sectionIndex] = markEntryBulletsAsUserEdited({ ...sec, entries: newEntries }, entryIndex)
       updateField('sections', newSections)
     }
   }
@@ -429,10 +441,47 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                        </div>
                        <div className="sm:col-span-2">
                          <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center justify-between gap-2">
-                           <span>Description</span>
+                           <span>Narrative Description (Optional)</span>
                            <ResumeEvidenceBadge evidence={entry.fieldEvidence?.description} compact />
                          </label>
                          <textarea className={`w-full px-2.5 py-1.5 bg-background border rounded-md text-sm min-h-[80px] resize-y ${entry.isEnhanced ? 'border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.1)]' : 'border-border/50'}`} value={entry.description || ''} onChange={e => updateSectionEntry(sIndex, i, 'description', e.target.value)} />
+                       </div>
+                       <div className="sm:col-span-2 space-y-2">
+                         <label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center justify-between gap-2">
+                           <span>Bullets</span>
+                           <ResumeEvidenceBadge evidence={entry.bulletEvidence} compact />
+                         </label>
+                         {(entry.bullets || []).map((bullet, bulletIndex) => (
+                           <div key={bulletIndex} className="flex items-center gap-2">
+                             <span className="text-muted-foreground text-xs">•</span>
+                             <input
+                               className="flex-1 px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm"
+                               value={bullet}
+                               onChange={e => {
+                                 const bullets = [...(entry.bullets || [])]
+                                 bullets[bulletIndex] = e.target.value
+                                 updateSectionEntryBullets(sIndex, i, bullets)
+                               }}
+                             />
+                             <button
+                               type="button"
+                               className="text-muted-foreground hover:text-red-500"
+                               aria-label="Remove bullet"
+                               onClick={() => updateSectionEntryBullets(sIndex, i, (entry.bullets || []).filter((_, index) => index !== bulletIndex))}
+                             >
+                               <X className="h-3.5 w-3.5" />
+                             </button>
+                           </div>
+                         ))}
+                         <Button
+                           type="button"
+                           variant="outline"
+                           size="sm"
+                           className="h-7 border-dashed text-[11px]"
+                           onClick={() => updateSectionEntryBullets(sIndex, i, [...(entry.bullets || []), ''])}
+                         >
+                           <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Bullet
+                         </Button>
                        </div>
                      </div>
                   </div>

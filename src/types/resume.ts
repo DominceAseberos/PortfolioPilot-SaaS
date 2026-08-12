@@ -31,9 +31,11 @@ export interface DynamicSection {
     subtitle?: string;
     dates?: string;
     description?: string;
+    bullets?: string[];
     link?: string;
     isEnhanced?: boolean;        // Identifies AI-injected items
     fieldEvidence?: Partial<Record<ResumeEntryEvidenceField, EvidenceRef[]>>;
+    bulletEvidence?: EvidenceRef[];
   }[];
   acceptsAIImprovements: boolean; // Safe-lock to allow GitHub data injection
 }

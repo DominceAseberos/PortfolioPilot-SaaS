@@ -14,7 +14,7 @@ describe('resume initial change review', () => {
       title: 'Experience',
       type: 'entries',
       semanticType: 'experience',
-      entries: [{ title: 'Staff Nurse', subtitle: 'Example Hospital', dates: '2024 - Present', description: 'Original patient-care description.' }],
+      entries: [{ title: 'Staff Nurse', subtitle: 'Example Hospital', dates: '2024 - Present', description: 'Original patient-care description.', bullets: ['Original bullet'] }],
       acceptsAIImprovements: true,
     },
     {
@@ -48,7 +48,9 @@ describe('resume initial change review', () => {
           subtitle: 'Example Hospital',
           dates: '2024 - Present',
           description: 'Improved patient-care description.',
+          bullets: ['Improved bullet'],
           fieldEvidence: { description: [{ source: 'resume', confidence: 1 }, { source: 'ai', confidence: 0.8 }] },
+          bulletEvidence: [{ source: 'resume', confidence: 1 }, { source: 'ai', confidence: 0.8 }],
         }],
       },
       original[1],
@@ -58,6 +60,8 @@ describe('resume initial change review', () => {
     const entry = restored[0].type === 'entries' ? restored[0].entries?.[0] : undefined
     expect(entry?.description).toBe('Original patient-care description.')
     expect(entry?.fieldEvidence?.description?.map((item) => item.source)).toEqual(['resume'])
+    expect(entry?.bullets).toEqual(['Original bullet'])
+    expect(entry?.bulletEvidence?.map((item) => item.source)).toEqual(['resume'])
     expect(restored[0].manualOrder).toBe(7)
   })
 

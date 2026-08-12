@@ -74,9 +74,9 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
                   {entry.subtitle && entry.subtitle.toLowerCase() !== entry.title?.toLowerCase() && (
                     <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>
                   )}
-                  {entry.description && (
+                  {(entry.description || (entry.bullets && entry.bullets.length > 0)) && (
                     <View style={styles.entryDescriptionWrapper}>
-                      {renderDescription(entry.description, styles.entryDescription)}
+                      {renderDescription(entry.description, styles.entryDescription, '#000000', entry.bullets)}
                     </View>
                   )}
                 </View>

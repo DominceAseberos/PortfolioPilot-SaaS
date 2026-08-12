@@ -23,6 +23,28 @@ describe('AI resume schema hardening', () => {
     expect(parsed.sections[0].items).toEqual(['Phlebotomy', 'Wound Care', 'IV Therapy'])
   })
 
+  it('preserves structured entry bullets separately from narrative descriptions', () => {
+    const parsed = aiResumeExtractionSchema.parse({
+      sections: [{
+        title: 'Professional Practice',
+        type: 'entries',
+        semanticType: 'experience',
+        classificationConfidence: 0.98,
+        entries: [{
+          title: 'Staff Nurse',
+          subtitle: 'Example Hospital',
+          description: 'Acute-care nursing role.',
+          bullets: ['Administered medications safely', 'Coordinated multidisciplinary handoffs'],
+        }],
+      }],
+    })
+
+    const section = parsed.sections[0]
+    const entry = section.type === 'entries' ? section.entries?.[0] : undefined
+    expect(entry?.description).toBe('Acute-care nursing role.')
+    expect(entry?.bullets).toEqual(['Administered medications safely', 'Coordinated multidisciplinary handoffs'])
+  })
+
   it('falls back to unknown instead of inventing a semantic category', () => {
     const parsed = aiResumeExtractionSchema.parse({
       sections: [{

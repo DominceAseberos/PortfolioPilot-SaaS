@@ -64,6 +64,7 @@ CRITICAL RULES:
 7. Classify every section into the generic semantic ontology. If meaning is unclear, use semanticType: 'unknown' instead of guessing.
 8. Do not create placeholder sections or facts that are not supported by the source.
 9. Keep exact employer, school, credential, project, award, publication, and domain terminology from the source.
+10. When an entry contains bullet-like source lines, put each bullet in the bullets array. Use description only for a genuine narrative paragraph; do not duplicate the same content in both fields.
 
 Return this EXACT structure ONLY:
 {
@@ -81,7 +82,7 @@ Return this EXACT structure ONLY:
       "classificationConfidence": 0.0,
       "text": "Extracted paragraph for text sections",
       "items": ["item1", "item2"],
-      "entries": [{"title": "Exact source title", "subtitle": "Exact source organization/subtitle", "dates": "...", "description": "..."}],
+      "entries": [{"title": "Exact source title", "subtitle": "Exact source organization/subtitle", "dates": "...", "description": "Optional narrative paragraph", "bullets": ["Exact bullet 1", "Exact bullet 2"]}],
       "acceptsAIImprovements": false
     }
   ],
@@ -237,7 +238,7 @@ CRITICAL RULES:
 {
   "title": "Projects (or original title)",
   "type": "entries",
-  "entries": [{"title": "...", "subtitle": "...", "dates": "...", "description": "...", "link": "..."}],
+  "entries": [{"title": "...", "subtitle": "...", "dates": "...", "description": "Optional narrative paragraph", "bullets": ["Impact bullet 1", "Impact bullet 2"], "link": "..."}],
   "acceptsAIImprovements": true
 }`
         },
@@ -328,7 +329,7 @@ CRITICAL RULES:
 {
   "title": "Experience",
   "type": "entries",
-  "entries": [{"title": "Role", "subtitle": "Company/Organization", "dates": "...", "description": "..."}],
+  "entries": [{"title": "Role", "subtitle": "Company/Organization", "dates": "...", "description": "Optional narrative paragraph", "bullets": ["Responsibility or achievement bullet 1", "Responsibility or achievement bullet 2"]}],
   "acceptsAIImprovements": true
 }
 If no work experience can be found in the portfolio, return null or an empty entries list.`

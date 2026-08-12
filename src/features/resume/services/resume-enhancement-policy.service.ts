@@ -68,6 +68,7 @@ export function enforceProtectedResumeFacts(
         dates: originalEntry.dates ?? candidate.dates,
         link: originalEntry.link ?? candidate.link,
         description: candidate.description ?? originalEntry.description,
+        bullets: candidate.bullets?.length ? candidate.bullets : originalEntry.bullets,
       }
     })
 

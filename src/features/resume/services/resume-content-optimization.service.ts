@@ -1,12 +1,13 @@
 import type { DynamicSection } from '@/types/resume'
 import { RESUME_LAYOUT_PROFILES, parseDescriptionBlocks, type ResumeTemplateId } from './resume-layout.service'
-import { appendAiEvidenceToEntryDescription, appendAiEvidenceToSectionText } from './resume-provenance.service'
+import { appendAiEvidenceToEntryBullets, appendAiEvidenceToEntryDescription, appendAiEvidenceToSectionText } from './resume-provenance.service'
 
 export interface ResumeOptimizationTarget {
   id: string
   sectionIndex: number
   entryIndex?: number
-  kind: 'text' | 'description'
+  bulletIndex?: number
+  kind: 'text' | 'description' | 'bullet'
   original: string
   maxWords: number
 }
@@ -44,24 +45,41 @@ export function buildResumeOptimizationTargets(
 
     if (section.type !== 'entries') return
     ;(section.entries ?? []).forEach((entry, entryIndex) => {
-      if (!entry.description?.trim()) return
-      const blocks = parseDescriptionBlocks(entry.description)
-      const count = words(entry.description)
-      const blockBudget = Math.max(
-        profile.preferredBulletWords,
-        profile.preferredBulletWords * Math.max(1, Math.min(profile.preferredBulletsPerEntry, blocks.length || 1))
-      )
-      const maxWords = Math.min(count - 1, blockBudget)
-      if (count > blockBudget && maxWords >= 12) {
+      if (entry.description?.trim()) {
+        const blocks = parseDescriptionBlocks(entry.description)
+        const count = words(entry.description)
+        const blockBudget = Math.max(
+          profile.preferredBulletWords,
+          profile.preferredBulletWords * Math.max(1, Math.min(profile.preferredBulletsPerEntry, blocks.length || 1))
+        )
+        const maxWords = Math.min(count - 1, blockBudget)
+        if (count > blockBudget && maxWords >= 12) {
+          targets.push({
+            id: `section:${sectionIndex}:entry:${entryIndex}:description`,
+            sectionIndex,
+            entryIndex,
+            kind: 'description',
+            original: entry.description,
+            maxWords,
+          })
+        }
+      }
+
+      ;(entry.bullets ?? []).forEach((bullet, bulletIndex) => {
+        const original = bullet.trim()
+        if (!original) return
+        const count = words(original)
+        if (count <= profile.preferredBulletWords) return
         targets.push({
-          id: `section:${sectionIndex}:entry:${entryIndex}:description`,
+          id: `section:${sectionIndex}:entry:${entryIndex}:bullet:${bulletIndex}`,
           sectionIndex,
           entryIndex,
-          kind: 'description',
-          original: entry.description,
-          maxWords,
+          bulletIndex,
+          kind: 'bullet',
+          original,
+          maxWords: profile.preferredBulletWords,
         })
-      }
+      })
     })
   })
 
@@ -73,10 +91,14 @@ function rewriteIsSafe(target: ResumeOptimizationTarget, next: string): boolean 
   if (!trimmed || words(trimmed) > target.maxWords || words(trimmed) >= words(target.original)) return false
 
   const originalNumbers = numbers(target.original)
-  for (const value of numbers(trimmed)) if (!originalNumbers.has(value)) return false
+  const nextNumbers = numbers(trimmed)
+  for (const value of nextNumbers) if (!originalNumbers.has(value)) return false
+  for (const value of originalNumbers) if (!nextNumbers.has(value)) return false
 
   const originalUrls = urls(target.original)
-  for (const value of urls(trimmed)) if (!originalUrls.has(value)) return false
+  const nextUrls = urls(trimmed)
+  for (const value of nextUrls) if (!originalUrls.has(value)) return false
+  for (const value of originalUrls) if (!nextUrls.has(value)) return false
 
   return true
 }
@@ -90,7 +112,7 @@ export function applyResumeOptimizationRewrites(
   const rewriteMap = new Map(rewrites.map((rewrite) => [rewrite.id, rewrite.text]))
   const next: DynamicSection[] = sections.map((section) => ({
     ...section,
-    entries: section.type === 'entries' ? (section.entries ?? []).map((entry) => ({ ...entry })) : section.entries,
+    entries: section.type === 'entries' ? (section.entries ?? []).map((entry) => ({ ...entry, bullets: entry.bullets ? [...entry.bullets] : undefined })) : section.entries,
     items: section.type === 'list' ? [...(section.items ?? [])] : section.items,
   }))
 
@@ -108,6 +130,13 @@ export function applyResumeOptimizationRewrites(
       if (entry) {
         entry.description = proposed.trim()
         next[target.sectionIndex] = appendAiEvidenceToEntryDescription(section, target.entryIndex)
+      }
+    } else if (target.kind === 'bullet' && section.type === 'entries' && typeof target.entryIndex === 'number' && typeof target.bulletIndex === 'number') {
+      const entry = section.entries?.[target.entryIndex]
+      const bullets = entry?.bullets
+      if (entry && bullets?.[target.bulletIndex] != null) {
+        bullets[target.bulletIndex] = proposed.trim()
+        next[target.sectionIndex] = appendAiEvidenceToEntryBullets(section, target.entryIndex)
       }
     }
   }

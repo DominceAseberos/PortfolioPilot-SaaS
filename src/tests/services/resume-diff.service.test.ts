@@ -8,6 +8,20 @@ describe('resume change operations', () => {
     expect(diffResumeSections(original, enhanced)).toEqual([{ action: 'rewrite', sectionTitle: 'Experience', semanticType: 'experience', target: 'entry:Staff Nurse:description', before: 'Provided patient care.', after: 'Delivered safe patient care across assigned clinical workflows.', protectedFact: false }])
   })
 
+  it('records structured bullet rewrites separately from narrative descriptions', () => {
+    const original: DynamicSection[] = [{ title: 'Experience', type: 'entries', semanticType: 'experience', acceptsAIImprovements: true, entries: [{ title: 'Staff Nurse', bullets: ['Provided patient care.'] }] }]
+    const enhanced: DynamicSection[] = [{ title: 'Experience', type: 'entries', semanticType: 'experience', acceptsAIImprovements: true, entries: [{ title: 'Staff Nurse', bullets: ['Delivered safe patient care.', 'Coordinated handoffs.'] }] }]
+    expect(diffResumeSections(original, enhanced)).toEqual([{
+      action: 'rewrite',
+      sectionTitle: 'Experience',
+      semanticType: 'experience',
+      target: 'entry:Staff Nurse:bullets',
+      before: 'Provided patient care.',
+      after: 'Delivered safe patient care.\nCoordinated handoffs.',
+      protectedFact: false,
+    }])
+  })
+
   it('marks factual changes in protected sections as protected operations', () => {
     const original: DynamicSection[] = [{ title: 'Education', type: 'entries', semanticType: 'education', acceptsAIImprovements: false, entries: [{ title: 'BS Nursing', subtitle: 'School A', dates: '2020 - 2024' }] }]
     const enhanced: DynamicSection[] = [{ title: 'Education', type: 'entries', semanticType: 'education', acceptsAIImprovements: false, entries: [{ title: 'BS Nursing', subtitle: 'School B', dates: '2020 - 2024' }] }]

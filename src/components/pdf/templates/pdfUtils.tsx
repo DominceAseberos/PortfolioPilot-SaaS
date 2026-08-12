@@ -1,6 +1,6 @@
 import React from 'react'
 import { Text, View, StyleSheet } from '@react-pdf/renderer'
-import { parseDescriptionBlocks } from '@/features/resume/services/resume-layout.service'
+import { getResumeEntryBlocks } from '@/features/resume/services/resume-layout.service'
 
 const utilStyles = StyleSheet.create({
   bulletRow: {
@@ -21,10 +21,10 @@ const utilStyles = StyleSheet.create({
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function renderDescription(text: string | undefined, textStyle?: any, bulletColor: string = '#000000') {
-  if (!text) return null
+export function renderDescription(text: string | undefined, textStyle?: any, bulletColor: string = '#000000', bullets?: string[]) {
+  if (!text && (!bullets || bullets.length === 0)) return null
 
-  const blocks = parseDescriptionBlocks(text)
+  const blocks = getResumeEntryBlocks({ description: text, bullets })
   
   return blocks.map((block, i) => {
     if (block.type === 'bullet') {

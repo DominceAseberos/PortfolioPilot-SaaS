@@ -110,6 +110,24 @@ export function parseDescriptionBlocks(text?: string): DescriptionBlock[] {
     .filter((block) => block.text.length > 0)
 }
 
+export function getResumeEntryBlocks(entry: { description?: string; bullets?: string[] }): DescriptionBlock[] {
+  const bullets = (entry.bullets ?? []).map((bullet) => bullet.trim()).filter(Boolean)
+  if (bullets.length === 0) return parseDescriptionBlocks(entry.description)
+
+  const paragraphs = parseDescriptionBlocks(entry.description).filter((block) => block.type === 'paragraph')
+  const seen = new Set<string>()
+  const bulletBlocks = bullets
+    .filter((bullet) => {
+      const key = normalizeForDuplicate(bullet)
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .map((text) => ({ type: 'bullet' as const, text }))
+
+  return [...paragraphs, ...bulletBlocks]
+}
+
 function countWords(value?: string | null): number {
   if (!value?.trim()) return 0
   return value.trim().split(/\s+/).filter(Boolean).length
@@ -261,7 +279,7 @@ export function analyzeResumePreflight(
         }
 
         densityUnits += 5
-        const blocks = parseDescriptionBlocks(entry.description)
+        const blocks = getResumeEntryBlocks(entry)
         for (const block of blocks) {
           const words = countWords(block.text)
           densityUnits += Math.max(1.2, words / 7)

@@ -61,6 +61,41 @@ describe('resume content optimization', () => {
     expect(entry?.fieldEvidence?.description?.map((item) => item.source)).toEqual(['resume', 'ai'])
   })
 
+  it('targets and safely rewrites long structured bullets', () => {
+    const structured = ensureOriginalResumeProvenance([{
+      title: 'Experience',
+      type: 'entries',
+      semanticType: 'experience',
+      acceptsAIImprovements: true,
+      entries: [{
+        title: 'Staff Nurse',
+        bullets: ['Managed care for 25 patients per shift while coordinating medication administration discharge education charting handoffs physician communication safety checks infection control family updates emergency escalation documentation and multidisciplinary collaboration.'],
+      }],
+    }])
+    const targets = buildResumeOptimizationTargets(structured, 'classic')
+    const bulletTarget = targets.find((target) => target.kind === 'bullet')!
+    expect(bulletTarget.maxWords).toBeGreaterThan(0)
+
+    const next = applyResumeOptimizationRewrites(structured, targets, [{
+      id: bulletTarget.id,
+      text: 'Managed care for 25 patients per shift while coordinating medications, discharge education, charting, handoffs, safety, and multidisciplinary communication.',
+    }])
+    const entry = next[0].type === 'entries' ? next[0].entries?.[0] : undefined
+    expect(entry?.bullets?.[0]).toContain('25 patients')
+    expect(entry?.bulletEvidence?.map((item) => item.source)).toEqual(['resume', 'ai'])
+  })
+
+  it('rejects a rewrite that removes an existing numeric claim', () => {
+    const targets = buildResumeOptimizationTargets(sections, 'classic')
+    const descriptionTarget = targets.find((target) => target.kind === 'description')!
+    const next = applyResumeOptimizationRewrites(sections, targets, [{
+      id: descriptionTarget.id,
+      text: 'Managed patient care with safe medication administration, coordinated discharge education, charting, handoffs, and multidisciplinary communication.',
+    }])
+    const entry = next[1].type === 'entries' ? next[1].entries?.[0] : undefined
+    expect(entry?.description).toBe(sections[1].type === 'entries' ? sections[1].entries?.[0].description : '')
+  })
+
   it('rejects a rewrite that invents a new numeric claim', () => {
     const targets = buildResumeOptimizationTargets(sections, 'classic')
     const descriptionTarget = targets.find((target) => target.kind === 'description')!

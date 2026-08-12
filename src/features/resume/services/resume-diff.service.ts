@@ -58,7 +58,7 @@ export function diffResumeSections(original: DynamicSection[], enhanced: Dynamic
         if (index < 0) index = oldEntries.findIndex((_, i) => !matched.has(i))
 
         if (index < 0) {
-          operations.push({ action: 'add', sectionTitle: next.title, semanticType: next.semanticType, target: `entry:${entry.title}`, after: entry.description || entry.title, protectedFact })
+          operations.push({ action: 'add', sectionTitle: next.title, semanticType: next.semanticType, target: `entry:${entry.title}`, after: entry.description || entry.bullets?.join('\n') || entry.title, protectedFact })
           continue
         }
 
@@ -66,6 +66,11 @@ export function diffResumeSections(original: DynamicSection[], enhanced: Dynamic
         const old = oldEntries[index]
         if ((old.description ?? '').trim() !== (entry.description ?? '').trim()) {
           operations.push({ action: 'rewrite', sectionTitle: next.title, semanticType: next.semanticType, target: `entry:${old.title}:description`, before: old.description, after: entry.description, protectedFact: false })
+        }
+        const oldBullets = (old.bullets ?? []).map((bullet) => bullet.trim()).filter(Boolean)
+        const newBullets = (entry.bullets ?? []).map((bullet) => bullet.trim()).filter(Boolean)
+        if (JSON.stringify(oldBullets) !== JSON.stringify(newBullets)) {
+          operations.push({ action: 'rewrite', sectionTitle: next.title, semanticType: next.semanticType, target: `entry:${old.title}:bullets`, before: oldBullets.join('\n'), after: newBullets.join('\n'), protectedFact: false })
         }
         for (const field of ['title', 'subtitle', 'dates', 'link'] as const) {
           if ((old[field] ?? '').trim() !== (entry[field] ?? '').trim()) {
@@ -75,7 +80,7 @@ export function diffResumeSections(original: DynamicSection[], enhanced: Dynamic
       }
 
       oldEntries.forEach((entry, index) => {
-        if (!matched.has(index)) operations.push({ action: 'remove', sectionTitle: next.title, semanticType: next.semanticType, target: `entry:${entry.title}`, before: entry.description || entry.title, protectedFact })
+        if (!matched.has(index)) operations.push({ action: 'remove', sectionTitle: next.title, semanticType: next.semanticType, target: `entry:${entry.title}`, before: entry.description || entry.bullets?.join('\n') || entry.title, protectedFact })
       })
     }
   }

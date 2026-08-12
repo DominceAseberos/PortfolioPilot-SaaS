@@ -66,7 +66,7 @@ export function enforceGitHubProjectEvidence(original: DynamicSection | undefine
   const candidates = candidate.entries ?? []
   const safeEntries = originals.map((entry) => {
     const match = candidates.find((candidateEntry) => compact(candidateEntry.title) === compact(entry.title))
-    return match ? { ...entry, description: match.description ?? entry.description, link: entry.link ?? match.link, isEnhanced: true } : entry
+    return match ? { ...entry, description: match.description ?? entry.description, bullets: match.bullets?.length ? match.bullets : entry.bullets, link: entry.link ?? match.link, isEnhanced: true } : entry
   })
   for (const entry of candidates) {
     const key = compact(entry.title)

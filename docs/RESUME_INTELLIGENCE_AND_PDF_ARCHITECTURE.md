@@ -875,6 +875,34 @@ Phase 5 is now complete.
 - Real PDF regression verifies `Davao City, Philippines` survives all three active templates.
 - Final validation passed: 25/25 Jest suites, 95/95 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
 
+### Phase 11 - Structured Bullet Model
+
+- [x] Add optional structured `bullets[]` to resume entries without breaking legacy descriptions
+- [x] Normalize legacy descriptions and structured bullets through one deterministic block adapter
+- [x] Extend AI extraction/enhancement schemas and prompts to return bullet arrays when source content is bullet-like
+- [x] Render structured bullets consistently across Classic, Modern, Compact, and legacy PDF paths
+- [x] Use structured bullets in preflight/density analysis
+- [x] Add bullet-level editor controls while preserving paragraph descriptions
+- [x] Preserve bullets through protected-fact enforcement, GitHub evidence enrichment, diffs, and section restore
+- [x] Add regression coverage for legacy descriptions, structured bullets, editing, and generated PDFs
+- [x] Run full Jest, generated-PDF, TypeScript, and diff-hygiene validation
+- [x] Update checklist and implementation notes
+
+#### Cycle 19 implementation notes
+
+- Added optional `bullets[]` to resume entries and canonical entries without removing the legacy `description` field.
+- Added one deterministic entry-block adapter: if structured bullets exist, narrative paragraphs from `description` are preserved while legacy bullet-like description lines are not duplicated; description-only entries continue using the existing parser unchanged.
+- AI extraction and enhancement schemas/prompts now separate genuine narrative descriptions from bullet-like source lines instead of forcing both into one string.
+- Classic, Modern, Compact, and legacy PDF rendering all consume the same paragraph/bullet adapter.
+- Preflight/density analysis now measures structured bullets directly, including long-bullet warnings.
+- The resume editor now exposes individual bullet rows with add/edit/remove controls while retaining a separate optional narrative-description editor.
+- Bullet provenance is tracked alongside field provenance. Manual bullet edits append `You`; AI rewrites append AI evidence; original Resume/GitHub/Portfolio evidence remains intact.
+- Protected-fact enforcement, GitHub project evidence filtering, initial AI diffs, and section restore all preserve structured bullets.
+- Layout optimization now targets overlong individual bullets as independent rewrite units, with the same evidence-preserving guards as narrative text.
+- Tightened optimization safety: existing numeric claims and URLs must survive a rewrite; the guard now rejects both newly invented and silently removed metrics/links.
+- Native PDF regression uses a nurse fixture with a narrative paragraph plus structured bullets and verifies the bullet survives all three active templates.
+- Final validation passed: 25/25 Jest suites, 102/102 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:

@@ -29,6 +29,7 @@ export const aiResumeEntrySchema = z.object({
   subtitle: optionalString,
   dates: optionalString,
   description: optionalString,
+  bullets: stringArray.catch([]),
   link: optionalString,
   isEnhanced: z.boolean().optional(),
 })

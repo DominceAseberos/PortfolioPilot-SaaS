@@ -23,6 +23,7 @@ export interface CanonicalResumeEntry {
   subtitle: CanonicalField<string>
   dates: CanonicalField<string>
   description: CanonicalField<string>
+  bullets: CanonicalField<string>[]
   link: CanonicalField<string>
   isEnhanced?: boolean
 }

@@ -1,5 +1,6 @@
 import {
   analyzeResumePreflight,
+  getResumeEntryBlocks,
   parseDescriptionBlocks,
   RESUME_LAYOUT_PROFILES,
 } from '@/features/resume/services/resume-layout.service'
@@ -23,6 +24,17 @@ describe('resume layout service', () => {
     it('returns an empty array for empty input', () => {
       expect(parseDescriptionBlocks(undefined)).toEqual([])
       expect(parseDescriptionBlocks('   ')).toEqual([])
+    })
+
+    it('uses structured bullets without duplicating bullet-like legacy description lines', () => {
+      expect(getResumeEntryBlocks({
+        description: 'Patient-care overview.\n• Legacy duplicated bullet',
+        bullets: ['Medication Administration', 'Patient Assessment'],
+      })).toEqual([
+        { type: 'paragraph', text: 'Patient-care overview.' },
+        { type: 'bullet', text: 'Medication Administration' },
+        { type: 'bullet', text: 'Patient Assessment' },
+      ])
     })
   })
 
@@ -109,6 +121,22 @@ describe('resume layout service', () => {
       expect(codes).toContain('bullet-long')
       expect(codes).toContain('duplicate-skill')
       expect(codes).toContain('invalid-link')
+    })
+
+    it('detects long structured bullets directly without reparsing a description string', () => {
+      const longBullet = Array.from({ length: 32 }, (_, i) => `clinical${i}`).join(' ')
+      const result = analyzeResumePreflight({
+        ...baseData,
+        sections: [{
+          title: 'Clinical Experience',
+          type: 'entries',
+          semanticType: 'experience',
+          entries: [{ title: 'Staff Nurse', bullets: [longBullet] }],
+          acceptsAIImprovements: true,
+        }],
+      }, 'classic')
+
+      expect(result.warnings.map((warning) => warning.code)).toContain('bullet-long')
     })
 
     it('uses stricter sidebar capacity for modern than compact', () => {

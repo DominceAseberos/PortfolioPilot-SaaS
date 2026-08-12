@@ -39,6 +39,7 @@ describe('resume enhancement policy', () => {
         subtitle: 'Example Hospital',
         dates: '2024 - Present',
         description: 'Provided patient care.',
+        bullets: ['Original patient-care bullet'],
       }],
     }]
 
@@ -53,6 +54,7 @@ describe('resume enhancement policy', () => {
           subtitle: 'Different Hospital',
           dates: '2020 - Present',
           description: 'Delivered safe patient care and coordinated clinical workflows.',
+          bullets: ['Improved patient-care bullet'],
         },
         {
           title: 'Invented Job',
@@ -69,6 +71,7 @@ describe('resume enhancement policy', () => {
     expect(result[0].entries?.[0].subtitle).toBe('Example Hospital')
     expect(result[0].entries?.[0].dates).toBe('2024 - Present')
     expect(result[0].entries?.[0].description).toContain('coordinated clinical workflows')
+    expect(result[0].entries?.[0].bullets).toEqual(['Improved patient-care bullet'])
   })
 
   it('allows new evidence-backed project entries to remain in Projects', () => {

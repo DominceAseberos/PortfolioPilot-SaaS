@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/rendere
 import { ClassicTemplate } from './templates/ClassicTemplate'
 import { ModernTemplate } from './templates/ModernTemplate'
 import { CompactTemplate } from './templates/CompactTemplate'
+import { renderDescription } from './templates/pdfUtils'
 
 // ─── Template registry ────────────────────────────────────────────────────────
 export type ResumeTemplateId = 'classic' | 'modern' | 'compact'
@@ -202,7 +203,11 @@ export function ImprovedResumeTemplate({ data }: { data: ImprovedResumeData }) {
                   {entry.subtitle && entry.subtitle.toLowerCase() !== entry.title?.toLowerCase() && (
                     <Text style={styles.entrySubtitle}>{entry.subtitle}</Text>
                   )}
-                  {entry.description && <Text style={styles.entryDescription}>{entry.description}</Text>}
+                  {(entry.description || (entry.bullets && entry.bullets.length > 0)) && (
+                    <View style={{ marginTop: 4 }}>
+                      {renderDescription(entry.description, styles.entryDescription, '#000000', entry.bullets)}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>

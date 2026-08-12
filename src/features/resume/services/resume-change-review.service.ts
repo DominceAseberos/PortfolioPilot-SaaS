@@ -71,9 +71,11 @@ export function restoreOriginalResumeSection(
     entries: original.type === 'entries'
       ? (original.entries ?? []).map((entry) => ({
           ...entry,
+          bullets: entry.bullets ? [...entry.bullets] : undefined,
           fieldEvidence: entry.fieldEvidence
             ? Object.fromEntries(Object.entries(entry.fieldEvidence).map(([key, value]) => [key, value ? [...value] : value]))
             : undefined,
+          bulletEvidence: entry.bulletEvidence ? [...entry.bulletEvidence] : undefined,
         }))
       : original.entries,
     items: original.type === 'list' ? [...(original.items ?? [])] : original.items,

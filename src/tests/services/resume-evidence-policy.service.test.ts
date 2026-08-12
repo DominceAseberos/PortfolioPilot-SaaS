@@ -21,9 +21,12 @@ describe('GitHub evidence policy', () => {
     expect(projectHasGitHubEvidence('Invented Hospital System', undefined, repos)).toBe(false)
   })
 
-  it('drops invented projects while preserving original and evidence-backed projects', () => {
-    const original: DynamicSection = { title: 'Projects', type: 'entries', semanticType: 'projects', entries: [{ title: 'Original Project', description: 'Original' }], acceptsAIImprovements: true }
-    const candidate: DynamicSection = { title: 'Projects', type: 'entries', semanticType: 'projects', entries: [{ title: 'Original Project', description: 'Improved wording' }, { title: 'Portfolio Pilot', description: 'Evidence backed' }, { title: 'Invented Hospital System', description: 'Hallucinated' }], acceptsAIImprovements: true }
-    expect(enforceGitHubProjectEvidence(original, candidate, repos)?.entries?.map((entry) => entry.title)).toEqual(['Original Project', 'Portfolio Pilot'])
+  it('drops invented projects while preserving structured bullets for original and evidence-backed projects', () => {
+    const original: DynamicSection = { title: 'Projects', type: 'entries', semanticType: 'projects', entries: [{ title: 'Original Project', description: 'Original', bullets: ['Original bullet'] }], acceptsAIImprovements: true }
+    const candidate: DynamicSection = { title: 'Projects', type: 'entries', semanticType: 'projects', entries: [{ title: 'Original Project', description: 'Improved wording', bullets: ['Improved bullet'] }, { title: 'Portfolio Pilot', bullets: ['Built with Next.js and Supabase'] }, { title: 'Invented Hospital System', bullets: ['Hallucinated'] }], acceptsAIImprovements: true }
+    const entries = enforceGitHubProjectEvidence(original, candidate, repos)?.entries
+    expect(entries?.map((entry) => entry.title)).toEqual(['Original Project', 'Portfolio Pilot'])
+    expect(entries?.[0].bullets).toEqual(['Improved bullet'])
+    expect(entries?.[1].bullets).toEqual(['Built with Next.js and Supabase'])
   })
 })

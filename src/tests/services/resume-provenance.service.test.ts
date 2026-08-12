@@ -2,6 +2,7 @@ import {
   collectEntryEvidence,
   decorateEnhancedResumeProvenance,
   ensureOriginalResumeProvenance,
+  markEntryBulletsAsUserEdited,
   markEntryFieldAsUserEdited,
   markListItemAsUserAdded,
   markSectionTextAsUserEdited,
@@ -103,6 +104,23 @@ describe('resume provenance', () => {
     const entry = sections[0].type === 'entries' ? sections[0].entries?.[0] : undefined
     expect(sources(entry?.fieldEvidence?.title)).toEqual(['portfolio'])
     expect(sources(entry?.fieldEvidence?.description)).toEqual(['portfolio', 'ai'])
+  })
+
+  it('tracks structured bullet provenance and appends user evidence on bullet edits', () => {
+    const [section] = ensureOriginalResumeProvenance([{
+      title: 'Experience',
+      type: 'entries',
+      semanticType: 'experience',
+      entries: [{ title: 'Staff Nurse', bullets: ['Administered medications safely'] }],
+      acceptsAIImprovements: true,
+    }])
+    const originalEntry = section.type === 'entries' ? section.entries?.[0] : undefined
+    expect(sources(originalEntry?.bulletEvidence)).toEqual(['resume'])
+
+    const edited = markEntryBulletsAsUserEdited(section, 0)
+    const editedEntry = edited.type === 'entries' ? edited.entries?.[0] : undefined
+    expect(sources(editedEntry?.bulletEvidence)).toEqual(['resume', 'user'])
+    expect(sources(collectEntryEvidence(editedEntry!))).toContain('user')
   })
 
   it('appends user evidence without erasing the original source trail', () => {
