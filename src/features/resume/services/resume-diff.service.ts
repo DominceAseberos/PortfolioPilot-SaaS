@@ -1,17 +1,8 @@
-import type { DynamicSection, ResumeSemanticSectionType } from '@/types/resume'
+import type { DynamicSection } from '@/types/resume'
+import type { ResumeChangeOperation } from '@/types/resume-change'
 import { isProtectedFactSection } from './resume-enhancement-policy.service'
 
-export type ResumeChangeAction = 'add' | 'remove' | 'rewrite'
-
-export interface ResumeChangeOperation {
-  action: ResumeChangeAction
-  sectionTitle: string
-  semanticType?: ResumeSemanticSectionType
-  target: string
-  before?: string
-  after?: string
-  protectedFact: boolean
-}
+export type { ResumeChangeAction, ResumeChangeOperation } from '@/types/resume-change'
 
 const normalized = (value?: string) => (value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 

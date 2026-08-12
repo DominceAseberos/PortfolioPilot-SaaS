@@ -6,6 +6,7 @@ import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
 import { SectionClassificationReview } from '@/components/dashboard/SectionClassificationReview'
 import { ResumeEvidenceBadge } from '@/components/dashboard/ResumeEvidenceBadge'
+import { InitialResumeChangesReview } from '@/components/dashboard/InitialResumeChangesReview'
 import { analyzeResumePreflight, type ResumePreflightResult } from '@/features/resume/services/resume-layout.service'
 import type { ResumeChangeOperation } from '@/features/resume/services/resume-diff.service'
 import { getSectionSemanticType, reorderResumeSections } from '@/features/resume/services/resume-template-allocation.service'
@@ -19,6 +20,11 @@ import {
   markSectionTextAsUserEdited,
   normalizeResumeEvidenceKey,
 } from '@/features/resume/services/resume-provenance.service'
+import {
+  removeReviewedSectionOperations,
+  restoreOriginalResumeSection,
+  type ResumeChangeGroup,
+} from '@/features/resume/services/resume-change-review.service'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import type { DynamicSection, ResumeSemanticSectionType } from '@/types/resume'
@@ -162,6 +168,25 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     updateField('sections', reorderResumeSections(data.sections || [], sectionIndex, direction))
   }
 
+  const restoreInitialAiSection = (group: ResumeChangeGroup) => {
+    setOptimizationProposal(null)
+    setOptimizationError(null)
+    setData(prev => ({
+      ...prev,
+      sections: restoreOriginalResumeSection(
+        prev.sections || [],
+        prev.originalSections || [],
+        group.sectionTitle,
+        group.semanticType
+      ),
+      improvementOperations: removeReviewedSectionOperations(
+        prev.improvementOperations || [],
+        group.sectionTitle,
+        group.semanticType
+      ),
+    }))
+  }
+
   const requestLayoutOptimization = async () => {
     setOptimizing(true)
     setOptimizationError(null)
@@ -284,6 +309,12 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           </div>
         )}
       </div>
+
+      <InitialResumeChangesReview
+        operations={data.improvementOperations}
+        originalSections={data.originalSections}
+        onRestore={restoreInitialAiSection}
+      />
       
       {/* AI Recommendations Sidebar/Banner */}
       {(data.recommendations || []).length > 0 && (

@@ -826,6 +826,29 @@ Phase 5 is now complete.
 - Provenance-specific regression tests cover original Resume evidence, GitHub additions, Portfolio-derived experience, manual edits, and AI layout rewrites.
 - Final validation passed: 23/23 Jest suites, 87/87 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
 
+### Phase 9 - Initial AI Change Review & Safe Restore
+
+- [x] Preserve `/api/resume/improve` change operations in `ImprovedResumeData`
+- [x] Preserve original pre-enhancement section snapshots
+- [x] Group initial AI changes by section in the editor
+- [x] Allow deterministic section-level restore/remove for AI-added sections
+- [x] Preserve provenance when restoring original content
+- [x] Add regression tests for review metadata and restore behavior
+- [x] Run full Jest, generated-PDF, TypeScript, and diff-hygiene validation
+- [x] Update checklist and implementation notes
+
+#### Cycle 17 implementation notes
+
+- Moved resume change-operation types into a shared type module so review metadata can live in `ImprovedResumeData` without coupling core types to a feature service.
+- `buildImprovedResume()` now preserves the original pre-enhancement sections and the `/api/resume/improve` operation list instead of discarding the audit trail.
+- Added a compact Initial AI Changes review panel that groups operations by semantic section and shows rewrite before/after text where available.
+- Deliberately avoided unsafe field-level reverse patches because the existing operation format does not contain complete reversible snapshots for every add/remove case.
+- Restore is deterministic at section level: existing sections are replaced from the preserved original snapshot; AI-added sections with no original counterpart are removed.
+- Restored sections keep original Resume provenance and preserve the current manual section order, avoiding accidental layout-order resets.
+- Reviewed operations are removed only for the restored section so remaining AI changes stay visible.
+- Regression coverage verifies builder metadata retention, grouped review operations, full-section restore, provenance restoration, AI-only section removal, and network-failure fallback.
+- Final validation passed: 25/25 Jest suites, 93/93 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:

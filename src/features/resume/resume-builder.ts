@@ -1,6 +1,7 @@
 import { AIMismatch, GitHubAnalysis, ResumeDetails } from '../../types'
 import { DynamicSection, ImprovedResumeData } from '../../types/resume'
 import { ensureOriginalResumeProvenance, makeResumeEvidence } from './services/resume-provenance.service'
+import type { ResumeChangeOperation } from '../../types/resume-change'
 
 export interface BuildResumeOptions {
   details: ResumeDetails | null | undefined
@@ -52,6 +53,7 @@ export async function buildImprovedResume({
   const rawRepos = isGithubIsolated ? [] : (githubAnalysis?.details?.repos ?? [])
 
   let enhancedSections = originalSections
+  let improvementOperations: ResumeChangeOperation[] = []
   if (rawRepos.length > 0 || originalSections.length > 0 || portfolioMarkdown) {
     try {
       const response = await fetch('/api/resume/improve', {
@@ -68,6 +70,7 @@ export async function buildImprovedResume({
       if (response.ok) {
         const data = await response.json()
         enhancedSections = data.sections || originalSections
+        improvementOperations = Array.isArray(data.operations) ? data.operations : []
       }
     } catch (e) {
       console.error('Failed to generate improved resume sections', e)
@@ -99,6 +102,8 @@ export async function buildImprovedResume({
       website: portfolioUrl ? [makeResumeEvidence('portfolio', 1, 'Portfolio URL', portfolioUrl)] : [],
     },
     sections: enhancedSections,
+    originalSections,
+    improvementOperations,
     
     // Legacy fallback bindings (for templates that haven't been updated yet)
     summary: details?.professionalSummary || '',

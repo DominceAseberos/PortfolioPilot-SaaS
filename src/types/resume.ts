@@ -1,4 +1,5 @@
 import type { EvidenceRef, ResumeEntryEvidenceField, ResumeIdentityEvidenceField, ResumeSectionProvenance } from './resume-provenance'
+import type { ResumeChangeOperation } from './resume-change'
 
 export type ResumeSemanticSectionType =
   | 'summary'
@@ -48,6 +49,8 @@ export interface ImprovedResumeData {
   
   // Dynamic structure
   sections: DynamicSection[]
+  originalSections?: DynamicSection[]
+  improvementOperations?: ResumeChangeOperation[]
   
   // Legacy fields (kept optional for backward compatibility during transition)
   summary?: string
