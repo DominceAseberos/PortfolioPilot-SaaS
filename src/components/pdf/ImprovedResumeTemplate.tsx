@@ -153,6 +153,7 @@ export function ImprovedResumeTemplate({ data }: { data: ImprovedResumeData }) {
   const contactParts = []
   if (data.email) contactParts.push(data.email)
   if (data.phone) contactParts.push(data.phone)
+  if (data.location) contactParts.push(data.location)
   if (data.linkedin) contactParts.push(data.linkedin)
   if (data.github) contactParts.push(data.github)
   if (data.website) contactParts.push(data.website)

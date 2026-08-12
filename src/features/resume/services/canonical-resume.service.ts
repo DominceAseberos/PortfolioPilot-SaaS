@@ -52,7 +52,7 @@ export function toCanonicalResume(data: ImprovedResumeData, source: ResumeSource
     if (section.type === 'list') return { ...base, type: 'list' as const, items: (section.items ?? []).map((item) => makeCanonicalField(item, source, item)) }
     return { ...base, type: 'entries' as const, entries: (section.entries ?? []).map((entry) => ({ title: makeCanonicalField(entry.title, source, entry.title), subtitle: makeCanonicalField(entry.subtitle, source, entry.subtitle), dates: makeCanonicalField(entry.dates, source, entry.dates), description: makeCanonicalField(entry.description, source, entry.description), link: makeCanonicalField(entry.link, source, entry.link), isEnhanced: entry.isEnhanced })) }
   })
-  return { version: 1, identity: { name: makeCanonicalField(data.name, source, data.name), email: makeCanonicalField(data.email, source, data.email), phone: makeCanonicalField(data.phone, source, data.phone), linkedin: makeCanonicalField(data.linkedin, source, data.linkedin), github: makeCanonicalField(data.github, source, data.github), website: makeCanonicalField(data.website, source, data.website) }, sections }
+  return { version: 1, identity: { name: makeCanonicalField(data.name, source, data.name), email: makeCanonicalField(data.email, source, data.email), phone: makeCanonicalField(data.phone, source, data.phone), location: makeCanonicalField(data.location, source, data.location), linkedin: makeCanonicalField(data.linkedin, source, data.linkedin), github: makeCanonicalField(data.github, source, data.github), website: makeCanonicalField(data.website, source, data.website) }, sections }
 }
 
 export function validateCanonicalResume(resume: CanonicalResume): { valid: boolean; issues: string[] } {

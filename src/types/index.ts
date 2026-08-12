@@ -193,6 +193,8 @@ export interface ResumeEducation {
 export interface ResumeDetails {
   name: string | null
   email: string | null
+  phone?: string | null
+  location?: string | null
   linkedin: string | null
   github: string | null
   skills: ResumeSkill[]

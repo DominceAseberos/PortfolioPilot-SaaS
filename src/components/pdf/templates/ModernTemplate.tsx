@@ -59,6 +59,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
             <Text style={styles.sidebarSectionTitle}>Contact</Text>
             {data.email && <Text style={styles.sidebarText}>{data.email}</Text>}
             {data.phone && <Text style={styles.sidebarText}>{data.phone}</Text>}
+            {data.location && <Text style={styles.sidebarText}>{data.location}</Text>}
             {data.linkedin && <Text style={styles.sidebarMuted}>{data.linkedin.replace(/^https?:\/\//, '')}</Text>}
             {data.github && <Text style={styles.sidebarMuted}>{data.github.replace(/^https?:\/\//, '')}</Text>}
             {data.website && <Text style={styles.sidebarMuted}>{data.website.replace(/^https?:\/\//, '')}</Text>}

@@ -23,6 +23,8 @@ describe('ResumeService', () => {
         
         CONTACT
         john@example.com
+        Phone: +63 917 123 4567
+        Location: Davao City, Philippines
         github.com/john
         linkedin.com/in/john
       `)
@@ -30,6 +32,8 @@ describe('ResumeService', () => {
       const result = await service.analyze(content, 'resume.pdf')
       expect(result.score).toBeGreaterThan(50)
       expect(result.strengths.length).toBeGreaterThan(0)
+      expect(result.details?.phone).toBe('+63 917 123 4567')
+      expect(result.details?.location).toBe('Davao City, Philippines')
     })
 
     it('should analyze a resume with poor content', async () => {

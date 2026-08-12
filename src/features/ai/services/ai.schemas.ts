@@ -51,6 +51,8 @@ export const aiDynamicSectionSchema = z.object({
 export const aiResumeExtractionSchema = z.object({
   name: nullableString,
   email: nullableString,
+  phone: nullableString,
+  location: nullableString,
   linkedin: nullableString,
   github: nullableString,
   sections: z.preprocess((value) => (Array.isArray(value) ? value : []), z.array(aiDynamicSectionSchema)).catch([]),

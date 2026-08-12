@@ -43,6 +43,7 @@ export interface CanonicalResumeIdentity {
   name: CanonicalField<string>
   email: CanonicalField<string>
   phone: CanonicalField<string>
+  location: CanonicalField<string>
   linkedin: CanonicalField<string>
   github: CanonicalField<string>
   website: CanonicalField<string>

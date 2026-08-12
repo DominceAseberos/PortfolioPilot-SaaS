@@ -8,7 +8,7 @@ export interface EvidenceRef {
 }
 
 export type ResumeEntryEvidenceField = 'title' | 'subtitle' | 'dates' | 'description' | 'link'
-export type ResumeIdentityEvidenceField = 'name' | 'email' | 'phone' | 'linkedin' | 'github' | 'website'
+export type ResumeIdentityEvidenceField = 'name' | 'email' | 'phone' | 'location' | 'linkedin' | 'github' | 'website'
 
 export interface ResumeSectionProvenance {
   section?: EvidenceRef[]

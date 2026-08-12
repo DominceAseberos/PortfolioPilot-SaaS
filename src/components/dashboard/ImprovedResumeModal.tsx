@@ -345,6 +345,10 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
             <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.phone} onChange={e => updateIdentityField('phone', e.target.value)} />
           </div>
           <div>
+            {renderIdentityLabel('location', 'Location')}
+            <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.location ?? ''} onChange={e => updateIdentityField('location', e.target.value)} />
+          </div>
+          <div>
             {renderIdentityLabel('linkedin', 'LinkedIn')}
             <input className="w-full px-3 py-2 bg-background border border-border/50 rounded-lg text-sm" value={data.linkedin} onChange={e => updateIdentityField('linkedin', e.target.value)} />
           </div>

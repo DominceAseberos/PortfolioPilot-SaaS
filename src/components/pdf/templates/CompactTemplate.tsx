@@ -41,6 +41,7 @@ export function CompactTemplate({ data }: { data: ImprovedResumeData }) {
   const contactParts: string[] = []
   if (data.email) contactParts.push(data.email)
   if (data.phone) contactParts.push(data.phone)
+  if (data.location) contactParts.push(data.location)
   if (data.linkedin) contactParts.push(data.linkedin.replace(/^https?:\/\//, ''))
   if (data.github) contactParts.push(data.github.replace(/^https?:\/\//, ''))
   if (data.website) contactParts.push(data.website.replace(/^https?:\/\//, ''))

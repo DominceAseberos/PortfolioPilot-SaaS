@@ -21,6 +21,8 @@ export interface AIAnalysisResult {
   score: number
   name: string | null
   email: string | null
+  phone: string | null
+  location: string | null
   linkedin: string | null
   github: string | null
   sections: DynamicSection[]
@@ -57,15 +59,18 @@ CRITICAL RULES:
 2. Preserve unfamiliar, industry-specific, multilingual, and profession-specific terms exactly as written instead of replacing them with familiar vocabulary.
 3. Split comma-separated list items into individual items when the surrounding section clearly represents a list.
 4. Standardize date formatting only when the source date is unambiguous; never invent missing dates.
-5. Use 'list' for list-like sections, 'entries' for repeated structured records, and 'text' for narrative sections.
-6. Classify every section into the generic semantic ontology. If meaning is unclear, use semanticType: 'unknown' instead of guessing.
-7. Do not create placeholder sections or facts that are not supported by the source.
-8. Keep exact employer, school, credential, project, award, publication, and domain terminology from the source.
+5. Extract phone and location only when they are explicitly present in the source. Preserve the original phone formatting and location wording; never infer a location from an employer, school, project, IP address, or other context.
+6. Use 'list' for list-like sections, 'entries' for repeated structured records, and 'text' for narrative sections.
+7. Classify every section into the generic semantic ontology. If meaning is unclear, use semanticType: 'unknown' instead of guessing.
+8. Do not create placeholder sections or facts that are not supported by the source.
+9. Keep exact employer, school, credential, project, award, publication, and domain terminology from the source.
 
 Return this EXACT structure ONLY:
 {
   "name": "Full name or null",
   "email": "email or null",
+  "phone": "Phone number exactly as written or null",
+  "location": "Explicit location/address exactly as written or null",
   "linkedin": "LinkedIn URL or null",
   "github": "GitHub URL or null",
   "sections": [
@@ -143,6 +148,8 @@ Strengths, weaknesses, and recommendations should be highly personalized to the 
       score: scoreData.score ?? 50,
       name: cleanData.name || null,
       email: cleanData.email || null,
+      phone: cleanData.phone || null,
+      location: cleanData.location || null,
       linkedin: cleanData.linkedin || null,
       github: cleanData.github || null,
       sections: Array.isArray(cleanData.sections) ? cleanData.sections : [],

@@ -849,6 +849,32 @@ Phase 5 is now complete.
 - Regression coverage verifies builder metadata retention, grouped review operations, full-section restore, provenance restoration, AI-only section removal, and network-failure fallback.
 - Final validation passed: 25/25 Jest suites, 93/93 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
 
+### Phase 10 - Identity Completeness
+
+- [x] Extract phone numbers deterministically from resume text
+- [x] Extract location conservatively from explicit resume fields and AI schema
+- [x] Add phone/location to `ResumeDetails` and AI extraction output
+- [x] Use GitHub profile location only as a fallback when resume location is absent
+- [x] Preserve phone/location provenance through the improved-resume builder
+- [x] Add location to canonical identity and editor controls
+- [x] Render location consistently across Classic, Modern, Compact, and legacy PDF paths
+- [x] Add regression coverage for phone/location extraction, fallback authority, and PDF rendering
+- [x] Run full Jest, generated-PDF, TypeScript, and diff-hygiene validation
+- [x] Update checklist and implementation notes
+
+#### Cycle 18 implementation notes
+
+- Fixed a concrete data-loss bug where phone numbers were detected for validation but never retained in `ResumeDetails`, while the improved-resume builder hardcoded `phone: ''`.
+- Added deterministic phone extraction supporting common local/international formatting, including Philippine mobile formats, while rejecting obvious year ranges and implausible digit lengths.
+- Added conservative location extraction from explicit labels such as `Location:`, `Address:`, and `Based in:`. A second explicit-label fallback handles raw PDF text paths that collapse line breaks; unlabeled locations are not guessed deterministically.
+- Expanded the AI extraction schema/prompt with phone and location under an explicit-source-only rule; location may not be inferred from employer, school, project, IP address, or unrelated context.
+- Added location to `ImprovedResumeData`, canonical identity, live provenance metadata, and editor controls.
+- Resume phone/location outrank GitHub. GitHub profile location is fallback-only when the resume contains no location.
+- During authority audit, fixed a pre-existing identity leak: a high-severity isolated GitHub source could previously still populate fallback name/location/GitHub URL even though its repositories were isolated. Isolated GitHub sources now contribute no identity fallback data.
+- Classic, Modern, Compact, and the legacy PDF renderer now include location in contact information.
+- Real PDF regression verifies `Davao City, Philippines` survives all three active templates.
+- Final validation passed: 25/25 Jest suites, 95/95 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:

@@ -9,9 +9,9 @@ const templates: TemplateId[] = ['classic', 'modern', 'compact']
 const fixtures: { name: string; expected: string[]; data: ImprovedResumeData }[] = [
   {
     name: 'nurse',
-    expected: ['Maria Santos', 'Clinical Competencies', 'Phlebotomy', 'Staff Nurse', 'Example Hospital'],
+    expected: ['Maria Santos', 'Davao City, Philippines', 'Clinical Competencies', 'Phlebotomy', 'Staff Nurse', 'Example Hospital'],
     data: {
-      name: 'Maria Santos', email: 'maria@example.com', phone: '09171234567', linkedin: '', github: '', website: '',
+      name: 'Maria Santos', email: 'maria@example.com', phone: '09171234567', location: 'Davao City, Philippines', linkedin: '', github: '', website: '',
       sections: [
         { title: 'Professional Profile', type: 'text', semanticType: 'summary', classificationConfidence: 1, text: 'Registered nurse experienced in acute patient care, medication administration, and multidisciplinary coordination.', acceptsAIImprovements: true },
         { title: 'Clinical Competencies', type: 'list', semanticType: 'skills', classificationConfidence: 1, items: ['Phlebotomy', 'Wound Care', 'Patient Assessment', 'IV Therapy'], acceptsAIImprovements: false },

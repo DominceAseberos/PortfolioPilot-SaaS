@@ -62,7 +62,7 @@ export async function buildImprovedResume({
         body: JSON.stringify({
           originalSections,
           githubRepos: rawRepos,
-          githubUsername,
+          githubUsername: isGithubIsolated ? undefined : githubUsername,
           portfolioMarkdown,
           portfolioUrl
         })
@@ -79,24 +79,30 @@ export async function buildImprovedResume({
 
   // 4. Return standard ImprovedResumeData format
   return {
-    name: details?.name || githubAnalysis?.details?.profile?.name || '',
+    name: details?.name || (!isGithubIsolated ? githubAnalysis?.details?.profile?.name : null) || '',
     email: details?.email ?? '',
-    phone: '',
+    phone: details?.phone ?? '',
+    location: details?.location ?? (!isGithubIsolated ? githubAnalysis?.details?.profile?.location : null) ?? '',
     linkedin: details?.linkedin ?? '',
-    github: details?.github ?? (githubUsername ? `https://github.com/${githubUsername}` : ''),
+    github: details?.github ?? (!isGithubIsolated && githubUsername ? `https://github.com/${githubUsername}` : ''),
     website: portfolioUrl ?? '',
     identityEvidence: {
       name: details?.name
         ? [makeResumeEvidence('resume', 1, 'Uploaded resume')]
-        : githubAnalysis?.details?.profile?.name
+        : !isGithubIsolated && githubAnalysis?.details?.profile?.name
           ? [makeResumeEvidence('github', 1, 'GitHub profile', githubUsername ? `https://github.com/${githubUsername}` : undefined)]
           : [],
       email: details?.email ? [makeResumeEvidence('resume', 1, 'Uploaded resume')] : [],
-      phone: [],
+      phone: details?.phone ? [makeResumeEvidence('resume', 1, 'Uploaded resume')] : [],
+      location: details?.location
+        ? [makeResumeEvidence('resume', 1, 'Uploaded resume')]
+        : !isGithubIsolated && githubAnalysis?.details?.profile?.location
+          ? [makeResumeEvidence('github', 1, 'GitHub profile location', githubUsername ? `https://github.com/${githubUsername}` : undefined)]
+          : [],
       linkedin: details?.linkedin ? [makeResumeEvidence('resume', 1, 'Uploaded resume')] : [],
       github: details?.github
         ? [makeResumeEvidence('resume', 1, 'Uploaded resume')]
-        : githubUsername
+        : !isGithubIsolated && githubUsername
           ? [makeResumeEvidence('github', 1, 'GitHub profile', `https://github.com/${githubUsername}`)]
           : [],
       website: portfolioUrl ? [makeResumeEvidence('portfolio', 1, 'Portfolio URL', portfolioUrl)] : [],

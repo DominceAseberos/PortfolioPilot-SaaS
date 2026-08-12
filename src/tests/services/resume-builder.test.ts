@@ -16,6 +16,8 @@ describe('buildImprovedResume review metadata', () => {
   const details: ResumeDetails = {
     name: 'Jane Example',
     email: 'jane@example.com',
+    phone: '+63 917 123 4567',
+    location: 'Davao City, Philippines',
     linkedin: null,
     github: null,
     skills: [],
@@ -79,7 +81,96 @@ describe('buildImprovedResume review metadata', () => {
     expect(result.sections[0].type === 'text' ? result.sections[0].text : '').toBe('Improved summary.')
     expect(result.originalSections?.[0].type === 'text' ? result.originalSections[0].text : '').toBe('Original summary.')
     expect(result.originalSections?.[0].provenance?.text?.map((item) => item.source)).toEqual(['resume'])
+    expect(result.phone).toBe('+63 917 123 4567')
+    expect(result.location).toBe('Davao City, Philippines')
+    expect(result.identityEvidence?.phone?.map((item) => item.source)).toEqual(['resume'])
+    expect(result.identityEvidence?.location?.map((item) => item.source)).toEqual(['resume'])
     expect(result.improvementOperations).toEqual([operation])
+  })
+
+  it('uses GitHub location only when the resume has no location', async () => {
+    installFetchMock(jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sections: [originalSection], operations: [] }),
+    } as Response))
+
+    const result = await buildImprovedResume({
+      details: { ...details, location: null },
+      githubAnalysis: {
+        score: 0,
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+        details: {
+          profile: {
+            login: 'jane',
+            name: 'Jane Example',
+            bio: null,
+            avatar_url: null,
+            blog: null,
+            company: null,
+            location: 'Cebu City, Philippines',
+            public_repos: 0,
+            followers: 0,
+            following: 0,
+            created_at: '2024-01-01T00:00:00Z',
+          },
+          repos: [],
+          events: [],
+        },
+      },
+      githubUsername: 'jane',
+      mismatches: [],
+    })
+
+    expect(result.location).toBe('Cebu City, Philippines')
+    expect(result.identityEvidence?.location?.map((item) => item.source)).toEqual(['github'])
+  })
+
+  it('does not use identity fallbacks from an isolated GitHub profile', async () => {
+    installFetchMock(jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sections: [originalSection], operations: [] }),
+    } as Response))
+
+    const result = await buildImprovedResume({
+      details: { ...details, location: null, github: null },
+      githubAnalysis: {
+        score: 0,
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+        details: {
+          profile: {
+            login: 'wrong-user',
+            name: 'Wrong User',
+            bio: null,
+            avatar_url: null,
+            blog: null,
+            company: null,
+            location: 'Wrong City',
+            public_repos: 0,
+            followers: 0,
+            following: 0,
+            created_at: '2024-01-01T00:00:00Z',
+          },
+          repos: [],
+          events: [],
+        },
+      },
+      githubUsername: 'wrong-user',
+      mismatches: [{
+        type: 'github',
+        severity: 'high',
+        description: 'Identity Mismatch: wrong GitHub profile',
+        sources: ['Resume', 'GitHub'],
+      }],
+    })
+
+    expect(result.location).toBe('')
+    expect(result.github).toBe('')
+    expect(result.identityEvidence?.location).toEqual([])
+    expect(result.identityEvidence?.github).toEqual([])
   })
 
   it('keeps original snapshots even when the improve request fails', async () => {

@@ -43,6 +43,8 @@ export class ResumeService {
           details: {
             name: aiResult.name || ruleResult.details?.name || null,
             email: aiResult.email || ruleResult.details?.email || null,
+            phone: aiResult.phone || ruleResult.details?.phone || null,
+            location: aiResult.location || ruleResult.details?.location || null,
             linkedin: aiResult.linkedin || detectedLinkedIn || ruleResult.details?.linkedin || null,
             github: aiResult.github || detectedGithub || ruleResult.details?.github || null,
             workEntries: aiResult.sections
@@ -187,6 +189,8 @@ export class ResumeService {
   private ruleBasedAnalyze(text: string): ResumeAnalysis {
     const name = this.extractName(text)
     const email = this.extractEmail(text)
+    const phone = this.extractPhone(text)
+    const location = this.extractLocation(text)
     const linkedin = this.extractLinkedIn(text)
     const githubUrl = this.extractGithub(text)
     const workEntries = this.extractWorkEntries(text)
@@ -290,6 +294,8 @@ export class ResumeService {
       details: {
         name,
         email,
+        phone,
+        location,
         linkedin,
         github: githubUrl,
         skills,
@@ -381,6 +387,46 @@ export class ResumeService {
   private extractEmail(text: string): string | null {
     const match = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/)
     return match ? match[0] : null
+  }
+
+  private extractPhone(text: string): string | null {
+    const labeled = text.match(/(?:^|\n)\s*(?:phone|mobile|contact(?:\s*(?:no\.?|number))?|tel(?:ephone)?)\s*[:\-]?\s*(\+?\d[\d\s().\-]{5,}\d)/im)
+    const candidates = [
+      labeled?.[1],
+      ...Array.from(text.matchAll(/(?:\+\d{1,3}[\s.\-]?)?(?:\(?\d{2,4}\)?[\s.\-]?){2,4}\d{2,4}/g), (match) => match[0]),
+    ].filter((value): value is string => typeof value === 'string')
+
+    for (const candidate of candidates) {
+      const value = candidate.trim().replace(/[\s.\-]+$/, '')
+      const digits = value.replace(/\D/g, '')
+      if (digits.length < 7 || digits.length > 15) continue
+      if (/^(?:19|20)\d{2}\s*[-–—]\s*(?:19|20)\d{2}$/.test(value)) continue
+      if (/^(?:19|20)\d{6}$/.test(digits)) continue
+      return value
+    }
+    return null
+  }
+
+  private extractLocation(text: string): string | null {
+    const lines = text.split('\n').map((line) => line.trim()).filter(Boolean)
+    const linePattern = /^(?:location|address|residence|based\s+(?:in|at)|city)\s*[:\-]\s*(.+)$/i
+
+    const clean = (raw?: string): string | null => {
+      if (!raw) return null
+      const value = raw.trim().replace(/\s+/g, ' ')
+      if (value.length < 2 || value.length > 100) return null
+      if (/https?:\/\/|@/.test(value)) return null
+      if (/^(?:phone|mobile|email|linkedin|github)\b/i.test(value)) return null
+      return value
+    }
+
+    for (const line of lines) {
+      const value = clean(line.match(linePattern)?.[1])
+      if (value) return value
+    }
+
+    const inline = text.match(/(?:^|\s)(?:location|address|residence|based\s+(?:in|at)|city)\s*[:\-]\s*(.{2,100}?)(?=\s+(?:https?:\/\/|www\.|github\.com|linkedin\.com|email\b|phone\b|mobile\b)|$)/i)
+    return clean(inline?.[1])
   }
 
   private extractLinkedIn(text: string): string | null {

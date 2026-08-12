@@ -6,6 +6,8 @@ describe('AI resume schema hardening', () => {
     const parsed = aiResumeExtractionSchema.parse({
       name: 'Maria Santos',
       email: 'maria@example.com',
+      phone: '+63 917 123 4567',
+      location: 'Davao City, Philippines',
       sections: [{
         title: 'Clinical Skills',
         type: 'list',
@@ -15,6 +17,8 @@ describe('AI resume schema hardening', () => {
         acceptsAIImprovements: false,
       }],
     })
+    expect(parsed.phone).toBe('+63 917 123 4567')
+    expect(parsed.location).toBe('Davao City, Philippines')
     expect(parsed.sections[0].semanticType).toBe('skills')
     expect(parsed.sections[0].items).toEqual(['Phlebotomy', 'Wound Care', 'IV Therapy'])
   })
