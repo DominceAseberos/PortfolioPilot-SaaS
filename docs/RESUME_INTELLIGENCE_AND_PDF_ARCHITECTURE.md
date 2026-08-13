@@ -951,6 +951,33 @@ Phase 5 is now complete.
 - Final validation passed: 25/25 Jest suites, 103/103 tests, generated-PDF verification across all active templates including multi-page output and missing-content detection, TypeScript, targeted lint for touched files, production Next.js build, and `git diff --check`.
 - Repo-wide lint still contains pre-existing unrelated errors/warnings outside this phase; touched files are lint-clean.
 
+### Phase 14 - Deterministic Template Contracts
+
+- [x] Define one explicit template-contract model for regions, columns, semantic placement, ordering, minimum font size, overflow targets, and confidence
+- [x] Move Classic, Modern, and Compact section-allocation rules into shared contracts without changing existing visual behavior
+- [x] Infer a structured contract from uploaded resume layout geometry and section headings
+- [x] Distinguish likely identity/name headings from actual resume sections
+- [x] Preserve unfamiliar uploaded headings as custom sections instead of dropping them
+- [x] Carry the inferred uploaded template contract through resume analysis for later custom-template rendering
+- [x] Add deterministic contract and regression tests
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+- [ ] Build the custom-template renderer/adapter that consumes uploaded contracts
+- [ ] Add region-specific capacity and overflow preflight for custom templates
+- [ ] Add rendered-geometry fidelity checks against the uploaded template
+
+#### Cycle 22 implementation notes
+
+- Added `ResumeTemplateContract` as the single structural description of a resume template: identity region, summary region, one/two-column regions, semantic preferences, allowed fallback types, section ordering, minimum readable font size, overflow destination, source confidence, and source page count.
+- Classic, Modern, and Compact now expose their layout behavior through explicit contracts. The existing allocator consumes those contracts instead of maintaining separate hardcoded sidebar/right-column sets, while preserving Classic semantic ordering and Modern/Compact within-region source/manual order.
+- Layout-aware PDF extraction now derives an uploaded-template contract from the same x/y/font/column geometry already used for reading order, so template interpretation does not require a second parser or an LLM guess.
+- Two-column inference identifies the likely primary content column from semantic signals such as Summary, Experience, Projects, Volunteer, Publications, and Awards; skills/education/certification-style columns remain secondary when that is what the uploaded layout shows.
+- Full-width regions are represented independently, allowing layouts such as a full-width Summary above a two-column body to be modeled without forcing content into a sidebar or main column.
+- Likely identity/name headings are filtered from section inference using position, typography, and name-shape signals. Unrecognized headings after the identity area are retained as `custom`, protecting uncommon professions and vocabulary.
+- Uploaded contract inference estimates region width ratios and a conservative minimum font size from observed layout geometry. These values are metadata only in this phase; content is never silently removed or shrunk to satisfy them.
+- `ResumeDetails` now carries the inferred contract when layout extraction succeeds, creating a deterministic handoff for the next custom-template renderer phase while preserving all existing text fallbacks when geometry extraction is unavailable.
+- Targeted regressions initially caught two issues: a candidate name being classified as a custom section, and Modern/Compact within-region ordering changing during the refactor. Both were fixed before final validation.
+- Final validation passed: 26/26 Jest suites, 106/106 tests, generated-PDF verification across all active templates including 4-page dense resumes and missing-content rejection, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:

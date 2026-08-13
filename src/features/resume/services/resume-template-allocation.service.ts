@@ -1,7 +1,13 @@
 import type { DynamicSection, ImprovedResumeData, ResumeSemanticSectionType } from '@/types/resume'
+import type { ResumeTemplateContract, ResumeTemplateId } from '@/types/resume-template-contract'
 import { inferSemanticTypeFromTitle } from './canonical-resume.service'
+import {
+  DEFAULT_SECTION_ORDER,
+  getBuiltInResumeTemplateContract,
+  getTemplateRegionForSemanticType,
+} from './resume-template-contract.service'
 
-export type ResumeTemplateId = 'classic' | 'modern' | 'compact'
+export type { ResumeTemplateId } from '@/types/resume-template-contract'
 
 export interface ResumeTemplateAllocation {
   summary: DynamicSection | null
@@ -10,52 +16,20 @@ export interface ResumeTemplateAllocation {
   ordered: DynamicSection[]
 }
 
-const CLASSIC_ORDER: ResumeSemanticSectionType[] = [
-  'summary',
-  'experience',
-  'projects',
-  'skills',
-  'education',
-  'certifications',
-  'licenses',
-  'awards',
-  'languages',
-  'volunteer',
-  'publications',
-  'training',
-  'custom',
-  'unknown',
-]
-
-const MODERN_SIDEBAR = new Set<ResumeSemanticSectionType>([
-  'skills',
-  'education',
-  'certifications',
-  'licenses',
-  'languages',
-  'training',
-])
-
-const COMPACT_RIGHT = new Set<ResumeSemanticSectionType>([
-  'skills',
-  'education',
-  'certifications',
-  'licenses',
-  'languages',
-  'training',
-])
-
 export function getSectionSemanticType(section: DynamicSection): ResumeSemanticSectionType {
   if (section.semanticType && section.semanticType !== 'unknown') return section.semanticType
   return inferSemanticTypeFromTitle(section.title)
 }
 
-function stableSortBySemanticPriority(sections: DynamicSection[]): DynamicSection[] {
+function stableSortBySemanticPriority(
+  sections: DynamicSection[],
+  order: ResumeSemanticSectionType[] = DEFAULT_SECTION_ORDER
+): DynamicSection[] {
   return sections
-    .map((section, index) => ({ section, index, priority: CLASSIC_ORDER.indexOf(getSectionSemanticType(section)) }))
+    .map((section, index) => ({ section, index, priority: order.indexOf(getSectionSemanticType(section)) }))
     .sort((a, b) => {
-      const aPriority = a.priority === -1 ? CLASSIC_ORDER.length : a.priority
-      const bPriority = b.priority === -1 ? CLASSIC_ORDER.length : b.priority
+      const aPriority = a.priority === -1 ? order.length : a.priority
+      const bPriority = b.priority === -1 ? order.length : b.priority
       return aPriority - bPriority || a.index - b.index
     })
     .map(({ section }) => section)
@@ -90,29 +64,54 @@ export function reorderResumeSections(sections: DynamicSection[], sourceIndex: n
   return reordered.map((section, index) => ({ ...section, manualOrder: index }))
 }
 
+function allocateWithContract(
+  data: Pick<ImprovedResumeData, 'sections'>,
+  contract: ResumeTemplateContract
+): ResumeTemplateAllocation {
+  const sections = data.sections ?? []
+  const manuallyOrdered = hasManualOrder(sections)
+  const baseSections = manuallyOrdered ? sortByManualOrder(sections) : sections
+  const summary = baseSections.find((section) => getSectionSemanticType(section) === 'summary')
+    ?? baseSections.find((section) => section.type === 'text')
+    ?? null
+
+  if (contract.columnCount === 1) {
+    const effectiveSections = manuallyOrdered
+      ? baseSections
+      : stableSortBySemanticPriority(baseSections, contract.sectionOrder)
+    const orderedSummary = effectiveSections.find((section) => section === summary) ?? summary
+    const remaining = effectiveSections.filter((section) => section !== orderedSummary)
+    const ordered = orderedSummary ? [orderedSummary, ...remaining] : remaining
+    return { summary: orderedSummary, primary: ordered, secondary: [], ordered }
+  }
+
+  const remaining = baseSections.filter((section) => section !== summary)
+
+  const primary = remaining.filter((section) => {
+    const region = getTemplateRegionForSemanticType(contract, getSectionSemanticType(section))
+    return region.role === 'primary' || region.role === 'full-width'
+  })
+  const secondary = remaining.filter((section) => {
+    const region = getTemplateRegionForSemanticType(contract, getSectionSemanticType(section))
+    return region.role === 'secondary'
+  })
+  const ordered = summary ? [summary, ...primary, ...secondary] : [...primary, ...secondary]
+
+  return { summary, primary, secondary, ordered }
+}
+
 export function allocateResumeSections(
   data: Pick<ImprovedResumeData, 'sections'>,
   templateId: ResumeTemplateId
 ): ResumeTemplateAllocation {
-  const sections = data.sections ?? []
-  const manuallyOrdered = hasManualOrder(sections)
-  const effectiveSections = manuallyOrdered ? sortByManualOrder(sections) : sections
-  const summary = effectiveSections.find((section) => getSectionSemanticType(section) === 'summary')
-    ?? effectiveSections.find((section) => section.type === 'text')
-    ?? null
+  return allocateWithContract(data, getBuiltInResumeTemplateContract(templateId))
+}
 
-  if (templateId === 'classic') {
-    const ordered = manuallyOrdered ? effectiveSections : stableSortBySemanticPriority(effectiveSections)
-    return { summary, primary: ordered, secondary: [], ordered }
-  }
-
-  const remaining = effectiveSections.filter((section) => section !== summary)
-  const secondaryTypes = templateId === 'modern' ? MODERN_SIDEBAR : COMPACT_RIGHT
-  const primary = remaining.filter((section) => !secondaryTypes.has(getSectionSemanticType(section)))
-  const secondary = remaining.filter((section) => secondaryTypes.has(getSectionSemanticType(section)))
-  const ordered = summary ? [summary, ...primary, ...secondary] : [...primary, ...secondary]
-
-  return { summary, primary, secondary, ordered }
+export function allocateResumeSectionsForContract(
+  data: Pick<ImprovedResumeData, 'sections'>,
+  contract: ResumeTemplateContract
+): ResumeTemplateAllocation {
+  return allocateWithContract(data, contract)
 }
 
 export function getPrimaryResumeRole(data: ImprovedResumeData): string {

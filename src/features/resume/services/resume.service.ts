@@ -1,4 +1,5 @@
 import type { ResumeAnalysis, ResumeSkill, ResumeSection } from '@/types'
+import type { ResumeTemplateContract } from '@/types/resume-template-contract'
 import { logger } from '@/lib/logger'
 import { analyzeResumeWithAI } from '@/features/ai/services/ai.service'
 import { resumeLinkExtractionService } from './resume-link-extraction.service'
@@ -30,6 +31,9 @@ export class ResumeService {
 
       const aiResult = await analyzeResumeWithAI(aiInput)
       const ruleResult = this.ruleBasedAnalyze(text)
+      if (ruleResult.details && extracted.templateContract) {
+        ruleResult.details.templateContract = extracted.templateContract
+      }
 
       if (aiResult) {
         const merged = {
@@ -103,6 +107,7 @@ export class ResumeService {
               ),
             rawText: text.slice(0, 3000),
             isAIAnalyzed: true,
+            templateContract: extracted.templateContract,
           },
         }
         return merged
@@ -477,7 +482,7 @@ export class ResumeService {
     return entries.slice(0, 10)
   }
 
-  public async extractDocumentText(buffer: Buffer): Promise<{ plainText: string; structuredText: string; usedLayoutExtraction: boolean }> {
+  public async extractDocumentText(buffer: Buffer): Promise<{ plainText: string; structuredText: string; usedLayoutExtraction: boolean; templateContract?: ResumeTemplateContract }> {
     try {
       const { extractResumeLayout } = await import('./resume-layout-extraction.service')
       const layout = await extractResumeLayout(buffer)
@@ -486,6 +491,7 @@ export class ResumeService {
           plainText: layout.plainText,
           structuredText: layout.structuredText,
           usedLayoutExtraction: true,
+          templateContract: layout.templateContract,
         }
       }
       throw new Error('layout extraction returned too little text')

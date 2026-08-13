@@ -1,4 +1,5 @@
-import { DynamicSection } from './resume'
+import type { DynamicSection } from './resume'
+import type { ResumeTemplateContract } from './resume-template-contract'
 
 export interface User {
   id: string
@@ -213,6 +214,7 @@ export interface ResumeDetails {
   isAIAnalyzed: boolean
   predictedSeniority?: string
   tone?: string
+  templateContract?: ResumeTemplateContract
 }
 
 export interface ResumeAnalysis {
