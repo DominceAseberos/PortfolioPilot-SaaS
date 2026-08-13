@@ -13,6 +13,7 @@ export interface ResumeLayoutProfile {
   preferredSkillCount: number
   comfortableDensity: number
   overflowDensity: number
+  estimatedPageCapacity: number
   sidebarSkillLimit?: number
 }
 
@@ -57,6 +58,7 @@ export const RESUME_LAYOUT_PROFILES: Record<ResumeTemplateId, ResumeLayoutProfil
     preferredSkillCount: 20,
     comfortableDensity: 88,
     overflowDensity: 112,
+    estimatedPageCapacity: 50,
   },
   modern: {
     id: 'modern',
@@ -68,6 +70,7 @@ export const RESUME_LAYOUT_PROFILES: Record<ResumeTemplateId, ResumeLayoutProfil
     preferredSkillCount: 18,
     comfortableDensity: 84,
     overflowDensity: 105,
+    estimatedPageCapacity: 50,
     sidebarSkillLimit: 22,
   },
   compact: {
@@ -80,6 +83,7 @@ export const RESUME_LAYOUT_PROFILES: Record<ResumeTemplateId, ResumeLayoutProfil
     preferredSkillCount: 24,
     comfortableDensity: 96,
     overflowDensity: 125,
+    estimatedPageCapacity: 50,
     sidebarSkillLimit: 28,
   },
 }
@@ -325,7 +329,10 @@ export function analyzeResumePreflight(
         ? 'tight'
         : 'overflow-risk'
 
-  const estimatedPages = Math.max(1, Math.ceil(density / profile.overflowDensity))
+  // Page-count estimation is calibrated separately from fit thresholds. The fit
+  // score answers "how dense is this template?" while estimatedPageCapacity
+  // approximates actual React-PDF page breaks observed in generated-PDF tests.
+  const estimatedPages = Math.max(1, Math.ceil(density / profile.estimatedPageCapacity))
 
   if (fit === 'overflow-risk') {
     recommendations.add('Allow an additional page or optimize content before reducing font size below safe limits.')

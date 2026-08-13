@@ -1,7 +1,7 @@
 # PortfolioPilot Resume Intelligence & PDF Architecture
 
 > Status: Active implementation plan
-> Last updated: 2026-08-12
+> Last updated: 2026-08-13
 > Scope: Resume extraction, cross-source enrichment, AI classification, editing, template mapping, pagination, PDF preflight, and export reliability.
 
 ## 1. Goal
@@ -927,6 +927,29 @@ Phase 5 is now complete.
 - Expanded experience-heading recognition to professional, clinical, and teaching practice without creating occupation-specific dictionaries.
 - Added a nursing fallback fixture with no GitHub or LinkedIn; it scores strongly, detects phone/location/clinical skills, and produces no GitHub/code/technical-skills recommendation.
 - Final validation passed: 25/25 Jest suites, 103/103 tests, 9/9 generated PDFs plus scanned-PDF detection, TypeScript, and `git diff --check`.
+
+### Phase 13 - Render-verified PDF export
+
+- [x] Verify the actual generated PDF before download
+- [x] Compare rendered page count against heuristic preflight
+- [x] Verify expected resume content survives PDF rendering
+- [x] Block download when rendered content is missing
+- [x] Calibrate page estimates against real React-PDF page breaks
+- [x] Add multi-page and missing-content regression coverage
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+- [x] Update checklist and implementation notes
+
+#### Cycle 21 implementation notes
+
+- Added a server-side rendered-PDF verification boundary that parses the exact browser-generated PDF blob with `unpdf` before allowing download.
+- Verification compares the rendered text against the resume model's expected identity, section titles, text, list items, entry titles, subtitles, dates, paragraphs, and structured bullets. Entry URLs are intentionally excluded from visible-text checks because templates render the linked title while retaining the URL as the link target.
+- Final export is blocked when expected resume content is absent from the rendered PDF instead of silently downloading a corrupted or incomplete result.
+- The editor now reports authoritative rendered page count and content coverage after verification. Heuristic page estimates remain useful before export, but the real generated PDF wins when they disagree.
+- Generated-PDF regression exposed a concrete calibration bug: a dense fixture was estimated at 2 pages but rendered 4 pages in Classic, Modern, and Compact.
+- Added an independent `estimatedPageCapacity` so fit/density scoring remains advisory while page-count estimation can be calibrated to actual React-PDF page breaks. The same dense fixture now estimates 4 pages and renders 4 pages across all three templates; concise nurse, teacher, and developer fixtures remain 1/1.
+- Added explicit regression proof that verification fails when an expected skill is missing from the generated PDF.
+- Final validation passed: 25/25 Jest suites, 103/103 tests, generated-PDF verification across all active templates including multi-page output and missing-content detection, TypeScript, targeted lint for touched files, production Next.js build, and `git diff --check`.
+- Repo-wide lint still contains pre-existing unrelated errors/warnings outside this phase; touched files are lint-clean.
 
 ## 24. Recursive Implementation Loop
 

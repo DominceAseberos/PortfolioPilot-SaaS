@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate, Columns } from 'lucide-react'
-import { BlobProvider, PDFDownloadLink } from '@react-pdf/renderer'
+import { BlobProvider } from '@react-pdf/renderer'
 import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
 import { SectionClassificationReview } from '@/components/dashboard/SectionClassificationReview'
 import { ResumeEvidenceBadge } from '@/components/dashboard/ResumeEvidenceBadge'
 import { InitialResumeChangesReview } from '@/components/dashboard/InitialResumeChangesReview'
 import { analyzeResumePreflight, type ResumePreflightResult } from '@/features/resume/services/resume-layout.service'
+import type { ResumeRenderVerificationResult } from '@/features/resume/services/resume-pdf-verification.service'
 import type { ResumeChangeOperation } from '@/features/resume/services/resume-diff.service'
 import { getSectionSemanticType, reorderResumeSections } from '@/features/resume/services/resume-template-allocation.service'
 import { recommendResumeTemplate } from '@/features/resume/services/resume-template-recommendation.service'
@@ -54,6 +55,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const [optimizationProposal, setOptimizationProposal] = useState<ResumeOptimizationProposal | null>(null)
   const [optimizing, setOptimizing] = useState(false)
   const [optimizationError, setOptimizationError] = useState<string | null>(null)
+  const [pdfVerification, setPdfVerification] = useState<ResumeRenderVerificationResult | null>(null)
+  const [verifyingPdf, setVerifyingPdf] = useState(false)
+  const [pdfVerificationError, setPdfVerificationError] = useState<string | null>(null)
   const preflight = analyzeResumePreflight(data, selectedTemplate)
 
   useEffect(() => {
@@ -71,21 +75,30 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     }
   }, [resumeFile])
 
-  useEffect(() => {
+  const invalidatePdfVerification = () => {
+    setPdfVerification(null)
+    setPdfVerificationError(null)
+  }
+
+  const selectTemplate = (templateId: ResumeTemplateId) => {
+    setSelectedTemplate(templateId)
     setOptimizationProposal(null)
     setOptimizationError(null)
-  }, [selectedTemplate])
+    invalidatePdfVerification()
+  }
 
   // Simple handlers
   const updateField = <K extends keyof ImprovedResumeData>(field: K, value: ImprovedResumeData[K]) => {
     setOptimizationProposal(null)
     setOptimizationError(null)
+    invalidatePdfVerification()
     setData(prev => ({ ...prev, [field]: value }))
   }
 
   const updateIdentityField = (field: ResumeIdentityEvidenceField, value: string) => {
     setOptimizationProposal(null)
     setOptimizationError(null)
+    invalidatePdfVerification()
     setData(prev => ({
       ...prev,
       [field]: value,
@@ -183,6 +196,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const restoreInitialAiSection = (group: ResumeChangeGroup) => {
     setOptimizationProposal(null)
     setOptimizationError(null)
+    invalidatePdfVerification()
     setData(prev => ({
       ...prev,
       sections: restoreOriginalResumeSection(
@@ -228,7 +242,55 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     const sections = optimizationProposal.sections
     setOptimizationProposal(null)
     setOptimizationError(null)
+    invalidatePdfVerification()
     setData(prev => ({ ...prev, sections }))
+  }
+
+  const verifyAndDownloadPdf = async (blob: Blob | null, url: string | null) => {
+    if (!blob || !url || verifyingPdf) return
+
+    setVerifyingPdf(true)
+    setPdfVerificationError(null)
+    setPdfVerification(null)
+
+    try {
+      const form = new FormData()
+      form.append('pdf', blob, 'resume.pdf')
+      form.append('data', JSON.stringify(data))
+      form.append('templateId', selectedTemplate)
+
+      const response = await fetch('/api/resume/verify-pdf', {
+        method: 'POST',
+        body: form,
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload?.error || 'Could not verify the final PDF')
+
+      const verification = payload as ResumeRenderVerificationResult
+      setPdfVerification(verification)
+
+      if (verification.status !== 'verified') {
+        const missing = verification.missingContent.slice(0, 3).map(item => item.label).join(', ')
+        setPdfVerificationError(
+          missing
+            ? `Download blocked because rendered content is missing: ${missing}.`
+            : 'Download blocked because the rendered PDF did not pass content verification.'
+        )
+        return
+      }
+
+      const safeName = (data.name || 'Resume').trim().replace(/[^a-zA-Z0-9._-]+/g, '_') || 'Resume'
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `${safeName}_Improved_Resume.pdf`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+    } catch (error) {
+      setPdfVerificationError(error instanceof Error ? error.message : 'Could not verify the final PDF')
+    } finally {
+      setVerifyingPdf(false)
+    }
   }
 
   const renderSectionHeader = (section: DynamicSection, sectionIndex: number) => {
@@ -276,6 +338,13 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         <p className="text-xs text-muted-foreground">
           {preflight.fit === 'comfortable' ? 'This template should fit comfortably with the current content.' : preflight.fit === 'tight' ? 'This template is getting dense. Review long sections before export.' : 'This template has overflow risk. Prefer another page, a better-fitting template, or content optimization instead of tiny text.'}
         </p>
+        {pdfVerification && (
+          <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-700">
+            <p className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Render verified · {pdfVerification.actualPages} page{pdfVerification.actualPages === 1 ? '' : 's'} · {Math.round(pdfVerification.contentCoverage * 100)}% expected content present</p>
+            {pdfVerification.pageDelta !== 0 && <p className="mt-1 text-amber-700">The real render differs from the heuristic estimate by {Math.abs(pdfVerification.pageDelta)} page{Math.abs(pdfVerification.pageDelta) === 1 ? '' : 's'}; the rendered count is authoritative.</p>}
+          </div>
+        )}
+        {pdfVerificationError && <p className="text-xs text-red-600">{pdfVerificationError}</p>}
         {preflight.warnings.length > 0 && (
           <ul className="text-xs text-muted-foreground space-y-1 pl-5 list-disc">
             {preflight.warnings.slice(0, 3).map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}
@@ -521,7 +590,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           <ResumeTemplatePicker
             data={data}
             selected={selectedTemplate}
-            onSelect={setSelectedTemplate}
+            onSelect={selectTemplate}
             onConfirm={() => setStep('edit')}
           />
         </div>
@@ -553,16 +622,19 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
             <LayoutTemplate className="h-3.5 w-3.5" />
             Change Template
           </Button>
-          <PDFDownloadLink 
-            document={<ResumeTemplateRenderer data={data} templateId={selectedTemplate} />} 
-            fileName={`${data.name.replace(/\s+/g, '_')}_Improved_Resume.pdf`}
-          >
-            {({ loading }) => (
-              <Button size="sm" className="bg-primary text-primary-foreground font-bold shadow-md px-4 sm:px-6" disabled={loading}>
-                {loading ? 'Generating...' : <><Download className="h-4 w-4 mr-2" /> Download PDF</>}
+          <BlobProvider document={<ResumeTemplateRenderer data={data} templateId={selectedTemplate} />}>
+            {({ blob, url, loading, error }) => (
+              <Button
+                size="sm"
+                className="bg-primary text-primary-foreground font-bold shadow-md px-4 sm:px-6"
+                disabled={loading || verifyingPdf || !blob || !url || Boolean(error)}
+                onClick={() => verifyAndDownloadPdf(blob, url)}
+                title={error ? 'Could not generate the PDF' : 'Verify the rendered PDF before downloading'}
+              >
+                {loading ? 'Generating...' : verifyingPdf ? 'Verifying...' : <><Download className="h-4 w-4 mr-2" /> Download PDF</>}
               </Button>
             )}
-          </PDFDownloadLink>
+          </BlobProvider>
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
             <X className="h-5 w-5" />
           </Button>
@@ -614,7 +686,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
            </div>
            <div className="flex-1 p-4 overflow-hidden relative flex flex-col items-center justify-center">
              <BlobProvider document={<ResumeTemplateRenderer data={previewData} templateId={selectedTemplate} />}>
-               {({ blob, url, loading, error }) => {
+               {({ url, loading, error }) => {
                  try {
                    if (error) {
                      return <div className="text-red-500 text-xs flex items-center gap-2"><AlertTriangle className="h-4 w-4"/> Error rendering PDF preview.</div>
@@ -625,7 +697,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                    return (
                      <iframe src={`${url}#toolbar=0&navpanes=0&view=FitH`} className="w-full h-full rounded-lg border border-border/50 shadow-sm bg-background animate-in fade-in duration-500" title="Live Preview PDF" />
                    )
-                 } catch (err: unknown) {
+                 } catch {
                    return <div className="text-red-500 text-xs flex items-center gap-2"><AlertTriangle className="h-4 w-4"/> Error rendering PDF preview.</div>
                  }
                }}

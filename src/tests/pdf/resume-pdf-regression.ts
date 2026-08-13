@@ -53,6 +53,7 @@ async function main() {
   const { extractText } = await import('unpdf')
   const { jsPDF } = await import('jspdf')
   const { ResumeTemplateRenderer } = await import('../../components/pdf/ImprovedResumeTemplate')
+  const { verifyRenderedResumePdf } = await import('../../features/resume/services/resume-pdf-verification.service')
   const { inspectPdfWithoutReadableText } = await import('../../features/resume/services/resume-scanned-pdf.service')
 
   let rendered = 0
@@ -70,9 +71,99 @@ async function main() {
       for (const expected of fixture.expected) {
         assert.ok(comparableText.includes(normalize(expected)), `${templateId}/${fixture.name} lost expected content: ${expected}`)
       }
+
+      const verification = await verifyRenderedResumePdf(
+        new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength),
+        fixture.data,
+        templateId
+      )
+      assert.equal(verification.status, 'verified', `${templateId}/${fixture.name} failed rendered-content verification`)
+      assert.equal(verification.contentCoverage, 1, `${templateId}/${fixture.name} did not preserve all expected rendered content`)
+      assert.equal(verification.actualPages, parsed.totalPages, `${templateId}/${fixture.name} page count disagrees with parsed PDF`)
+      assert.ok(verification.actualPages >= 1, `${templateId}/${fixture.name} must render at least one page`)
+
       rendered += 1
-      console.log(`PASS ${templateId}/${fixture.name}`)
+      const estimateNote = verification.pageDelta === 0 ? 'estimate matched' : `estimate delta ${verification.pageDelta > 0 ? '+' : ''}${verification.pageDelta}`
+      console.log(`PASS ${templateId}/${fixture.name} (${verification.actualPages}p, ${estimateNote}, density ${verification.preflight.density})`)
     }
+  }
+
+  const mismatchSource = fixtures[2].data
+  const mismatchElement = React.createElement(ResumeTemplateRenderer, { data: mismatchSource, templateId: 'classic' }) as unknown as Parameters<typeof renderToBuffer>[0]
+  const mismatchBuffer = await renderToBuffer(mismatchElement)
+  const mismatchExpected: ImprovedResumeData = {
+    ...mismatchSource,
+    sections: mismatchSource.sections.map((section) =>
+      section.semanticType === 'skills' && section.type === 'list'
+        ? { ...section, items: [...(section.items ?? []), 'UNRENDERED_SENTINEL_SKILL'] }
+        : section
+    ),
+  }
+  const mismatchVerification = await verifyRenderedResumePdf(
+    new Uint8Array(mismatchBuffer.buffer, mismatchBuffer.byteOffset, mismatchBuffer.byteLength),
+    mismatchExpected,
+    'classic'
+  )
+  assert.equal(mismatchVerification.status, 'failed', 'Verifier should fail when expected resume content is absent from the rendered PDF')
+  assert.ok(mismatchVerification.missingContent.some((item) => item.value === 'UNRENDERED_SENTINEL_SKILL'), 'Verifier should identify the missing rendered field')
+  console.log('PASS rendered-content loss detection')
+
+  const longData: ImprovedResumeData = {
+    name: 'Long Resume Fixture',
+    email: 'long@example.com',
+    phone: '09170000000',
+    location: 'Davao City, Philippines',
+    linkedin: '',
+    github: '',
+    website: '',
+    sections: [
+      {
+        title: 'Professional Summary',
+        type: 'text',
+        semanticType: 'summary',
+        classificationConfidence: 1,
+        text: 'Experienced operations professional coordinating complex workflows, cross-functional teams, service quality, documentation, training, scheduling, stakeholder communication, and continuous process improvement across multiple high-volume environments while maintaining accurate records and consistent delivery standards.',
+        acceptsAIImprovements: true,
+      },
+      {
+        title: 'Core Competencies',
+        type: 'list',
+        semanticType: 'skills',
+        classificationConfidence: 1,
+        items: Array.from({ length: 20 }, (_, index) => `Operational Competency ${index + 1}`),
+        acceptsAIImprovements: false,
+      },
+      {
+        title: 'Professional Experience',
+        type: 'entries',
+        semanticType: 'experience',
+        classificationConfidence: 1,
+        entries: Array.from({ length: 7 }, (_, index) => ({
+          title: `Operations Role ${index + 1}`,
+          subtitle: `Example Organization ${index + 1}`,
+          dates: `20${18 + index} - 20${19 + index}`,
+          bullets: [
+            `Coordinated high-volume daily workflows across multiple teams while maintaining accurate documentation, service standards, and timely stakeholder communication for operational cycle ${index + 1}.`,
+            `Monitored recurring process issues, documented corrective actions, and supported training activities that improved consistency across assigned responsibilities for operational cycle ${index + 1}.`,
+            `Prepared detailed records, schedules, and follow-up actions while collaborating with internal and external stakeholders to resolve exceptions during operational cycle ${index + 1}.`,
+            `Supported quality reviews and continuous-improvement activities by identifying bottlenecks and recommending practical workflow adjustments for operational cycle ${index + 1}.`,
+          ],
+        })),
+        acceptsAIImprovements: true,
+      },
+    ],
+  }
+  for (const templateId of templates) {
+    const longElement = React.createElement(ResumeTemplateRenderer, { data: longData, templateId }) as unknown as Parameters<typeof renderToBuffer>[0]
+    const longBuffer = await renderToBuffer(longElement)
+    const longVerification = await verifyRenderedResumePdf(
+      new Uint8Array(longBuffer.buffer, longBuffer.byteOffset, longBuffer.byteLength),
+      longData,
+      templateId
+    )
+    assert.equal(longVerification.status, 'verified', `${templateId} long multi-page resume should preserve all expected content`)
+    assert.ok(longVerification.actualPages >= 2, `${templateId} long fixture should render multiple pages, got ${longVerification.actualPages}`)
+    console.log(`PASS ${templateId} multi-page render verification (${longVerification.actualPages}p, estimated ${longVerification.estimatedPages}p, density ${longVerification.preflight.density})`)
   }
 
   const scanned = new jsPDF()
