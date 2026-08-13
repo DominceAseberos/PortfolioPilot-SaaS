@@ -3,6 +3,7 @@ import { formatLayoutLine, groupTextItemsIntoLines, type ResumeLayoutLine } from
 import { assignReadingOrder } from './resume-reading-order.service'
 import type { ResumeTemplateContract } from '@/types/resume-template-contract'
 import { inferResumeTemplateContract } from './resume-template-contract.service'
+import { extractResumeGraphicStyle } from './resume-template-graphics.service'
 
 export interface ResumeLayoutPage { pageNumber: number; columnCount: number; width?: number; height?: number; lines: ResumeLayoutLine[] }
 export interface ResumePageDimensions { width: number; height: number }
@@ -45,7 +46,16 @@ export async function extractResumeLayout(buffer: Buffer): Promise<ResumeLayoutD
       const viewport = page.getViewport({ scale: 1 })
       return { width: viewport.width, height: viewport.height }
     }))
-    return buildLayoutDocument(result.items, pageDimensions)
+    const layout = buildLayoutDocument(result.items, pageDimensions)
+    const firstPage = pageDimensions[0] ?? DEFAULT_PAGE
+    try {
+      layout.templateContract.graphics = await extractResumeGraphicStyle(pdf, firstPage.width, firstPage.height)
+    } catch {
+      // Graphic styling is optional metadata. Unsupported operators must never
+      // downgrade otherwise-valid text/geometry extraction.
+      layout.templateContract.graphics = undefined
+    }
+    return layout
   } finally {
     await pdf.destroy()
   }

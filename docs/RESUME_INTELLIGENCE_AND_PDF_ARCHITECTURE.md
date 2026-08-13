@@ -1059,6 +1059,36 @@ Phase 5 is now complete.
 - Final validation passed: 27/27 Jest suites, 110/110 tests, all built-in generated-PDF checks, uploaded combined fidelity at 100%, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 - Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither is introduced by this phase.
 
+### Phase 18 - Verified PDF Graphic Style Extraction
+
+- [x] Inspect PDF.js operator-list shapes for text colors, strokes, fills, and path geometry
+- [x] Add an optional operator-derived graphic-style contract
+- [x] Extract dominant body text and accent text colors from rendered text operators
+- [x] Extract horizontal divider color and line width from stroke/path operators
+- [x] Extract large simple filled background regions with normalized page geometry
+- [x] Detect local text color inside filled regions when coordinates are measurable
+- [x] Render extracted palette, dividers, and background regions through the uploaded contract renderer
+- [x] Repeat full-height backgrounds on continuation pages without repeating first-page header bands
+- [x] Extend final fidelity verification to cover colors, divider width, and background color/geometry
+- [x] Keep graphic extraction optional so unsupported PDF operators never downgrade text/layout extraction
+- [x] Add real colored generated-PDF regression with 100% structure/style/graphics fidelity
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+
+#### Cycle 26 implementation notes
+
+- Added `ResumeTemplateGraphicStyleContract` with body/accent text colors, divider color/width, and up to three large normalized background regions with optional local text color.
+- Graphic extraction uses the first page PDF.js operator list. RGB text/stroke/fill state is tracked directly; `showText` contributes weighted palette samples, and `constructPath` exposes both the paint operator and path bounding box for rules/backgrounds.
+- The implementation intentionally ignores tiny fills and near-white page backgrounds, keeps only large simple filled regions, and chooses the longest horizontal stroke as the divider signal.
+- PDF coordinate handling required explicit graphics-state transform tracking. React-PDF also exposes text translations as negative offsets from page top while path boxes are already in PDF page space; text samples now normalize that representation without changing ordinary PDF coordinates.
+- Regression exposed another renderer-specific detail: React-PDF emits a border stroke at roughly twice the configured `borderBottomWidth`, so the contract renderer compensates when consuming an extracted divider width. The generated PDF now re-extracts the original measured width.
+- Region-local text color is derived from text samples that fall inside a detected filled region. This allows dark header/sidebar fills to reuse the observed white/light text rather than blindly applying the global body color.
+- The contract renderer now applies extracted body/accent colors to text, links, bullets/list borders, and section rules, and paints detected backgrounds behind content. Full-height backgrounds repeat on continuation pages; short top header bands remain first-page-only.
+- `verifyResumeTemplateFidelity()` now compares body/accent colors, divider color/width, and background color/geometry with bounded RGB/ratio tolerances. Missing graphics, major text-palette drift, or missing expected background regions can block uploaded-layout export.
+- Graphic extraction is wrapped as optional metadata. Any unsupported operator-list failure leaves the already-valid text/geometry/style contract intact instead of forcing the resume into fallback extraction.
+- The native uploaded fixture now includes a dark header with white text, dark body text, blue accents/dividers, and verifies at 100% combined content + structure + typography + graphic fidelity.
+- Final validation passed: 27/27 Jest suites, 110/110 tests, all built-in generated-PDF checks, uploaded structure/style/graphics fidelity at 100%, combined export verification, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+- Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither is introduced by this phase.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1074,15 +1104,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 18 - Verified PDF Graphic Style Extraction**.
+The next implementation should be **Phase 19 - Multi-page Visual Continuation & Operator Coverage**.
 
 Reason:
 
-- Structural layout, typography hierarchy, page geometry, margins, spacing, and alignment now have deterministic round-trip verification.
-- The largest remaining visual gap is graphical styling: text/accent colors, divider rules, filled backgrounds, and simple decorative regions.
-- These properties should come from PDF drawing/text operators rather than screenshots or LLM guesses.
-- Graphics must remain optional metadata so unsupported or ambiguous PDFs safely fall back to the verified structural/style contract.
-- Exact embedded font-file reproduction should remain out of scope unless licensing and render-verifiable extraction are both safe.
+- First-page RGB palette, divider, and large background extraction now round-trip with verified fidelity.
+- The next reliability gap is multi-page/custom-template variation: repeated sidebars, continuation-page backgrounds, and pages whose visual regions differ from page one.
+- Additional safe operator coverage should include normalized CMYK color state and per-page graphic contracts without treating unsupported patterns/images as reproducible styling.
+- Multi-page visual metadata must remain bounded so long resumes do not create unbounded contracts or slow normal parsing.
+- Exact font files, raster decorations, complex gradients, and arbitrary vector artwork should stay outside verified reproduction until they have safe deterministic adapters.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 

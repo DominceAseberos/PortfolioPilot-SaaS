@@ -36,6 +36,17 @@ function withinTolerance(expected: number, actual: number, tolerance: number): b
   return Math.abs(actual - expected) <= tolerance
 }
 
+function rgbDistance(expected: string, actual: string): number {
+  const parse = (value: string) => [
+    Number.parseInt(value.slice(1, 3), 16),
+    Number.parseInt(value.slice(3, 5), 16),
+    Number.parseInt(value.slice(5, 7), 16),
+  ]
+  const left = parse(expected)
+  const right = parse(actual)
+  return Math.sqrt(left.reduce((sum, value, index) => sum + (value - right[index]) ** 2, 0))
+}
+
 export async function verifyResumeTemplateFidelity(
   pdfBytes: Uint8Array,
   data: ImprovedResumeData,
@@ -168,6 +179,106 @@ export async function verifyResumeTemplateFidelity(
     })
   }
 
+  if (expectedContract.graphics) {
+    const expectedGraphics = expectedContract.graphics
+    const actualGraphics = actualContract.graphics
+
+    if (!actualGraphics) {
+      checks.push({
+        key: 'graphics:missing',
+        passed: false,
+        message: 'Rendered PDF did not expose the expected graphic-style operators.',
+      })
+    } else {
+      const bodyDistance = rgbDistance(expectedGraphics.bodyTextColor, actualGraphics.bodyTextColor)
+      checks.push({
+        key: 'graphics:body-text-color',
+        passed: bodyDistance <= 18,
+        message: bodyDistance <= 18
+          ? 'Body text color stayed within the uploaded palette tolerance.'
+          : `Body text color drifted from ${expectedGraphics.bodyTextColor} to ${actualGraphics.bodyTextColor}.`,
+      })
+
+      if (expectedGraphics.accentTextColor) {
+        const accentDistance = actualGraphics.accentTextColor
+          ? rgbDistance(expectedGraphics.accentTextColor, actualGraphics.accentTextColor)
+          : Number.POSITIVE_INFINITY
+        checks.push({
+          key: 'graphics:accent-text-color',
+          passed: accentDistance <= 24,
+          message: accentDistance <= 24
+            ? 'Accent text color stayed within the uploaded palette tolerance.'
+            : `Accent text color drifted from ${expectedGraphics.accentTextColor} to ${actualGraphics.accentTextColor ?? 'missing'}.`,
+        })
+      }
+
+      if (expectedGraphics.dividerColor) {
+        const dividerDistance = actualGraphics.dividerColor
+          ? rgbDistance(expectedGraphics.dividerColor, actualGraphics.dividerColor)
+          : Number.POSITIVE_INFINITY
+        checks.push({
+          key: 'graphics:divider-color',
+          passed: dividerDistance <= 24,
+          message: dividerDistance <= 24
+            ? 'Divider color stayed within the uploaded palette tolerance.'
+            : `Divider color drifted from ${expectedGraphics.dividerColor} to ${actualGraphics.dividerColor ?? 'missing'}.`,
+        })
+      }
+
+      if (expectedGraphics.dividerWidth != null) {
+        const widthPassed = actualGraphics.dividerWidth != null
+          && withinTolerance(expectedGraphics.dividerWidth, actualGraphics.dividerWidth, 0.35)
+        checks.push({
+          key: 'graphics:divider-width',
+          passed: widthPassed,
+          message: widthPassed
+            ? 'Divider width stayed within 0.35pt of the uploaded contract.'
+            : `Divider width drifted from ${expectedGraphics.dividerWidth}pt to ${actualGraphics.dividerWidth ?? 'missing'}pt.`,
+        })
+      }
+
+      for (let index = 0; index < expectedGraphics.backgroundRegions.length; index++) {
+        const expectedBackground = expectedGraphics.backgroundRegions[index]
+        const actualBackground = actualGraphics.backgroundRegions
+          .map((background) => ({
+            background,
+            colorDistance: rgbDistance(expectedBackground.color, background.color),
+            geometryDistance: Math.max(
+              Math.abs(expectedBackground.xRatio - background.xRatio),
+              Math.abs(expectedBackground.topRatio - background.topRatio),
+              Math.abs(expectedBackground.widthRatio - background.widthRatio),
+              Math.abs(expectedBackground.heightRatio - background.heightRatio)
+            ),
+          }))
+          .sort((a, b) => (a.colorDistance + a.geometryDistance * 255) - (b.colorDistance + b.geometryDistance * 255))[0]
+
+        const backgroundPassed = Boolean(
+          actualBackground
+          && actualBackground.colorDistance <= 24
+          && actualBackground.geometryDistance <= 0.04
+        )
+        checks.push({
+          key: `graphics:background:${index}`,
+          passed: backgroundPassed,
+          message: backgroundPassed
+            ? `Background region ${index + 1} preserved its color and geometry.`
+            : `Background region ${index + 1} could not be matched within color/geometry tolerance.`,
+        })
+
+        if (expectedBackground.textColor && actualBackground?.background.textColor) {
+          const localTextDistance = rgbDistance(expectedBackground.textColor, actualBackground.background.textColor)
+          checks.push({
+            key: `graphics:background-text:${index}`,
+            passed: localTextDistance <= 24,
+            message: localTextDistance <= 24
+              ? `Background region ${index + 1} preserved its local text color.`
+              : `Background region ${index + 1} text color drifted from ${expectedBackground.textColor} to ${actualBackground.background.textColor}.`,
+          })
+        }
+      }
+    }
+  }
+
   if ((expectedContract.sourcePageCount ?? 1) < layout.totalPages) {
     warnings.push(`Rendered custom template uses ${layout.totalPages} pages versus ${expectedContract.sourcePageCount ?? 1} source page(s); content was preserved rather than compressed below safe limits.`)
   }
@@ -187,6 +298,10 @@ export async function verifyResumeTemplateFidelity(
     || check.key === 'minimum-font-size'
     || check.key.startsWith('placement:')
     || criticalStyleKeys.has(check.key)
+    || check.key === 'graphics:missing'
+    || check.key === 'graphics:body-text-color'
+    || check.key === 'graphics:accent-text-color'
+    || check.key.startsWith('graphics:background:')
   ))
 
   return {

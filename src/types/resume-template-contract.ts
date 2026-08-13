@@ -20,6 +20,23 @@ export interface ResumeTemplateStyleContract {
   headerAlignment: ResumeTemplateHeaderAlignment
 }
 
+export interface ResumeTemplateBackgroundRegion {
+  color: string
+  xRatio: number
+  topRatio: number
+  widthRatio: number
+  heightRatio: number
+  textColor?: string
+}
+
+export interface ResumeTemplateGraphicStyleContract {
+  bodyTextColor: string
+  accentTextColor?: string
+  dividerColor?: string
+  dividerWidth?: number
+  backgroundRegions: ResumeTemplateBackgroundRegion[]
+}
+
 export interface ResumeTemplateRegionContract {
   id: string
   role: ResumeTemplateRegionRole
@@ -47,4 +64,5 @@ export interface ResumeTemplateContract {
   confidence: number
   sourcePageCount?: number
   style?: ResumeTemplateStyleContract
+  graphics?: ResumeTemplateGraphicStyleContract
 }

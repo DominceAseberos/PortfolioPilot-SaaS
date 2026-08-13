@@ -199,6 +199,15 @@ async function main() {
       sectionGap: 18,
       headerAlignment: 'left',
     },
+    graphics: {
+      bodyTextColor: '#111827',
+      accentTextColor: '#2563eb',
+      dividerColor: '#2563eb',
+      dividerWidth: 0.8,
+      backgroundRegions: [
+        { color: '#0f172a', xRatio: 0, topRatio: 0, widthRatio: 1, heightRatio: 0.11, textColor: '#ffffff' },
+      ],
+    },
   }
   const uploadedData: ImprovedResumeData = { ...fixtures[0].data, templateContract: uploadedContract }
   const uploadedElement = React.createElement(UploadedResumeTemplateRenderer, { data: uploadedData }) as unknown as Parameters<typeof renderToBuffer>[0]
@@ -215,9 +224,13 @@ async function main() {
     uploadedData,
     uploadedContract
   )
-  assert.equal(fidelity.status, 'verified', `uploaded contract geometry failed fidelity verification: ${fidelity.checks.filter((check) => !check.passed).map((check) => check.message).join('; ')}`)
+  assert.equal(fidelity.status, 'verified', `uploaded contract fidelity verification failed: ${fidelity.checks.filter((check) => !check.passed).map((check) => check.message).join('; ')}`)
+  assert.equal(fidelity.score, 100, 'uploaded contract render should preserve controlled structure, style, and graphics at full score')
   assert.equal(fidelity.actualContract.columnCount, 2, 'uploaded contract renderer should preserve a two-column body')
-  console.log(`PASS uploaded contract render fidelity (${fidelity.score}% geometry score, ${uploadedParsed.totalPages}p)`)
+  assert.ok(fidelity.checks.some((check) => check.key === 'graphics:body-text-color' && check.passed), 'uploaded render should verify body text color')
+  assert.ok(fidelity.checks.some((check) => check.key === 'graphics:accent-text-color' && check.passed), 'uploaded render should verify accent text color')
+  assert.ok(fidelity.checks.some((check) => check.key === 'graphics:background:0' && check.passed), 'uploaded render should verify the detected header background')
+  console.log(`PASS uploaded contract render fidelity (${fidelity.score}% structure/style/graphics score, ${uploadedParsed.totalPages}p)`)
 
   const uploadedVerification = await verifyUploadedRenderedResumePdf(
     new Uint8Array(uploadedBuffer.buffer, uploadedBuffer.byteOffset, uploadedBuffer.byteLength),
