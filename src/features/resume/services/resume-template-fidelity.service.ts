@@ -32,6 +32,10 @@ function findRegionByRoleAndColumn(contract: ResumeTemplateContract, expected: R
     ?? contract.regions.find((region) => region.role === expected.role)
 }
 
+function withinTolerance(expected: number, actual: number, tolerance: number): boolean {
+  return Math.abs(actual - expected) <= tolerance
+}
+
 export async function verifyResumeTemplateFidelity(
   pdfBytes: Uint8Array,
   data: ImprovedResumeData,
@@ -104,13 +108,86 @@ export async function verifyResumeTemplateFidelity(
       : `Rendered body font floor (${actualContract.minimumFontSize}pt) fell below the ${expectedContract.minimumFontSize}pt contract minimum.`,
   })
 
+  if (expectedContract.style && actualContract.style) {
+    const expectedStyle = expectedContract.style
+    const actualStyle = actualContract.style
+    const pageSizePassed = withinTolerance(expectedStyle.pageWidth, actualStyle.pageWidth, 2)
+      && withinTolerance(expectedStyle.pageHeight, actualStyle.pageHeight, 2)
+    checks.push({
+      key: 'style:page-size',
+      passed: pageSizePassed,
+      message: pageSizePassed
+        ? 'Rendered page dimensions match the uploaded PDF within 2pt.'
+        : `Rendered page size ${actualStyle.pageWidth.toFixed(1)}x${actualStyle.pageHeight.toFixed(1)}pt differs from ${expectedStyle.pageWidth.toFixed(1)}x${expectedStyle.pageHeight.toFixed(1)}pt.`,
+    })
+
+    checks.push({
+      key: 'style:font-class',
+      passed: actualStyle.fontClass === expectedStyle.fontClass,
+      message: actualStyle.fontClass === expectedStyle.fontClass
+        ? `Rendered typography preserved the ${expectedStyle.fontClass} font class.`
+        : `Expected ${expectedStyle.fontClass} typography but rendered output classified as ${actualStyle.fontClass}.`,
+    })
+
+    for (const [key, expected, actual, tolerance] of [
+      ['style:body-font-size', expectedStyle.bodyFontSize, actualStyle.bodyFontSize, 1],
+      ['style:heading-font-size', expectedStyle.headingFontSize, actualStyle.headingFontSize, 1.5],
+      ['style:name-font-size', expectedStyle.nameFontSize, actualStyle.nameFontSize, 2],
+      ['style:line-height', expectedStyle.lineHeight, actualStyle.lineHeight, 0.2],
+      ['style:section-gap', expectedStyle.sectionGap, actualStyle.sectionGap, 4],
+    ] as const) {
+      const passed = withinTolerance(expected, actual, tolerance)
+      checks.push({
+        key,
+        passed,
+        message: passed
+          ? `${key.replace('style:', '')} stayed within tolerance.`
+          : `${key.replace('style:', '')} drifted from ${expected} to ${actual}.`,
+      })
+    }
+
+    const marginDelta = Math.max(
+      Math.abs(actualStyle.margins.top - expectedStyle.margins.top),
+      Math.abs(actualStyle.margins.right - expectedStyle.margins.right),
+      Math.abs(actualStyle.margins.left - expectedStyle.margins.left)
+    )
+    checks.push({
+      key: 'style:margins',
+      passed: marginDelta <= 12,
+      message: marginDelta <= 12
+        ? `Rendered top/side margins stayed within ${marginDelta.toFixed(0)}pt of the uploaded contract.`
+        : `Rendered margins drifted by up to ${marginDelta.toFixed(0)}pt from the uploaded contract.`,
+    })
+
+    checks.push({
+      key: 'style:header-alignment',
+      passed: actualStyle.headerAlignment === expectedStyle.headerAlignment,
+      message: actualStyle.headerAlignment === expectedStyle.headerAlignment
+        ? `Header alignment remained ${expectedStyle.headerAlignment}.`
+        : `Header alignment changed from ${expectedStyle.headerAlignment} to ${actualStyle.headerAlignment}.`,
+    })
+  }
+
   if ((expectedContract.sourcePageCount ?? 1) < layout.totalPages) {
     warnings.push(`Rendered custom template uses ${layout.totalPages} pages versus ${expectedContract.sourcePageCount ?? 1} source page(s); content was preserved rather than compressed below safe limits.`)
   }
 
   const passedCount = checks.filter((check) => check.passed).length
   const score = checks.length === 0 ? 100 : Math.round((passedCount / checks.length) * 100)
-  const criticalFailure = checks.some((check) => !check.passed && (check.key === 'column-count' || check.key === 'minimum-font-size' || check.key.startsWith('placement:')))
+  const criticalStyleKeys = new Set([
+    'style:page-size',
+    'style:font-class',
+    'style:body-font-size',
+    'style:heading-font-size',
+    'style:name-font-size',
+    'style:header-alignment',
+  ])
+  const criticalFailure = checks.some((check) => !check.passed && (
+    check.key === 'column-count'
+    || check.key === 'minimum-font-size'
+    || check.key.startsWith('placement:')
+    || criticalStyleKeys.has(check.key)
+  ))
 
   return {
     status: criticalFailure ? 'failed' : 'verified',

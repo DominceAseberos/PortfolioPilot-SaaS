@@ -1033,6 +1033,32 @@ Phase 5 is now complete.
 - Final validation passed: 27/27 Jest suites, 109/109 tests, all built-in generated-PDF checks, uploaded contract geometry fidelity at 100%, combined uploaded content+geometry verification, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 - Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither is introduced by this phase.
 
+### Phase 17 - Uploaded Visual Style Contract
+
+- [x] Extend uploaded template contracts with deterministic visual-style tokens
+- [x] Infer actual PDF page dimensions rather than assuming A4
+- [x] Preserve source font-family metadata and classify typography as sans/serif/mono without copying font files
+- [x] Infer body, section-heading, and candidate-name type scale
+- [x] Infer conservative page margins, apparent line spacing, section spacing, and header alignment from PDF geometry
+- [x] Make the contract renderer consume page size, margins, type scale, line spacing, section spacing, alignment, and safe font-class fallbacks
+- [x] Extend rendered-template verification to compare critical visual-style tokens with bounded tolerances
+- [x] Keep exact embedded font reproduction, colors, backgrounds, and decorative graphics out of the verified claim until trustworthy source operators exist
+- [x] Add deterministic style-inference unit coverage and real generated-PDF style round-trip regression
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+
+#### Cycle 25 implementation notes
+
+- Added optional `ResumeTemplateStyleContract` metadata for measured PDF appearance: page size, conservative text insets, dominant source font metadata/class, body/heading/name sizes, apparent line pitch, between-section spacing, and header alignment.
+- `extractResumeLayout()` reads real PDF page viewports through PDF.js. Reconstructed lines retain source font-family metadata, but rendering maps only safe font classes: sans to Inter/Helvetica, serif to built-in Times, and mono to built-in Courier.
+- Visual inference filters tiny/footer text and uses bounded geometry heuristics. Exact embedded font names are diagnostic metadata only; font files are never copied or exposed.
+- Regression testing found and fixed two real inference issues: `sans-serif` initially matched the `serif` substring, and section spacing initially measured heading-to-body spacing instead of between-section spacing.
+- The uploaded renderer now consumes measured page dimensions, margins, type scale, apparent line spacing, section spacing, header alignment, and font class while preserving the contract minimum readable font size.
+- `verifyResumeTemplateFidelity()` now checks page dimensions, font class, body/heading/name sizes, header alignment, margins, line spacing, and section spacing in addition to column/region/placement/font-floor checks. Major style drift can block export; noisier margin/spacing drift lowers fidelity without creating false hard failures.
+- Colors, backgrounds, rules, icons, and other graphics are deliberately excluded from the verified visual-fidelity claim until trustworthy PDF drawing/operator extraction is implemented.
+- Unit coverage verifies non-A4 page dimensions, serif source metadata, type hierarchy, margin signal, and header alignment. The native uploaded-PDF fixture round-trips at 100% combined content + structure + visual-style fidelity.
+- Final validation passed: 27/27 Jest suites, 110/110 tests, all built-in generated-PDF checks, uploaded combined fidelity at 100%, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+- Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither is introduced by this phase.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1048,15 +1074,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 17 - Uploaded Visual Style Contract**.
+The next implementation should be **Phase 18 - Verified PDF Graphic Style Extraction**.
 
 Reason:
 
-- Structural fidelity and verified export are now implemented end to end.
-- Layout extraction already retains real PDF page dimensions and source font-family metadata.
-- The next user-visible gap is visual fidelity: typography hierarchy, margins, spacing, alignment, and eventually trustworthy color/divider/background extraction.
-- Visual style tokens can remain deterministic metadata and must not weaken content or geometry verification.
-- Exact embedded font/color reproduction should only be enabled when the source signal is measurable and render-verifiable.
+- Structural layout, typography hierarchy, page geometry, margins, spacing, and alignment now have deterministic round-trip verification.
+- The largest remaining visual gap is graphical styling: text/accent colors, divider rules, filled backgrounds, and simple decorative regions.
+- These properties should come from PDF drawing/text operators rather than screenshots or LLM guesses.
+- Graphics must remain optional metadata so unsupported or ambiguous PDFs safely fall back to the verified structural/style contract.
+- Exact embedded font-file reproduction should remain out of scope unless licensing and render-verifiable extraction are both safe.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 

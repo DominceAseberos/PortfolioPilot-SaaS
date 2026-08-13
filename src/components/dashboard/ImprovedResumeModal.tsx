@@ -348,7 +348,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         {pdfVerification && (
           <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-700">
             <p className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Render verified · {pdfVerification.actualPages} page{pdfVerification.actualPages === 1 ? '' : 's'} · {Math.round(pdfVerification.contentCoverage * 100)}% expected content present</p>
-            {pdfVerification.templateFidelity && <p className="mt-1">Uploaded layout geometry: {pdfVerification.templateFidelity.score}% fidelity.</p>}
+            {pdfVerification.templateFidelity && <p className="mt-1">Uploaded template fidelity: {pdfVerification.templateFidelity.score}%.</p>}
             {pdfVerification.pageDelta !== 0 && <p className="mt-1 text-amber-700">The real render differs from the heuristic estimate by {Math.abs(pdfVerification.pageDelta)} page{Math.abs(pdfVerification.pageDelta) === 1 ? '' : 's'}; the rendered count is authoritative.</p>}
           </div>
         )}

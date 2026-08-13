@@ -186,6 +186,19 @@ async function main() {
     minimumFontSize: 9,
     confidence: 0.92,
     sourcePageCount: 1,
+    style: {
+      pageWidth: 595.28,
+      pageHeight: 841.89,
+      margins: { top: 30, right: 34, bottom: 34, left: 34 },
+      sourceFontFamily: 'Inter',
+      fontClass: 'sans',
+      bodyFontSize: 9.5,
+      headingFontSize: 11,
+      nameFontSize: 21.5,
+      lineHeight: 1.6,
+      sectionGap: 18,
+      headerAlignment: 'left',
+    },
   }
   const uploadedData: ImprovedResumeData = { ...fixtures[0].data, templateContract: uploadedContract }
   const uploadedElement = React.createElement(UploadedResumeTemplateRenderer, { data: uploadedData }) as unknown as Parameters<typeof renderToBuffer>[0]

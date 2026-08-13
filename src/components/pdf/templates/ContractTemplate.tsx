@@ -7,9 +7,16 @@ import { getPrimaryResumeRole } from '@/features/resume/services/resume-template
 import { renderDescription } from './pdfUtils'
 import { PDF_FONT_FAMILY } from './fonts'
 
+function contractFontFamily(contract: ResumeTemplateContract): string {
+  if (contract.style?.fontClass === 'serif') return 'Times-Roman'
+  if (contract.style?.fontClass === 'mono') return 'Courier'
+  return PDF_FONT_FAMILY
+}
+
 function regionFontSize(contract: ResumeTemplateContract, region: ResumeTemplateRegionContract): number {
   const widthAdjustment = region.widthRatio < 0.45 ? -0.25 : 0
-  return Math.max(contract.minimumFontSize, 9.5 + widthAdjustment)
+  const bodySize = contract.style?.bodyFontSize ?? 9.5
+  return Math.max(contract.minimumFontSize, bodySize + widthAdjustment)
 }
 
 function IdentityBlock({
@@ -23,17 +30,20 @@ function IdentityBlock({
 }) {
   const fontSize = regionFontSize(contract, region)
   const narrow = region.widthRatio < 0.5
+  const nameFontSize = contract.style?.nameFontSize ?? fontSize + (narrow ? 8 : 12)
+  const lineHeight = contract.style?.lineHeight ?? 1.3
+  const textAlign = contract.style?.headerAlignment ?? 'left'
   const contacts = [data.email, data.phone, data.location, data.linkedin, data.github, data.website]
     .filter((value): value is string => Boolean(value?.trim()))
     .map((value) => value.replace(/^https?:\/\//, ''))
   const role = getPrimaryResumeRole(data)
 
   return (
-    <View style={{ marginBottom: narrow ? 16 : 20 }}>
-      <Text style={{ fontSize: fontSize + (narrow ? 8 : 12), fontWeight: 700, lineHeight: 1.08, marginBottom: 5 }}>
+    <View style={{ marginBottom: narrow ? 16 : 20, textAlign }}>
+      <Text style={{ fontSize: nameFontSize, fontWeight: 700, lineHeight: 1.08, marginBottom: 5 }}>
         {data.name || 'Your Name'}
       </Text>
-      {role && <Text style={{ fontSize, fontWeight: 600, marginBottom: 8 }}>{role}</Text>}
+      {role && <Text style={{ fontSize, fontWeight: 600, marginBottom: 8, lineHeight }}>{role}</Text>}
       {narrow
         ? contacts.map((contact, index) => (
           <Text key={`${contact}-${index}`} style={{ fontSize: Math.max(contract.minimumFontSize, fontSize - 0.25), marginBottom: 3 }}>
@@ -59,10 +69,12 @@ function SectionBlock({
   region: ResumeTemplateRegionContract
 }) {
   const fontSize = regionFontSize(contract, region)
-  const headingSize = fontSize + 1.5
+  const headingSize = contract.style?.headingFontSize ?? fontSize + 1.5
+  const lineHeight = contract.style?.lineHeight ?? 1.3
+  const sectionGap = contract.style?.sectionGap ?? 12
 
   return (
-    <View style={{ marginBottom: 12, width: '100%' }}>
+    <View style={{ marginBottom: sectionGap, width: '100%' }}>
       <Text
         minPresenceAhead={28}
         style={{ fontSize: headingSize, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}
@@ -72,7 +84,7 @@ function SectionBlock({
       <View style={{ borderBottomWidth: 0.6, borderBottomColor: '#94a3b8', marginBottom: 7 }} />
 
       {section.type === 'text' && section.text && (
-        <Text style={{ fontSize, lineHeight: 1.3 }}>{section.text}</Text>
+        <Text style={{ fontSize, lineHeight }}>{section.text}</Text>
       )}
 
       {section.type === 'list' && section.items && (
@@ -101,7 +113,7 @@ function SectionBlock({
           )}
           {(entry.description || (entry.bullets?.length ?? 0) > 0) && (
             <View style={{ marginTop: 3, width: '100%' }}>
-              {renderDescription(entry.description, { fontSize, lineHeight: 1.3 }, '#000000', entry.bullets)}
+              {renderDescription(entry.description, { fontSize, lineHeight }, '#000000', entry.bullets)}
             </View>
           )}
         </View>
@@ -139,7 +151,14 @@ export function ContractTemplate({ data, contract }: { data: ImprovedResumeData;
   const left = contract.regions.find((region) => region.column === 1)
   const right = contract.regions.find((region) => region.column === 2)
   const main = contract.regions.find((region) => region.role === 'primary' && region.column === 0)
-  const horizontalPadding = 34
+  const pageStyle = contract.style
+  const horizontalPadding = pageStyle?.margins.right ?? 34
+  const pageSize: [number, number] = pageStyle
+    ? [pageStyle.pageWidth, pageStyle.pageHeight]
+    : [595.28, 841.89]
+  const pagePadding = pageStyle
+    ? `${pageStyle.margins.top} ${pageStyle.margins.right} ${pageStyle.margins.bottom} ${pageStyle.margins.left}`
+    : `32 ${horizontalPadding}`
 
   const renderRegion = (region: ResumeTemplateRegionContract) => {
     const regionPlan = regionPlans.get(region.id)
@@ -156,7 +175,7 @@ export function ContractTemplate({ data, contract }: { data: ImprovedResumeData;
 
   return (
     <Document>
-      <Page size="A4" style={{ fontFamily: PDF_FONT_FAMILY, color: '#000000', padding: `32 ${horizontalPadding}`, lineHeight: 1.3 }}>
+      <Page size={pageSize} style={{ fontFamily: contractFontFamily(contract), color: '#000000', padding: pagePadding, lineHeight: pageStyle?.lineHeight ?? 1.3 }}>
         {header && renderRegion(header)}
 
         {fullWidth.map(renderRegion)}

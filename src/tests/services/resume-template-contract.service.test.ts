@@ -1,13 +1,14 @@
 import type { ResumeLayoutLine } from '@/features/resume/services/resume-layout-geometry.service'
 import { getBuiltInResumeTemplateContract, getTemplateRegionForSemanticType, inferResumeTemplateContract } from '@/features/resume/services/resume-template-contract.service'
 
-const line = (text: string, column: 0 | 1 | 2, y: number, isHeading = false): ResumeLayoutLine => ({
+const line = (text: string, column: 0 | 1 | 2, y: number, isHeading = false, fontFamily = 'Helvetica', fontSize?: number): ResumeLayoutLine => ({
   text,
   x: column === 2 ? 320 : 40,
   y,
   width: column === 0 ? 500 : 180,
-  height: 10,
-  fontSize: isHeading ? 12 : 10,
+  height: fontSize ?? (isHeading ? 12 : 10),
+  fontSize: fontSize ?? (isHeading ? 12 : 10),
+  fontFamily,
   column,
   isHeading,
   isBullet: false,
@@ -46,6 +47,32 @@ describe('resume template contracts', () => {
     expect(contract.regions.find((region) => region.id === 'right')?.role).toBe('primary')
     expect(getTemplateRegionForSemanticType(contract, 'skills').id).toBe('left')
     expect(getTemplateRegionForSemanticType(contract, 'experience').id).toBe('right')
+  })
+
+  it('infers measurable uploaded visual style tokens without requiring exact font files', () => {
+    const contract = inferResumeTemplateContract({ totalPages: 1, pages: [{
+      pageNumber: 1,
+      columnCount: 1,
+      width: 612,
+      height: 792,
+      lines: [
+        line('Jordan Lee', 0, 750, true, 'TimesNewRomanPSMT', 20),
+        line('PROFESSIONAL SUMMARY', 0, 700, true, 'TimesNewRomanPSMT', 12),
+        line('Operations leader focused on reliable delivery.', 0, 680, false, 'TimesNewRomanPSMT', 10),
+        line('EXPERIENCE', 0, 630, true, 'TimesNewRomanPSMT', 12),
+        line('Operations Coordinator', 0, 610, false, 'TimesNewRomanPSMT', 10),
+      ],
+    }] })
+
+    expect(contract.style).toBeDefined()
+    expect(contract.style?.pageWidth).toBe(612)
+    expect(contract.style?.pageHeight).toBe(792)
+    expect(contract.style?.fontClass).toBe('serif')
+    expect(contract.style?.sourceFontFamily).toBe('TimesNewRomanPSMT')
+    expect(contract.style?.bodyFontSize).toBe(10)
+    expect(contract.style?.nameFontSize).toBe(20)
+    expect(contract.style?.headerAlignment).toBe('center')
+    expect(contract.style?.margins.left).toBe(40)
   })
 
   it('keeps unknown uploaded headings as custom content instead of dropping them', () => {
