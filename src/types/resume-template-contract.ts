@@ -37,6 +37,11 @@ export interface ResumeTemplateGraphicStyleContract {
   backgroundRegions: ResumeTemplateBackgroundRegion[]
 }
 
+export interface ResumeTemplatePageGraphicProfile {
+  pageNumber: number
+  graphics: ResumeTemplateGraphicStyleContract
+}
+
 export interface ResumeTemplateRegionContract {
   id: string
   role: ResumeTemplateRegionRole
@@ -65,4 +70,5 @@ export interface ResumeTemplateContract {
   sourcePageCount?: number
   style?: ResumeTemplateStyleContract
   graphics?: ResumeTemplateGraphicStyleContract
+  pageGraphics?: ResumeTemplatePageGraphicProfile[]
 }

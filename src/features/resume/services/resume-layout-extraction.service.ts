@@ -47,13 +47,21 @@ export async function extractResumeLayout(buffer: Buffer): Promise<ResumeLayoutD
       return { width: viewport.width, height: viewport.height }
     }))
     const layout = buildLayoutDocument(result.items, pageDimensions)
-    const firstPage = pageDimensions[0] ?? DEFAULT_PAGE
     try {
-      layout.templateContract.graphics = await extractResumeGraphicStyle(pdf, firstPage.width, firstPage.height)
+      const inspectedPageCount = Math.min(result.items.length, 3)
+      const pageGraphics = []
+      for (let pageIndex = 0; pageIndex < inspectedPageCount; pageIndex++) {
+        const dimensions = pageDimensions[pageIndex] ?? DEFAULT_PAGE
+        const graphics = await extractResumeGraphicStyle(pdf, dimensions.width, dimensions.height, pageIndex + 1)
+        if (graphics) pageGraphics.push({ pageNumber: pageIndex + 1, graphics })
+      }
+      layout.templateContract.pageGraphics = pageGraphics
+      layout.templateContract.graphics = pageGraphics.find((profile) => profile.pageNumber === 1)?.graphics
     } catch {
       // Graphic styling is optional metadata. Unsupported operators must never
       // downgrade otherwise-valid text/geometry extraction.
       layout.templateContract.graphics = undefined
+      layout.templateContract.pageGraphics = undefined
     }
     return layout
   } finally {

@@ -279,6 +279,38 @@ export async function verifyResumeTemplateFidelity(
     }
   }
 
+  for (const expectedProfile of (expectedContract.pageGraphics ?? []).filter((profile) => profile.pageNumber > 1)) {
+    const actualProfile = actualContract.pageGraphics?.find((profile) => profile.pageNumber === expectedProfile.pageNumber)
+    if (!actualProfile) {
+      checks.push({
+        key: `page-graphics:${expectedProfile.pageNumber}:missing`,
+        passed: false,
+        message: `Rendered PDF is missing the inspected visual profile for page ${expectedProfile.pageNumber}.`,
+      })
+      continue
+    }
+
+    const bodyDistance = rgbDistance(expectedProfile.graphics.bodyTextColor, actualProfile.graphics.bodyTextColor)
+    const expectedBackgrounds = expectedProfile.graphics.backgroundRegions.filter((background) => background.heightRatio >= 0.45)
+    const backgroundMatch = expectedBackgrounds.every((expectedBackground) => actualProfile.graphics.backgroundRegions.some((actualBackground) => (
+      rgbDistance(expectedBackground.color, actualBackground.color) <= 24
+      && Math.max(
+        Math.abs(expectedBackground.xRatio - actualBackground.xRatio),
+        Math.abs(expectedBackground.topRatio - actualBackground.topRatio),
+        Math.abs(expectedBackground.widthRatio - actualBackground.widthRatio),
+        Math.abs(expectedBackground.heightRatio - actualBackground.heightRatio)
+      ) <= 0.05
+    )))
+    const passed = bodyDistance <= 24 && backgroundMatch
+    checks.push({
+      key: `page-graphics:${expectedProfile.pageNumber}`,
+      passed,
+      message: passed
+        ? `Continuation page ${expectedProfile.pageNumber} preserved its bounded visual profile.`
+        : `Continuation page ${expectedProfile.pageNumber} differs from the uploaded visual profile; page-specific artwork is not safely reproducible by the flowing renderer.`,
+    })
+  }
+
   if ((expectedContract.sourcePageCount ?? 1) < layout.totalPages) {
     warnings.push(`Rendered custom template uses ${layout.totalPages} pages versus ${expectedContract.sourcePageCount ?? 1} source page(s); content was preserved rather than compressed below safe limits.`)
   }
@@ -302,6 +334,7 @@ export async function verifyResumeTemplateFidelity(
     || check.key === 'graphics:body-text-color'
     || check.key === 'graphics:accent-text-color'
     || check.key.startsWith('graphics:background:')
+    || check.key.startsWith('page-graphics:')
   ))
 
   return {

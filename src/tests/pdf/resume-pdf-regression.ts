@@ -56,6 +56,7 @@ async function main() {
   const { ResumeTemplateRenderer, UploadedResumeTemplateRenderer } = await import('../../components/pdf/ImprovedResumeTemplate')
   const { verifyRenderedResumePdf, verifyUploadedRenderedResumePdf } = await import('../../features/resume/services/resume-pdf-verification.service')
   const { verifyResumeTemplateFidelity } = await import('../../features/resume/services/resume-template-fidelity.service')
+  const { cmykToHex } = await import('../../features/resume/services/resume-template-graphics.service')
   const { inspectPdfWithoutReadableText } = await import('../../features/resume/services/resume-scanned-pdf.service')
 
   let rendered = 0
@@ -241,6 +242,41 @@ async function main() {
   assert.equal(uploadedVerification.contentCoverage, 1, 'uploaded combined verification should preserve all expected content')
   assert.equal(uploadedVerification.templateFidelity?.score, fidelity.score, 'combined verification should include the geometry fidelity result')
   console.log('PASS uploaded combined render verification')
+
+  const continuationGraphics = {
+    bodyTextColor: '#111827',
+    accentTextColor: '#2563eb',
+    dividerColor: '#2563eb',
+    dividerWidth: 0.8,
+    backgroundRegions: [],
+  }
+  const uploadedLongContract: ResumeTemplateContract = {
+    ...uploadedContract,
+    id: 'uploaded-multi-page-regression-v1',
+    sourcePageCount: 3,
+    pageGraphics: [
+      { pageNumber: 1, graphics: uploadedContract.graphics! },
+      { pageNumber: 2, graphics: continuationGraphics },
+      { pageNumber: 3, graphics: continuationGraphics },
+    ],
+  }
+  const uploadedLongData: ImprovedResumeData = { ...longData, templateContract: uploadedLongContract }
+  const uploadedLongElement = React.createElement(UploadedResumeTemplateRenderer, { data: uploadedLongData }) as unknown as Parameters<typeof renderToBuffer>[0]
+  const uploadedLongBuffer = await renderToBuffer(uploadedLongElement)
+  const uploadedLongVerification = await verifyUploadedRenderedResumePdf(
+    new Uint8Array(uploadedLongBuffer.buffer, uploadedLongBuffer.byteOffset, uploadedLongBuffer.byteLength),
+    uploadedLongData,
+    uploadedLongContract
+  )
+  assert.equal(uploadedLongVerification.status, 'verified', `uploaded multi-page continuation fidelity failed: ${uploadedLongVerification.templateFidelity?.checks.filter((check) => !check.passed).map((check) => check.message).join('; ')}`)
+  assert.ok((uploadedLongVerification.actualPages ?? 0) >= 3, 'uploaded long fixture should render at least three pages')
+  assert.ok(uploadedLongVerification.templateFidelity?.checks.some((check) => check.key === 'page-graphics:2' && check.passed), 'page 2 continuation graphics should verify')
+  assert.ok(uploadedLongVerification.templateFidelity?.checks.some((check) => check.key === 'page-graphics:3' && check.passed), 'page 3 continuation graphics should verify')
+  console.log(`PASS uploaded multi-page continuation verification (${uploadedLongVerification.actualPages}p, bounded profiles verified)`)
+
+  assert.equal(cmykToHex([0, 1, 1, 0]), '#ff0000', 'fractional CMYK should normalize to RGB hex')
+  assert.equal(cmykToHex([0, 100, 100, 0]), '#ff0000', 'percentage CMYK should normalize to RGB hex')
+  console.log('PASS CMYK graphic color normalization')
 
   const scanned = new jsPDF()
   scanned.addImage({ data: new Uint8ClampedArray([255, 255, 255, 255]), width: 1, height: 1 }, 'RGBA', 15, 15, 100, 100)

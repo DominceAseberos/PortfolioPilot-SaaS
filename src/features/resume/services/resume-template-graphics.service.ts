@@ -75,6 +75,24 @@ function normalizeHex(value: unknown): string | null {
   return match ? `#${match[1]}` : null
 }
 
+function channelToHex(value: number): string {
+  return Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0')
+}
+
+export function cmykToHex(args: unknown[] | null): string | null {
+  if (!args || args.length < 4 || !args.slice(0, 4).every((value) => typeof value === 'number')) return null
+  let [c, m, y, k] = args.slice(0, 4) as number[]
+  const scale = Math.max(c, m, y, k) > 1 ? 100 : 1
+  c /= scale
+  m /= scale
+  y /= scale
+  k /= scale
+  const r = 255 * (1 - Math.min(1, c * (1 - k) + k))
+  const g = 255 * (1 - Math.min(1, m * (1 - k) + k))
+  const b = 255 * (1 - Math.min(1, y * (1 - k) + k))
+  return `#${channelToHex(r)}${channelToHex(g)}${channelToHex(b)}`
+}
+
 function glyphWeight(value: unknown): number {
   if (!Array.isArray(value)) return 0
   return value.reduce((total, item) => {
@@ -144,10 +162,11 @@ function distinctBackgrounds(backgrounds: RawBackground[]): RawBackground[] {
 export async function extractResumeGraphicStyle(
   pdf: PdfProxy,
   pageWidth: number,
-  pageHeight: number
+  pageHeight: number,
+  pageNumber = 1
 ): Promise<ResumeTemplateGraphicStyleContract | undefined> {
   const PDFJS = await getResolvedPDFJS()
-  const page = await pdf.getPage(1)
+  const page = await pdf.getPage(pageNumber)
   const operatorList = await page.getOperatorList()
 
   let fillColor = '#000000'
@@ -187,6 +206,14 @@ export async function extractResumeGraphicStyle(
     }
     if (fn === PDFJS.OPS.setStrokeRGBColor) {
       strokeColor = normalizeHex(args?.[0]) ?? strokeColor
+      continue
+    }
+    if (fn === PDFJS.OPS.setFillCMYKColor) {
+      fillColor = cmykToHex(args) ?? fillColor
+      continue
+    }
+    if (fn === PDFJS.OPS.setStrokeCMYKColor) {
+      strokeColor = cmykToHex(args) ?? strokeColor
       continue
     }
     if (fn === PDFJS.OPS.setLineWidth && typeof args?.[0] === 'number') {
