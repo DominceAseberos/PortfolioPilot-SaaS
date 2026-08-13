@@ -28,6 +28,9 @@ export interface ResumePreflightWarning {
     | 'duplicate-skill'
     | 'duplicate-entry'
     | 'invalid-link'
+    | 'region-tight'
+    | 'region-overflow'
+    | 'region-rerouted'
   severity: 'info' | 'warning'
   message: string
   section?: string

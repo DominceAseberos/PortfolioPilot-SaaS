@@ -1,6 +1,6 @@
 import type { DynamicSection, ImprovedResumeData } from '@/types/resume'
 import type { ResumeTemplateContract, ResumeTemplateRegionContract } from '@/types/resume-template-contract'
-import { getResumeEntryBlocks } from './resume-layout.service'
+import { getResumeEntryBlocks, type ResumePreflightResult, type ResumePreflightWarning } from './resume-layout.service'
 import { getSectionSemanticType } from './resume-template-allocation.service'
 import { getTemplateRegionForSemanticType } from './resume-template-contract.service'
 
@@ -228,4 +228,63 @@ export function planResumeTemplateLayout(
   const estimatedPages = Math.max(1, ...contentRegions.map((item) => item.requiredPages))
 
   return { contract, regions, overflowMoves, warnings, fit, estimatedPages }
+}
+
+
+export function analyzeUploadedTemplatePreflight(
+  data: ImprovedResumeData,
+  contract: ResumeTemplateContract
+): ResumePreflightResult {
+  const plan = planResumeTemplateLayout(data, contract)
+  const warnings: ResumePreflightWarning[] = []
+
+  for (const regionPlan of plan.regions) {
+    if (regionPlan.region.role === 'header' && regionPlan.sections.length === 0) continue
+    if (regionPlan.fit === 'tight') {
+      warnings.push({
+        code: 'region-tight',
+        severity: 'info',
+        message: `${regionPlan.region.id} is using ${regionPlan.estimatedLines}/${regionPlan.capacityLines} estimated lines.`,
+      })
+    } else if (regionPlan.fit === 'overflow-risk') {
+      warnings.push({
+        code: 'region-overflow',
+        severity: 'warning',
+        message: `${regionPlan.region.id} needs about ${regionPlan.requiredPages} pages of region capacity; content will paginate rather than shrink below the template font floor.`,
+      })
+    }
+  }
+
+  for (const move of plan.overflowMoves) {
+    warnings.push({
+      code: 'region-rerouted',
+      severity: 'info',
+      section: move.sectionTitle,
+      message: `${move.sectionTitle} is routed from ${move.fromRegionId} to ${move.toRegionId} to avoid region overflow.`,
+    })
+  }
+
+  const density = plan.regions.reduce((sum, regionPlan) => sum + regionPlan.estimatedLines, 0)
+  const warningPenalty = warnings.reduce((total, warning) => total + (warning.severity === 'warning' ? 5 : 2), 0)
+  const fitPenalty = plan.fit === 'overflow-risk' ? 15 : plan.fit === 'tight' ? 6 : 0
+  const score = Math.max(0, Math.min(100, 100 - warningPenalty - fitPenalty))
+  const recommendations: string[] = []
+
+  if (plan.overflowMoves.length > 0) {
+    recommendations.push('Keep overflow routing enabled so complete sections move safely instead of being clipped.')
+  }
+  if (plan.fit === 'overflow-risk') {
+    recommendations.push('Allow additional pages or shorten content manually; do not force the uploaded layout below its readable font floor.')
+  } else if (plan.fit === 'tight') {
+    recommendations.push('Review the densest uploaded-layout region before export.')
+  }
+
+  return {
+    score,
+    density,
+    fit: plan.fit,
+    estimatedPages: plan.estimatedPages,
+    warnings,
+    recommendations,
+  }
 }

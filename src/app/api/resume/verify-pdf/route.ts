@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { verifyRenderedResumePdf } from '@/features/resume/services/resume-pdf-verification.service'
+import { verifyRenderedResumePdf, verifyUploadedRenderedResumePdf } from '@/features/resume/services/resume-pdf-verification.service'
 import type { ResumeTemplateId } from '@/features/resume/services/resume-layout.service'
 import type { ImprovedResumeData } from '@/types/resume'
 
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const form = await req.formData()
     const pdf = form.get('pdf')
     const rawData = form.get('data')
-    const templateId = form.get('templateId') as ResumeTemplateId | null
+    const templateId = form.get('templateId')
 
     if (!(pdf instanceof File)) {
       return NextResponse.json({ error: 'Missing rendered PDF' }, { status: 400 })
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     if (typeof rawData !== 'string') {
       return NextResponse.json({ error: 'Missing resume data' }, { status: 400 })
     }
-    if (!templateId || !TEMPLATE_IDS.has(templateId)) {
+    if (typeof templateId !== 'string' || (templateId !== 'uploaded' && !TEMPLATE_IDS.has(templateId as ResumeTemplateId))) {
       return NextResponse.json({ error: 'Invalid templateId' }, { status: 400 })
     }
 
@@ -51,7 +51,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Rendered file is not a valid PDF' }, { status: 400 })
     }
 
-    const verification = await verifyRenderedResumePdf(bytes, data, templateId)
+    if (templateId === 'uploaded') {
+      if (data.templateContract?.source !== 'uploaded') {
+        return NextResponse.json({ error: 'Uploaded template contract is missing' }, { status: 400 })
+      }
+      const verification = await verifyUploadedRenderedResumePdf(bytes, data, data.templateContract)
+      return NextResponse.json(verification)
+    }
+
+    const verification = await verifyRenderedResumePdf(bytes, data, templateId as ResumeTemplateId)
     return NextResponse.json(verification)
   } catch (error) {
     console.error('Error in /api/resume/verify-pdf:', error)

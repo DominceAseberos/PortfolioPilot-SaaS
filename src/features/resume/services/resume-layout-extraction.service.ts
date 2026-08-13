@@ -1,10 +1,11 @@
-import { extractTextItems } from 'unpdf'
+import { extractTextItems, getDocumentProxy } from 'unpdf'
 import { formatLayoutLine, groupTextItemsIntoLines, type ResumeLayoutLine } from './resume-layout-geometry.service'
 import { assignReadingOrder } from './resume-reading-order.service'
 import type { ResumeTemplateContract } from '@/types/resume-template-contract'
 import { inferResumeTemplateContract } from './resume-template-contract.service'
 
-export interface ResumeLayoutPage { pageNumber: number; columnCount: number; lines: ResumeLayoutLine[] }
+export interface ResumeLayoutPage { pageNumber: number; columnCount: number; width?: number; height?: number; lines: ResumeLayoutLine[] }
+export interface ResumePageDimensions { width: number; height: number }
 export interface ResumeLayoutDocument {
   totalPages: number
   pages: ResumeLayoutPage[]
@@ -14,10 +15,16 @@ export interface ResumeLayoutDocument {
   templateContract: ResumeTemplateContract
 }
 
-export function buildLayoutDocument(pageItems: Parameters<typeof groupTextItemsIntoLines>[0][]): ResumeLayoutDocument {
+const DEFAULT_PAGE: ResumePageDimensions = { width: 595.28, height: 841.89 }
+
+export function buildLayoutDocument(
+  pageItems: Parameters<typeof groupTextItemsIntoLines>[0][],
+  pageDimensions: ResumePageDimensions[] = []
+): ResumeLayoutDocument {
   const pages = pageItems.map((items, index): ResumeLayoutPage => {
     const ordered = assignReadingOrder(groupTextItemsIntoLines(items))
-    return { pageNumber: index + 1, columnCount: ordered.columnCount, lines: ordered.lines }
+    const dimensions = pageDimensions[index] ?? DEFAULT_PAGE
+    return { pageNumber: index + 1, columnCount: ordered.columnCount, width: dimensions.width, height: dimensions.height, lines: ordered.lines }
   })
   const plainText = pages.map((page) => page.lines.map((line) => line.text).join('\n')).join('\n\n').trim()
   const structuredText = pages.map((page) => {
@@ -30,6 +37,16 @@ export function buildLayoutDocument(pageItems: Parameters<typeof groupTextItemsI
 
 export async function extractResumeLayout(buffer: Buffer): Promise<ResumeLayoutDocument> {
   const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-  const result = await extractTextItems(uint8)
-  return buildLayoutDocument(result.items)
+  const pdf = await getDocumentProxy(uint8)
+  try {
+    const result = await extractTextItems(pdf)
+    const pageDimensions = await Promise.all(result.items.map(async (_items, index) => {
+      const page = await pdf.getPage(index + 1)
+      const viewport = page.getViewport({ scale: 1 })
+      return { width: viewport.width, height: viewport.height }
+    }))
+    return buildLayoutDocument(result.items, pageDimensions)
+  } finally {
+    await pdf.destroy()
+  }
 }

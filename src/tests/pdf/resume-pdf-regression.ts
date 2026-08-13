@@ -54,7 +54,7 @@ async function main() {
   const { extractText } = await import('unpdf')
   const { jsPDF } = await import('jspdf')
   const { ResumeTemplateRenderer, UploadedResumeTemplateRenderer } = await import('../../components/pdf/ImprovedResumeTemplate')
-  const { verifyRenderedResumePdf } = await import('../../features/resume/services/resume-pdf-verification.service')
+  const { verifyRenderedResumePdf, verifyUploadedRenderedResumePdf } = await import('../../features/resume/services/resume-pdf-verification.service')
   const { verifyResumeTemplateFidelity } = await import('../../features/resume/services/resume-template-fidelity.service')
   const { inspectPdfWithoutReadableText } = await import('../../features/resume/services/resume-scanned-pdf.service')
 
@@ -205,6 +205,16 @@ async function main() {
   assert.equal(fidelity.status, 'verified', `uploaded contract geometry failed fidelity verification: ${fidelity.checks.filter((check) => !check.passed).map((check) => check.message).join('; ')}`)
   assert.equal(fidelity.actualContract.columnCount, 2, 'uploaded contract renderer should preserve a two-column body')
   console.log(`PASS uploaded contract render fidelity (${fidelity.score}% geometry score, ${uploadedParsed.totalPages}p)`)
+
+  const uploadedVerification = await verifyUploadedRenderedResumePdf(
+    new Uint8Array(uploadedBuffer.buffer, uploadedBuffer.byteOffset, uploadedBuffer.byteLength),
+    uploadedData,
+    uploadedContract
+  )
+  assert.equal(uploadedVerification.status, 'verified', 'uploaded combined content + geometry verification should pass')
+  assert.equal(uploadedVerification.contentCoverage, 1, 'uploaded combined verification should preserve all expected content')
+  assert.equal(uploadedVerification.templateFidelity?.score, fidelity.score, 'combined verification should include the geometry fidelity result')
+  console.log('PASS uploaded combined render verification')
 
   const scanned = new jsPDF()
   scanned.addImage({ data: new Uint8ClampedArray([255, 255, 255, 255]), width: 1, height: 1 }, 'RGBA', 15, 15, 100, 100)

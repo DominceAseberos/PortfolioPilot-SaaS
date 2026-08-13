@@ -7,6 +7,7 @@ export interface ResumeLayoutLine {
   width: number
   height: number
   fontSize: number
+  fontFamily?: string
   column: number
   isHeading: boolean
   isBullet: boolean
@@ -78,6 +79,7 @@ export function groupTextItemsIntoLines(items: StructuredTextItem[]): ResumeLayo
     const x = Math.min(...lineItems.map((item) => item.x))
     const endX = Math.max(...lineItems.map((item) => item.x + item.width))
     const fontSize = Math.max(...lineItems.map((item) => item.fontSize || 0)) || bodySize
+    const fontFamily = [...lineItems].sort((a, b) => (b.str?.length ?? 0) - (a.str?.length ?? 0))[0]?.fontFamily || 'Unknown'
     const letters = text.replace(/[^A-Za-z]/g, '')
     const upperRatio = letters.length ? letters.replace(/[^A-Z]/g, '').length / letters.length : 0
     return {
@@ -87,6 +89,7 @@ export function groupTextItemsIntoLines(items: StructuredTextItem[]): ResumeLayo
       width: endX - x,
       height: Math.max(...lineItems.map((item) => item.height || fontSize)),
       fontSize,
+      fontFamily,
       column: 0,
       isHeading: text.length <= 64 && (fontSize >= bodySize * 1.18 || (letters.length >= 3 && upperRatio >= 0.85)),
       isBullet: BULLET.test(text),

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate, Columns } from 'lucide-react'
 import { BlobProvider } from '@react-pdf/renderer'
-import { ImprovedResumeData, ResumeTemplateId, ResumeTemplateRenderer } from '@/components/pdf/ImprovedResumeTemplate'
+import { ImprovedResumeData, type ResumeTemplateChoiceId, ResumeTemplateChoiceRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
 import { SectionClassificationReview } from '@/components/dashboard/SectionClassificationReview'
 import { ResumeEvidenceBadge } from '@/components/dashboard/ResumeEvidenceBadge'
 import { InitialResumeChangesReview } from '@/components/dashboard/InitialResumeChangesReview'
 import { analyzeResumePreflight, type ResumePreflightResult } from '@/features/resume/services/resume-layout.service'
+import { analyzeUploadedTemplatePreflight } from '@/features/resume/services/resume-template-layout-plan.service'
 import type { ResumeRenderVerificationResult } from '@/features/resume/services/resume-pdf-verification.service'
 import type { ResumeChangeOperation } from '@/features/resume/services/resume-diff.service'
 import { getSectionSemanticType, reorderResumeSections } from '@/features/resume/services/resume-template-allocation.service'
@@ -49,7 +50,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const [data, setData] = useState<ImprovedResumeData>(initialData)
   const [activeTab, setActiveTab] = useState<'original' | 'edit' | 'preview'>('edit')
   const [step, setStep] = useState<'pick-template' | 'edit'>('pick-template')
-  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateId>(() => recommendResumeTemplate(initialData).templateId)
+  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateChoiceId>(() => recommendResumeTemplate(initialData).templateId)
   const [compareMode, setCompareMode] = useState(false)
   const [previewData, setPreviewData] = useState<ImprovedResumeData>(initialData)
   const [optimizationProposal, setOptimizationProposal] = useState<ResumeOptimizationProposal | null>(null)
@@ -58,7 +59,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const [pdfVerification, setPdfVerification] = useState<ResumeRenderVerificationResult | null>(null)
   const [verifyingPdf, setVerifyingPdf] = useState(false)
   const [pdfVerificationError, setPdfVerificationError] = useState<string | null>(null)
-  const preflight = analyzeResumePreflight(data, selectedTemplate)
+  const preflight = selectedTemplate === 'uploaded' && data.templateContract?.source === 'uploaded'
+    ? analyzeUploadedTemplatePreflight(data, data.templateContract)
+    : analyzeResumePreflight(data, selectedTemplate === 'uploaded' ? 'classic' : selectedTemplate)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setPreviewData(data), 250)
@@ -80,7 +83,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     setPdfVerificationError(null)
   }
 
-  const selectTemplate = (templateId: ResumeTemplateId) => {
+  const selectTemplate = (templateId: ResumeTemplateChoiceId) => {
     setSelectedTemplate(templateId)
     setOptimizationProposal(null)
     setOptimizationError(null)
@@ -214,6 +217,10 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   }
 
   const requestLayoutOptimization = async () => {
+    if (selectedTemplate === 'uploaded') {
+      setOptimizationError('Automatic AI shortening is disabled for Preserve Uploaded Layout. Edit the flagged region manually or allow another page so the original structure stays authoritative.')
+      return
+    }
     setOptimizing(true)
     setOptimizationError(null)
     setOptimizationProposal(null)
@@ -341,6 +348,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         {pdfVerification && (
           <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-700">
             <p className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Render verified · {pdfVerification.actualPages} page{pdfVerification.actualPages === 1 ? '' : 's'} · {Math.round(pdfVerification.contentCoverage * 100)}% expected content present</p>
+            {pdfVerification.templateFidelity && <p className="mt-1">Uploaded layout geometry: {pdfVerification.templateFidelity.score}% fidelity.</p>}
             {pdfVerification.pageDelta !== 0 && <p className="mt-1 text-amber-700">The real render differs from the heuristic estimate by {Math.abs(pdfVerification.pageDelta)} page{Math.abs(pdfVerification.pageDelta) === 1 ? '' : 's'}; the rendered count is authoritative.</p>}
           </div>
         )}
@@ -351,7 +359,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           </ul>
         )}
 
-        {preflight.fit !== 'comfortable' && !optimizationProposal && (
+        {preflight.fit !== 'comfortable' && selectedTemplate !== 'uploaded' && !optimizationProposal && (
           <div className="pt-2 flex flex-wrap items-center gap-2">
             <Button type="button" size="sm" variant="outline" className="gap-2" onClick={requestLayoutOptimization} disabled={optimizing}>
               <Sparkles className="h-3.5 w-3.5" />
@@ -361,6 +369,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           </div>
         )}
 
+        {selectedTemplate === 'uploaded' && (
+          <p className="text-[10px] text-muted-foreground">Preserve Uploaded Layout uses region capacity and rendered-geometry verification. Content is never auto-shrunk below the detected readable font floor.</p>
+        )}
         {optimizationError && <p className="text-xs text-amber-600">{optimizationError}</p>}
 
         {optimizationProposal && (
@@ -622,7 +633,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
             <LayoutTemplate className="h-3.5 w-3.5" />
             Change Template
           </Button>
-          <BlobProvider document={<ResumeTemplateRenderer data={data} templateId={selectedTemplate} />}>
+          <BlobProvider document={<ResumeTemplateChoiceRenderer data={data} templateId={selectedTemplate} />}>
             {({ blob, url, loading, error }) => (
               <Button
                 size="sm"
@@ -685,7 +696,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
              <Badge variant="secondary" className={`text-[10px] gap-1 ${preflight.fit === 'overflow-risk' ? 'bg-red-500/10 text-red-600 border-red-500/20' : preflight.fit === 'tight' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-green-500/10 text-green-600 border-green-500/20'}`}><CheckCircle2 className="h-3 w-3"/> {preflight.fit === 'comfortable' ? 'Fits comfortably' : preflight.fit === 'tight' ? 'Tight layout' : 'Overflow risk'} · ~{preflight.estimatedPages}p</Badge>
            </div>
            <div className="flex-1 p-4 overflow-hidden relative flex flex-col items-center justify-center">
-             <BlobProvider document={<ResumeTemplateRenderer data={previewData} templateId={selectedTemplate} />}>
+             <BlobProvider document={<ResumeTemplateChoiceRenderer data={previewData} templateId={selectedTemplate} />}>
                {({ url, loading, error }) => {
                  try {
                    if (error) {

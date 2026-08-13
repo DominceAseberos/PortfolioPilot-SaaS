@@ -1005,6 +1005,34 @@ Phase 5 is now complete.
 - Native React-PDF regression now renders an uploaded two-column nurse contract and re-extracts it at 100% geometry fidelity while preserving all expected content.
 - Final validation passed: 27/27 Jest suites, 109/109 tests, all existing generated-PDF checks, uploaded-contract render fidelity at 100%, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 
+### Phase 16 - Preserve Uploaded Layout Editor & Verified Export
+
+- [x] Add `Preserve Uploaded Layout` as a first-class template-picker option when an uploaded contract is available
+- [x] Keep built-in template IDs unchanged and add a separate export-choice type for uploaded mode
+- [x] Render uploaded mode consistently in picker previews, live editor preview, and final PDF generation
+- [x] Add uploaded-layout region preflight based on inferred capacities instead of built-in density profiles
+- [x] Prevent uploaded mode from silently using built-in AI layout optimization assumptions
+- [x] Extend `/api/resume/verify-pdf` to accept uploaded-layout exports only when a source contract is present
+- [x] Require both rendered-content verification and rendered-geometry fidelity before uploaded-layout export is accepted
+- [x] Surface uploaded geometry-fidelity percentage in the editor after successful verification
+- [x] Add combined uploaded content + geometry verification to the native generated-PDF regression
+- [x] Capture actual PDF page dimensions and source font-family metadata for the next visual-fidelity phase
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+
+#### Cycle 24 implementation notes
+
+- Added `ResumeTemplateChoiceId = classic | modern | compact | uploaded` at the editor/export boundary while preserving the existing built-in `ResumeTemplateId`. Recommendation, AI optimization, and built-in preflight services therefore remain type-safe and unchanged.
+- The template picker now shows `Preserve Uploaded Layout` only when `ImprovedResumeData` contains an uploaded template contract. Its live preview is generated through the same contract renderer used for final export, avoiding a fake thumbnail or separate approximation path.
+- Uploaded-mode preflight is derived from `planResumeTemplateLayout()` region capacities. It reports region-tight, region-overflow, and region-rerouted warnings instead of applying Classic/Modern/Compact density thresholds to a custom layout.
+- Automatic AI shortening is guarded out of uploaded mode because it currently targets built-in template profiles. The editor instead tells the user to edit the flagged region manually or allow another page, preserving the source structure as the authority.
+- `/api/resume/verify-pdf` now accepts `templateId=uploaded` only when the submitted resume data contains an uploaded contract. Built-in verification behavior remains unchanged.
+- Added `verifyUploadedRenderedResumePdf()`: expected text must still reach 100% rendered coverage, and `verifyResumeTemplateFidelity()` must also pass. A custom export fails verification if either factual content disappears or the rendered column/region geometry drifts critically.
+- The editor now displays the measured uploaded-layout geometry fidelity after verification in addition to authoritative rendered page count and expected-content coverage.
+- Native generated-PDF regression now proves the combined uploaded verification path on the real React-PDF output: 100% expected content plus 100% controlled geometry fidelity.
+- Layout extraction now retains source font-family metadata per reconstructed line and reads real PDF page dimensions from PDF.js. Those signals are intentionally not yet used to claim typography/color fidelity; they are groundwork for the next visual-style contract phase.
+- Final validation passed: 27/27 Jest suites, 109/109 tests, all built-in generated-PDF checks, uploaded contract geometry fidelity at 100%, combined uploaded content+geometry verification, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+- Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither is introduced by this phase.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1020,16 +1048,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The first implementation should be **Phase 1 - Safe PDF layout foundation**.
+The next implementation should be **Phase 17 - Uploaded Visual Style Contract**.
 
 Reason:
 
-- It has immediate user-visible benefit.
-- It does not require replacing the current AI pipeline.
-- It reduces overflow and blank-page risk.
-- It creates reusable primitives needed by later template intelligence.
-- It is testable with deterministic unit tests.
-- It has lower regression risk than immediately replacing the resume data model.
+- Structural fidelity and verified export are now implemented end to end.
+- Layout extraction already retains real PDF page dimensions and source font-family metadata.
+- The next user-visible gap is visual fidelity: typography hierarchy, margins, spacing, alignment, and eventually trustworthy color/divider/background extraction.
+- Visual style tokens can remain deterministic metadata and must not weaken content or geometry verification.
+- Exact embedded font/color reproduction should only be enabled when the source signal is measurable and render-verifiable.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 

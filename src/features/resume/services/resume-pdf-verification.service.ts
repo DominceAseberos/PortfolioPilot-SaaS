@@ -6,6 +6,9 @@ import {
   type ResumePreflightResult,
   type ResumeTemplateId,
 } from './resume-layout.service'
+import type { ResumeTemplateContract } from '@/types/resume-template-contract'
+import { analyzeUploadedTemplatePreflight } from './resume-template-layout-plan.service'
+import { verifyResumeTemplateFidelity, type ResumeTemplateFidelityResult } from './resume-template-fidelity.service'
 
 export interface ResumeRenderMissingContent {
   label: string
@@ -22,6 +25,7 @@ export interface ResumeRenderVerificationResult {
   missingContent: ResumeRenderMissingContent[]
   warnings: string[]
   preflight: ResumePreflightResult
+  templateFidelity?: ResumeTemplateFidelityResult
 }
 
 interface ExpectedFragment {
@@ -170,5 +174,35 @@ export async function verifyRenderedResumePdf(
     missingContent,
     warnings,
     preflight,
+  }
+}
+
+
+export async function verifyUploadedRenderedResumePdf(
+  pdfBytes: Uint8Array,
+  data: ImprovedResumeData,
+  contract: ResumeTemplateContract
+): Promise<ResumeRenderVerificationResult> {
+  const base = await verifyRenderedResumePdf(pdfBytes, data, 'classic')
+  const preflight = analyzeUploadedTemplatePreflight(data, contract)
+  const templateFidelity = await verifyResumeTemplateFidelity(pdfBytes, data, contract)
+  const pageDelta = base.actualPages - preflight.estimatedPages
+  const warnings = base.warnings.filter((warning) => !warning.startsWith('Rendered PDF uses '))
+
+  if (pageDelta > 0) {
+    warnings.push(`Rendered uploaded layout uses ${base.actualPages} pages; region preflight estimated ${preflight.estimatedPages}.`)
+  } else if (pageDelta < 0) {
+    warnings.push(`Rendered uploaded layout uses ${base.actualPages} pages; region preflight was conservative at ${preflight.estimatedPages}.`)
+  }
+  warnings.push(...templateFidelity.warnings)
+
+  return {
+    ...base,
+    status: base.status === 'verified' && templateFidelity.status === 'verified' ? 'verified' : 'failed',
+    estimatedPages: preflight.estimatedPages,
+    pageDelta,
+    warnings,
+    preflight,
+    templateFidelity,
   }
 }

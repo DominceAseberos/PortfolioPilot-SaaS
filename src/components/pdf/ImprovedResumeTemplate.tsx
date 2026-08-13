@@ -8,6 +8,7 @@ import { renderDescription } from './templates/pdfUtils'
 
 // ─── Template registry ────────────────────────────────────────────────────────
 export type ResumeTemplateId = 'classic' | 'modern' | 'compact'
+export type ResumeTemplateChoiceId = ResumeTemplateId | 'uploaded'
 
 export const RESUME_TEMPLATES: {
   id: ResumeTemplateId
@@ -53,6 +54,12 @@ export function ResumeTemplateRenderer({ data, templateId }: { data: ImprovedRes
 
 export function UploadedResumeTemplateRenderer({ data }: { data: ImprovedResumeData }) {
   return <UploadedContractTemplate data={data} />
+}
+
+export function ResumeTemplateChoiceRenderer({ data, templateId }: { data: ImprovedResumeData; templateId: ResumeTemplateChoiceId }) {
+  return templateId === 'uploaded'
+    ? <UploadedResumeTemplateRenderer data={data} />
+    : <ResumeTemplateRenderer data={data} templateId={templateId} />
 }
 
 // ─── Legacy "Classic" export (kept for backwards compatibility) ────────────────
