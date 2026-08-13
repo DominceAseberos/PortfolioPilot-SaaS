@@ -110,6 +110,7 @@ export async function buildImprovedResume({
     sections: enhancedSections,
     originalSections,
     improvementOperations,
+    templateContract: details?.templateContract,
     
     // Legacy fallback bindings (for templates that haven't been updated yet)
     summary: details?.professionalSummary || '',

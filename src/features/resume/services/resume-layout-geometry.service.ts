@@ -48,7 +48,7 @@ function splitHorizontalSegments(items: StructuredTextItem[]): StructuredTextIte
     if (previous) {
       const gap = item.x - (previous.x + previous.width)
       const fontScale = Math.max(previous.fontSize || 10, item.fontSize || 10)
-      if (gap > Math.max(80, fontScale * 7)) {
+      if (gap > Math.max(24, fontScale * 2.4)) {
         if (current.length) segments.push(current)
         current = []
       }

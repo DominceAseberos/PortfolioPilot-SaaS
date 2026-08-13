@@ -961,9 +961,9 @@ Phase 5 is now complete.
 - [x] Carry the inferred uploaded template contract through resume analysis for later custom-template rendering
 - [x] Add deterministic contract and regression tests
 - [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
-- [ ] Build the custom-template renderer/adapter that consumes uploaded contracts
-- [ ] Add region-specific capacity and overflow preflight for custom templates
-- [ ] Add rendered-geometry fidelity checks against the uploaded template
+- [x] Build the custom-template renderer/adapter that consumes uploaded contracts
+- [x] Add region-specific capacity and overflow preflight for custom templates
+- [x] Add rendered-geometry fidelity checks against the uploaded template
 
 #### Cycle 22 implementation notes
 
@@ -977,6 +977,33 @@ Phase 5 is now complete.
 - `ResumeDetails` now carries the inferred contract when layout extraction succeeds, creating a deterministic handoff for the next custom-template renderer phase while preserving all existing text fallbacks when geometry extraction is unavailable.
 - Targeted regressions initially caught two issues: a candidate name being classified as a custom section, and Modern/Compact within-region ordering changing during the refactor. Both were fixed before final validation.
 - Final validation passed: 26/26 Jest suites, 106/106 tests, generated-PDF verification across all active templates including 4-page dense resumes and missing-content rejection, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+
+### Phase 15 - Contract-Driven Custom Rendering & Geometry Fidelity
+
+- [x] Preserve uploaded template contracts through `buildImprovedResume()`
+- [x] Add deterministic line-capacity budgets to built-in and uploaded template regions
+- [x] Add a region planner that accounts for identity/contact content and complete resume sections
+- [x] Move complete overflowing secondary/full-width sections through explicit `overflowTo` routes without deleting content
+- [x] Allow overloaded primary content to paginate rather than shrinking below the contract font floor
+- [x] Add a generic React-PDF renderer driven by uploaded template contracts
+- [x] Preserve one/two-column structure, full-width regions, region width ratios, section headings, and minimum readable font size
+- [x] Re-extract the generated custom PDF and verify structural fidelity against the source contract
+- [x] Tighten realistic column-gutter detection and improve identity/full-width heading inference from rendered geometry
+- [x] Add real generated-PDF regression for uploaded-contract rendering
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+
+#### Cycle 23 implementation notes
+
+- `ImprovedResumeData` now retains the uploaded `templateContract`, fixing a data-loss boundary where analysis understood the source geometry but the editor/render pipeline previously discarded it.
+- Added per-region `capacityLines`. Uploaded capacity is inferred from observed vertical/text geometry; built-in contracts expose deterministic capacities matching their current rendering behavior.
+- Added `planResumeTemplateLayout()`, which estimates identity/contact usage plus text, list, entry, paragraph, and bullet content in region-relative line units. It preserves manual order, pins the summary to the contract summary region, and never silently drops content.
+- Secondary and full-width regions can move whole sections only through their explicit `overflowTo` target. Primary-region overload is represented as additional required pages instead of unsafe font shrinking or truncation.
+- Added `ContractTemplate` / `UploadedResumeTemplateRenderer`, which renders the canonical resume through the contract's full-width and column regions using the contract width ratios and minimum font floor.
+- Real PDF regression initially exposed a renderer shrink-wrap bug that forced right-column bullets into a narrow strip. Full-width nested region containers and explicit proportional column widths fixed the actual PDF geometry before release.
+- The same real regression exposed two inference weaknesses: realistic ~18-30pt gutters were being flattened, and a large candidate name/short Summary heading could distort reconstructed column roles. Geometry splitting and heading inference were tightened instead of weakening fidelity verification.
+- Added `verifyResumeTemplateFidelity()`. It re-parses the exact generated custom PDF and checks column count, compatible region roles, width-ratio drift, semantic section placement, minimum font floor, and page-count expansion warnings.
+- Native React-PDF regression now renders an uploaded two-column nurse contract and re-extracts it at 100% geometry fidelity while preserving all expected content.
+- Final validation passed: 27/27 Jest suites, 109/109 tests, all existing generated-PDF checks, uploaded-contract render fidelity at 100%, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 
 ## 24. Recursive Implementation Loop
 

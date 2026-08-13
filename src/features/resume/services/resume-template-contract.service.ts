@@ -69,6 +69,7 @@ export const BUILT_IN_TEMPLATE_CONTRACTS: Record<ResumeTemplateId, ResumeTemplat
         preferredSemanticTypes: [...ALL_SECTION_TYPES],
         allowedSemanticTypes: [...ALL_SECTION_TYPES],
         preferredOrder: [...DEFAULT_SECTION_ORDER],
+        capacityLines: 48,
       },
     ],
     allowAdditionalPages: true,
@@ -93,6 +94,7 @@ export const BUILT_IN_TEMPLATE_CONTRACTS: Record<ResumeTemplateId, ResumeTemplat
         preferredSemanticTypes: [...SECONDARY_SECTION_TYPES],
         allowedSemanticTypes: [...SECONDARY_SECTION_TYPES],
         preferredOrder: SECONDARY_SECTION_TYPES.filter((type) => DEFAULT_SECTION_ORDER.includes(type)),
+        capacityLines: 44,
         overflowTo: 'main',
       },
       {
@@ -103,6 +105,7 @@ export const BUILT_IN_TEMPLATE_CONTRACTS: Record<ResumeTemplateId, ResumeTemplat
         preferredSemanticTypes: ALL_SECTION_TYPES.filter((type) => !SECONDARY_SECTION_TYPES.includes(type)),
         allowedSemanticTypes: [...ALL_SECTION_TYPES],
         preferredOrder: DEFAULT_SECTION_ORDER.filter((type) => !SECONDARY_SECTION_TYPES.includes(type)),
+        capacityLines: 48,
       },
     ],
     allowAdditionalPages: true,
@@ -136,6 +139,7 @@ export const BUILT_IN_TEMPLATE_CONTRACTS: Record<ResumeTemplateId, ResumeTemplat
         preferredSemanticTypes: ['summary'],
         allowedSemanticTypes: ['summary'],
         preferredOrder: ['summary'],
+        capacityLines: 10,
         overflowTo: 'left',
       },
       {
@@ -150,6 +154,7 @@ export const BUILT_IN_TEMPLATE_CONTRACTS: Record<ResumeTemplateId, ResumeTemplat
         preferredOrder: DEFAULT_SECTION_ORDER.filter(
           (type) => type !== 'summary' && !SECONDARY_SECTION_TYPES.includes(type)
         ),
+        capacityLines: 40,
       },
       {
         id: 'right',
@@ -159,6 +164,7 @@ export const BUILT_IN_TEMPLATE_CONTRACTS: Record<ResumeTemplateId, ResumeTemplat
         preferredSemanticTypes: [...SECONDARY_SECTION_TYPES],
         allowedSemanticTypes: [...SECONDARY_SECTION_TYPES],
         preferredOrder: SECONDARY_SECTION_TYPES.filter((type) => DEFAULT_SECTION_ORDER.includes(type)),
+        capacityLines: 40,
         overflowTo: 'left',
       },
     ],
@@ -211,7 +217,6 @@ function getDetectedSectionHeadings(page: ResumeLayoutPage) {
   const likelyIdentityHeading = Boolean(
     first
     && (first.semanticType === 'unknown' || first.semanticType === 'custom')
-    && first.line.column === 0
     && (
       first.line.fontSize >= Math.max(14, (second?.line.fontSize ?? 10) * 1.18)
       || (looksLikeName && second && first.line.y - second.line.y >= 24)
@@ -247,6 +252,18 @@ function estimateMinimumFontSize(page: ResumeLayoutPage): number {
   return Math.max(8, Math.min(11, Math.round(lowerQuartile * 2) / 2))
 }
 
+function estimateRegionCapacityLines(page: ResumeLayoutPage, column: 0 | 1 | 2, minimumFontSize: number, role: 'primary' | 'secondary' | 'full-width'): number {
+  const selected = page.lines.filter((line) => line.column === column && line.fontSize > 0)
+  if (!selected.length) return role === 'full-width' ? 10 : 40
+  const top = Math.max(...selected.map((line) => line.y + Math.max(line.height, line.fontSize)))
+  const bottom = Math.min(...selected.map((line) => line.y))
+  const verticalLines = Math.ceil(Math.max(0, top - bottom) / Math.max(8, minimumFontSize * 1.25))
+  const observedCapacity = Math.max(verticalLines, selected.length) + 6
+  return role === 'full-width'
+    ? Math.max(8, Math.min(18, observedCapacity))
+    : Math.max(32, Math.min(54, observedCapacity))
+}
+
 function scorePrimaryColumn(types: ResumeSemanticSectionType[]): number {
   return types.reduce((score, type) => score + (PRIMARY_SIGNAL_TYPES.has(type) ? 2 : type === 'custom' ? 0.5 : 0), 0)
 }
@@ -257,6 +274,7 @@ function buildUploadedRegion(
   column: 0 | 1 | 2,
   widthRatio: number,
   detectedTypes: ResumeSemanticSectionType[],
+  capacityLines: number,
   overflowTo?: string
 ): ResumeTemplateRegionContract {
   const preferredOrder = uniqueSemanticTypes(detectedTypes)
@@ -272,6 +290,7 @@ function buildUploadedRegion(
     preferredSemanticTypes: preferredOrder,
     allowedSemanticTypes: defaultAllowed,
     preferredOrder,
+    capacityLines,
     overflowTo,
   }
 }
@@ -298,7 +317,7 @@ export function inferResumeTemplateContract(
           allowedSemanticTypes: [],
           preferredOrder: [],
         },
-        buildUploadedRegion('main', 'primary', 0, 1, []),
+        buildUploadedRegion('main', 'primary', 0, 1, [], 40),
       ],
       allowAdditionalPages: true,
       preserveHeadingTitles: true,
@@ -308,7 +327,19 @@ export function inferResumeTemplateContract(
     }
   }
 
-  const headings = getDetectedSectionHeadings(page)
+  const headings = getDetectedSectionHeadings(page).map((heading) => {
+    if (heading.line.column === 0) return heading
+    const nearbyFullWidthBody = page.lines.find((line) => (
+      line.column === 0
+      && line.y < heading.line.y
+      && heading.line.y - line.y <= Math.max(36, heading.line.fontSize * 4)
+      && line.x <= heading.line.x + 12
+      && line.x + line.width >= heading.line.x + heading.line.width
+    ))
+    return nearbyFullWidthBody
+      ? { ...heading, line: { ...heading.line, column: 0 as const } }
+      : heading
+  })
   const sectionOrder = uniqueSemanticTypes(headings.map((heading) => heading.semanticType))
   const recognizedCount = headings.filter((heading) => heading.semanticType !== 'custom').length
   const confidence = Math.min(0.98, 0.45 + Math.min(recognizedCount, 6) * 0.07 + (page.columnCount === 2 ? 0.08 : 0.04))
@@ -333,7 +364,14 @@ export function inferResumeTemplateContract(
           allowedSemanticTypes: [],
           preferredOrder: [],
         },
-        buildUploadedRegion('main', 'primary', 0, 1, types),
+        buildUploadedRegion(
+          'main',
+          'primary',
+          0,
+          1,
+          types,
+          estimateRegionCapacityLines(page, 0, minimumFontSize, 'primary')
+        ),
       ],
       allowAdditionalPages: true,
       preserveHeadingTitles: true,
@@ -374,7 +412,15 @@ export function inferResumeTemplateContract(
   ]
 
   if (fullTypes.length) {
-    regions.push(buildUploadedRegion('full-width', 'full-width', 0, 1, fullTypes, primaryId))
+    regions.push(buildUploadedRegion(
+      'full-width',
+      'full-width',
+      0,
+      1,
+      fullTypes,
+      estimateRegionCapacityLines(page, 0, minimumFontSize, 'full-width'),
+      primaryId
+    ))
   }
 
   regions.push(
@@ -384,6 +430,7 @@ export function inferResumeTemplateContract(
       1,
       estimateColumnWidth(page, 1),
       leftTypes,
+      estimateRegionCapacityLines(page, 1, minimumFontSize, primaryColumn === 1 ? 'primary' : 'secondary'),
       primaryColumn === 1 ? undefined : primaryId
     ),
     buildUploadedRegion(
@@ -392,6 +439,7 @@ export function inferResumeTemplateContract(
       2,
       estimateColumnWidth(page, 2),
       rightTypes,
+      estimateRegionCapacityLines(page, 2, minimumFontSize, primaryColumn === 2 ? 'primary' : 'secondary'),
       primaryColumn === 2 ? undefined : primaryId
     )
   )

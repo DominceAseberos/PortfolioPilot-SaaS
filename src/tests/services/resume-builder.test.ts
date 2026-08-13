@@ -2,6 +2,7 @@ import { buildImprovedResume } from '@/features/resume/resume-builder'
 import type { ResumeDetails } from '@/types'
 import type { DynamicSection } from '@/types/resume'
 import type { ResumeChangeOperation } from '@/types/resume-change'
+import type { ResumeTemplateContract } from '@/types/resume-template-contract'
 
 describe('buildImprovedResume review metadata', () => {
   const originalFetch = (globalThis as unknown as { fetch?: typeof fetch }).fetch
@@ -11,6 +12,24 @@ describe('buildImprovedResume review metadata', () => {
     semanticType: 'summary',
     text: 'Original summary.',
     acceptsAIImprovements: true,
+  }
+
+  const templateContract: ResumeTemplateContract = {
+    id: 'uploaded-test-v1',
+    source: 'uploaded',
+    columnCount: 1,
+    identityRegionId: 'header',
+    summaryRegionId: 'main',
+    sectionOrder: ['summary', 'experience', 'skills', 'education', 'custom', 'unknown'],
+    regions: [
+      { id: 'header', role: 'header', column: 0, widthRatio: 1, preferredSemanticTypes: [], allowedSemanticTypes: [], preferredOrder: [] },
+      { id: 'main', role: 'primary', column: 0, widthRatio: 1, preferredSemanticTypes: ['summary', 'experience', 'skills', 'education', 'custom', 'unknown'], allowedSemanticTypes: ['summary', 'experience', 'skills', 'education', 'custom', 'unknown'], preferredOrder: ['summary', 'experience', 'skills', 'education', 'custom', 'unknown'], capacityLines: 48 },
+    ],
+    allowAdditionalPages: true,
+    preserveHeadingTitles: true,
+    minimumFontSize: 9,
+    confidence: 0.9,
+    sourcePageCount: 1,
   }
 
   const details: ResumeDetails = {
@@ -34,6 +53,7 @@ describe('buildImprovedResume review metadata', () => {
     hasActionVerbs: false,
     rawText: 'Jane Example Original summary.',
     isAIAnalyzed: true,
+    templateContract,
   }
 
   afterEach(() => {
@@ -86,6 +106,7 @@ describe('buildImprovedResume review metadata', () => {
     expect(result.identityEvidence?.phone?.map((item) => item.source)).toEqual(['resume'])
     expect(result.identityEvidence?.location?.map((item) => item.source)).toEqual(['resume'])
     expect(result.improvementOperations).toEqual([operation])
+    expect(result.templateContract).toBe(templateContract)
   })
 
   it('uses GitHub location only when the resume has no location', async () => {

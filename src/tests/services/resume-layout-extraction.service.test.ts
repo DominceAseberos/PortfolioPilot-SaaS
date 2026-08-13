@@ -16,6 +16,17 @@ describe('layout-aware resume extraction geometry', () => {
     expect(lines[1].text).toBe('Hospital')
   })
 
+  it('splits realistic column gutters without splitting normal word spacing', () => {
+    const lines = groupTextItemsIntoLines([
+      item('Skills', 40, 700, 30, 11),
+      item('Tools', 75, 700, 25, 11),
+      item('Experience', 130, 700, 60, 11),
+      item('Staff', 195, 700, 25, 11),
+      item('Nurse', 225, 700, 30, 11),
+    ])
+    expect(lines.map((line) => line.text)).toEqual(['Skills Tools', 'Experience Staff Nurse'])
+  })
+
   it('detects visually larger headings without relying on vocabulary', () => {
     const lines = groupTextItemsIntoLines([
       item('CLINICAL COMPETENCIES', 40, 700, 150, 14), item('Phlebotomy', 40, 680, 55, 10), item('Wound Care', 40, 660, 55, 10),

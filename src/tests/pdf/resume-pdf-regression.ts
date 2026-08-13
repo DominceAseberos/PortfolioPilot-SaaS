@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import type { ImprovedResumeData } from '../../types/resume'
+import type { ResumeTemplateContract } from '../../types/resume-template-contract'
 
 process.env.PDF_REGRESSION_TEST = '1'
 
@@ -52,8 +53,9 @@ async function main() {
   const { renderToBuffer } = await import('@react-pdf/renderer')
   const { extractText } = await import('unpdf')
   const { jsPDF } = await import('jspdf')
-  const { ResumeTemplateRenderer } = await import('../../components/pdf/ImprovedResumeTemplate')
+  const { ResumeTemplateRenderer, UploadedResumeTemplateRenderer } = await import('../../components/pdf/ImprovedResumeTemplate')
   const { verifyRenderedResumePdf } = await import('../../features/resume/services/resume-pdf-verification.service')
+  const { verifyResumeTemplateFidelity } = await import('../../features/resume/services/resume-template-fidelity.service')
   const { inspectPdfWithoutReadableText } = await import('../../features/resume/services/resume-scanned-pdf.service')
 
   let rendered = 0
@@ -165,6 +167,44 @@ async function main() {
     assert.ok(longVerification.actualPages >= 2, `${templateId} long fixture should render multiple pages, got ${longVerification.actualPages}`)
     console.log(`PASS ${templateId} multi-page render verification (${longVerification.actualPages}p, estimated ${longVerification.estimatedPages}p, density ${longVerification.preflight.density})`)
   }
+
+  const uploadedContract: ResumeTemplateContract = {
+    id: 'uploaded-two-column-regression-v1',
+    source: 'uploaded',
+    columnCount: 2,
+    identityRegionId: 'header',
+    summaryRegionId: 'summary',
+    sectionOrder: ['summary', 'experience', 'skills', 'education', 'custom', 'unknown'],
+    regions: [
+      { id: 'header', role: 'header', column: 0, widthRatio: 1, preferredSemanticTypes: [], allowedSemanticTypes: [], preferredOrder: [] },
+      { id: 'summary', role: 'full-width', column: 0, widthRatio: 1, preferredSemanticTypes: ['summary'], allowedSemanticTypes: ['summary'], preferredOrder: ['summary'], capacityLines: 10, overflowTo: 'right' },
+      { id: 'left', role: 'secondary', column: 1, widthRatio: 0.34, preferredSemanticTypes: ['skills', 'education'], allowedSemanticTypes: ['skills', 'education'], preferredOrder: ['skills', 'education'], capacityLines: 18, overflowTo: 'right' },
+      { id: 'right', role: 'primary', column: 2, widthRatio: 0.66, preferredSemanticTypes: ['experience', 'custom', 'unknown'], allowedSemanticTypes: ['experience', 'skills', 'education', 'custom', 'unknown'], preferredOrder: ['experience', 'skills', 'education', 'custom', 'unknown'], capacityLines: 44 },
+    ],
+    allowAdditionalPages: true,
+    preserveHeadingTitles: true,
+    minimumFontSize: 9,
+    confidence: 0.92,
+    sourcePageCount: 1,
+  }
+  const uploadedData: ImprovedResumeData = { ...fixtures[0].data, templateContract: uploadedContract }
+  const uploadedElement = React.createElement(UploadedResumeTemplateRenderer, { data: uploadedData }) as unknown as Parameters<typeof renderToBuffer>[0]
+  const uploadedBuffer = await renderToBuffer(uploadedElement)
+  assert.equal(uploadedBuffer.subarray(0, 5).toString(), '%PDF-', 'uploaded contract renderer did not produce a PDF')
+  const uploadedParsed = await extractText(new Uint8Array(uploadedBuffer.buffer, uploadedBuffer.byteOffset, uploadedBuffer.byteLength), { mergePages: true })
+  const normalizeUploaded = (value: string) => value.toLocaleLowerCase().replace(/-\s+/g, '').replace(/[^a-z0-9]+/g, '')
+  const uploadedText = normalizeUploaded(uploadedParsed.text)
+  for (const expected of fixtures[0].expected) {
+    assert.ok(uploadedText.includes(normalizeUploaded(expected)), `uploaded contract renderer lost expected content: ${expected}`)
+  }
+  const fidelity = await verifyResumeTemplateFidelity(
+    new Uint8Array(uploadedBuffer.buffer, uploadedBuffer.byteOffset, uploadedBuffer.byteLength),
+    uploadedData,
+    uploadedContract
+  )
+  assert.equal(fidelity.status, 'verified', `uploaded contract geometry failed fidelity verification: ${fidelity.checks.filter((check) => !check.passed).map((check) => check.message).join('; ')}`)
+  assert.equal(fidelity.actualContract.columnCount, 2, 'uploaded contract renderer should preserve a two-column body')
+  console.log(`PASS uploaded contract render fidelity (${fidelity.score}% geometry score, ${uploadedParsed.totalPages}p)`)
 
   const scanned = new jsPDF()
   scanned.addImage({ data: new Uint8ClampedArray([255, 255, 255, 255]), width: 1, height: 1 }, 'RGBA', 15, 15, 100, 100)

@@ -12,6 +12,7 @@ export interface ResumeTemplateRegionContract {
   preferredSemanticTypes: ResumeSemanticSectionType[]
   allowedSemanticTypes: ResumeSemanticSectionType[]
   preferredOrder: ResumeSemanticSectionType[]
+  capacityLines?: number
   overflowTo?: string
 }
 

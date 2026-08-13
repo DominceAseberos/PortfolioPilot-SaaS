@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/rendere
 import { ClassicTemplate } from './templates/ClassicTemplate'
 import { ModernTemplate } from './templates/ModernTemplate'
 import { CompactTemplate } from './templates/CompactTemplate'
+import { UploadedContractTemplate } from './templates/ContractTemplate'
 import { renderDescription } from './templates/pdfUtils'
 
 // ─── Template registry ────────────────────────────────────────────────────────
@@ -48,6 +49,10 @@ export function ResumeTemplateRenderer({ data, templateId }: { data: ImprovedRes
     case 'compact': return <CompactTemplate data={data} />
     default: return <ClassicTemplate data={data} />
   }
+}
+
+export function UploadedResumeTemplateRenderer({ data }: { data: ImprovedResumeData }) {
+  return <UploadedContractTemplate data={data} />
 }
 
 // ─── Legacy "Classic" export (kept for backwards compatibility) ────────────────
