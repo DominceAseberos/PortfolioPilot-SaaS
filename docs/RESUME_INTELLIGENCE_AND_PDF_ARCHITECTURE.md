@@ -1194,6 +1194,35 @@ Phase 5 is now complete.
 - Final validation passed: unified reliability gate, TypeScript, targeted reliability-script ESLint, 28/28 Jest suites with 117/117 tests, production Next.js build, report git-ignore verification, and `git diff --check`.
 - Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
 
+### Phase 23 - Sanitized Real-World Fixture Intake & Benchmark Baseline Expansion
+
+- [x] Add a git-ignored local fixture location so source resumes cannot be accidentally committed
+- [x] Define a versioned manifest with per-fixture extraction/fidelity/capability expectations
+- [x] Reject absolute paths and path traversal outside the configured sanitized fixture root
+- [x] Require a companion canonical `ImprovedResumeData` JSON file for each source PDF
+- [x] Verify the canonical JSON text is actually present in the source PDF before running any render benchmark
+- [x] Support expected `verified`, `limited`, and known `blocked` capability states
+- [x] Reuse the existing structured reliability report schema for sanitized fixture results
+- [x] Include the sanitized fixture suite automatically when `RESUME_SANITIZED_FIXTURE_DIR` is configured
+- [x] Add intake documentation with privacy/legal/sanitization rules and manifest examples
+- [x] Add an end-to-end temporary jsPDF producer self-test plus path-containment and mismatched-data negative checks
+- [x] Run the intake self-test in the GitHub Actions reliability workflow without committing any source resume fixture
+- [ ] Add the first user-approved, fully sanitized real-world PDF fixtures from multiple third-party resume/PDF producers
+
+#### Cycle 31 implementation notes
+
+- Added `sanitized-resume-fixture-runner.tsx`, a reusable benchmark core that reads `manifest.json`, constrains every referenced file to the configured fixture root, validates the manifest/canonical-data shape, extracts the source template contract, checks expected capability state, and runs the verified uploaded-layout round trip when reproduction is allowed.
+- Source fixture integrity is checked before template fidelity: `collectExpectedRenderedResumeContent()` is compared against the original source PDF text. A PDF paired with the wrong canonical JSON fails before rendering.
+- Exported `normalizeComparableText()` from the existing PDF verification service so source-fixture and generated-PDF content checks use exactly the same normalization behavior.
+- Added `sanitized-resume-fixture-regression.tsx` as the CLI entry point and `npm run test:sanitized-resume-fixtures`. When no fixture directory is configured it exits cleanly with an explicit skip; the normal CI/reliability gate therefore does not depend on private/local files.
+- `resume-reliability-gate.ts` conditionally adds `Sanitized Real-World Fixture Benchmark` only when `RESUME_SANITIZED_FIXTURE_DIR` is set, preserving the same JSON/Markdown/log reporting behavior as the built-in suites.
+- Added `docs/SANITIZED_RESUME_FIXTURE_INTAKE.md` and git-ignored `test-fixtures/resume-real-world/`. The guide requires invented replacement identity/content, legal permission, and sanitized source/canonical pairs.
+- Added `sanitized-resume-fixture-selftest.ts` and `npm run test:sanitized-fixture-intake`. It creates a complete source PDF through jsPDF in the OS temp directory, benchmarks it through the production extraction/render/verification stack, then deletes it.
+- The intake self-test also proves a `../` path traversal attempt is rejected and a mismatched canonical name is rejected by the source-content integrity check.
+- The GitHub Actions workflow now runs the jsPDF intake self-test before the normal reliability gate, giving the parser a second PDF producer on every relevant CI run without storing any sample resume file.
+- Current validation passed: TypeScript, targeted ESLint, sanitized fixture jsPDF self-test, unified generated-PDF/template-corpus reliability gate, and `git diff --check`.
+- Actual real-world fixture population remains intentionally open until explicitly sanitized, legally safe source PDFs are available; PortfolioPilot does not fabricate or silently commit private resume fixtures.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1209,15 +1238,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 23 - Sanitized Real-World Fixture Intake & Benchmark Baseline Expansion**.
+The next implementation should be **Phase 23B - Populate the Sanitized Real-World Fixture Corpus**.
 
 Reason:
 
-- Phase 22 now provides a deterministic CI/release gate with structured per-case reports, so the next gap is broader source-PDF diversity rather than test observability.
-- Synthetic fixtures deliberately cover layout families, but third-party resume generators can still expose unusual font encodings, PDF producers, text transforms, clipping, and operator combinations that synthetic React-PDF fixtures do not exercise.
-- The next benchmark layer should support a bounded manifest of intentionally sanitized real-world PDFs with explicit expected capabilities and no personal/private resume data.
-- Real-world fixtures should reuse the existing reliability-report schema so CI can compare extraction confidence, content coverage, capability status, fidelity, and page-count behavior consistently.
-- Exact embedded fonts, private source resumes, and unsupported artwork should remain outside committed fixtures unless they are legally safe, anonymized, and explicitly intended for regression use.
+- Phase 23 now has a safe manifest/intake runner, source-data integrity checks, optional CI integration, and a jsPDF producer self-test; the remaining gap is actual third-party source-PDF diversity.
+- The next useful corpus additions should come from intentionally sanitized exports produced by multiple external resume/PDF tools so generator-specific font encodings, transforms, clipping, and operator combinations are exercised.
+- Each added fixture should include only invented/anonymized content, a matching canonical JSON companion, and explicit confidence/fidelity/page/capability expectations in the existing manifest.
+- When a sanitized fixture directory is available, `npm run test:resume-reliability` already includes that suite automatically and emits the same structured report schema used by the synthetic baselines.
+- No real-world source file should be added merely to increase fixture count; exact fonts, private resumes, and artwork remain out unless the source is legally safe, fully sanitized, and explicitly intended for regression use.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 

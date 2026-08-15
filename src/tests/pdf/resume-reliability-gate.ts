@@ -12,10 +12,24 @@ process.env.RESUME_RELIABILITY_REPORT_DIR = reportDirectory
 
 rmSync(reportDirectory, { recursive: true, force: true })
 
-const suites = [
+interface ReliabilityGateSuite {
+  name: string
+  script: string
+  reportFile: string
+}
+
+const suites: ReliabilityGateSuite[] = [
   { name: 'Generated PDF Regression', script: 'test:pdf', reportFile: 'generated-pdf-regression.json' },
   { name: 'Template Corpus Benchmark', script: 'test:template-corpus', reportFile: 'template-corpus-benchmark.json' },
-] as const
+]
+
+if (process.env.RESUME_SANITIZED_FIXTURE_DIR?.trim()) {
+  suites.push({
+    name: 'Sanitized Real-World Fixture Benchmark',
+    script: 'test:sanitized-resume-fixtures',
+    reportFile: 'sanitized-real-world-fixture-benchmark.json',
+  })
+}
 
 const aggregateSuites: ReliabilityAggregateSuite[] = []
 

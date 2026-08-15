@@ -33,7 +33,7 @@ interface ExpectedFragment {
   value: string
 }
 
-function normalizeComparableText(value: string): string {
+export function normalizeComparableText(value: string): string {
   return value
     .normalize('NFKD')
     .replace(/-\s+/g, '')

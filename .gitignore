@@ -13,6 +13,7 @@
 # testing
 /coverage
 /.artifacts/resume-reliability/
+/test-fixtures/resume-real-world/
 
 # next.js
 /.next/

@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate sanitized fixture intake
+        run: npm run test:sanitized-fixture-intake
+
       - name: Run resume reliability gate
         run: npm run test:resume-reliability
 
