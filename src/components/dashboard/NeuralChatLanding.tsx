@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import { Globe, GitBranch, FileText, Upload, ArrowRight, Loader2, Sparkles, AlertTriangle, Users, Folder, ExternalLink, CheckCircle2, XCircle, Link2, Edit2 } from 'lucide-react'
@@ -106,6 +107,8 @@ function SmartGithubPreview({ profile, username }: { profile: { avatarUrl?: stri
   return (
     <div className="mt-4 w-full rounded-2xl border border-border/50 bg-muted/20 p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm relative overflow-hidden group">
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 blur-[60px] rounded-full group-hover:bg-purple-500/20 transition-colors pointer-events-none" />
+      {/* GitHub avatar URL is API-provided; keep direct loading instead of restricting remote hosts. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={profile.avatarUrl} alt={profile.login} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-background shadow-md relative z-10 bg-muted" />
       <div className="flex-1 text-center sm:text-left relative z-10 w-full">
         <h3 className="text-2xl font-bold tracking-tight">{profile.name}</h3>
@@ -975,7 +978,7 @@ export function NeuralChatLanding({
           <div className="flex flex-col items-center justify-center mb-16 pt-8">
             <div className="relative w-28 h-28 sm:w-36 sm:h-36 mb-8 animate-float z-10">
                <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full mix-blend-multiply dark:mix-blend-overlay animate-pulse" />
-               <img src="/ai-review-bot.png" alt="AI Pilot Agent" className="relative z-10 w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]" />
+               <Image src="/ai-review-bot.png" alt="AI Pilot Agent" width={144} height={144} className="relative z-10 w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]" />
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent text-center">
               Unleash the Pilot Review Agent.

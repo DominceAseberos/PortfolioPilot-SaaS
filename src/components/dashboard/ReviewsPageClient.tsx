@@ -4,19 +4,14 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
 import { Badge } from '@/components/common/Badge'
 import { ScoreBadge } from '@/components/common/ScoreBadge'
-import { ReviewHistory } from '@/components/dashboard/ReviewHistory'
 import { NeuralChatLanding } from '@/components/dashboard/NeuralChatLanding'
 import { getAnalysisCost } from '@/config/pricing'
 import { normalizeGitHubUsername } from '@/utils/source-normalizers'
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
-import { jsPDF } from 'jspdf'
-import html2canvas from 'html2canvas'
-import { ReportTemplate } from '@/components/pdf/ReportTemplate'
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts'
 import dynamic from 'next/dynamic'
 import { AuthScreen } from '@/components/auth/AuthScreen'
 import type { ImprovedResumeData } from '@/types/resume'
@@ -35,24 +30,20 @@ import type {
 } from '@/types'
 import {
   Loader2,
-  Upload,
   CheckCircle2,
   XCircle,
   Globe,
   GitBranch,
   FileText,
   ChevronDown,
-  ChevronRight,
   Star,
   Sparkles,
-  Search,
   RotateCcw,
   Users,
   Link2,
   AlertTriangle,
   Target,
   ExternalLink,
-  ArrowRight,
   HelpCircle,
   FileCode2,
   X,
@@ -181,10 +172,6 @@ interface ReviewHistoryItem {
   created_at: string
 }
 
-interface ReviewsPageClientProps {
-  reviews: ReviewHistoryItem[]
-}
-
 type Phase = 'form' | 'collecting' | 'analyzing' | 'finalizing'
 
 interface CollectingStep {
@@ -200,12 +187,6 @@ interface AnalysisResults {
   resume?: ResumeAnalysis
   aiSummary?: AISummaryResult
   mismatches?: AIMismatch[]
-}
-
-const sourceColors: Record<string, string> = {
-  portfolio: 'from-blue-500/20 to-blue-600/5 border-blue-500/30',
-  github: 'from-purple-500/20 to-purple-600/5 border-purple-500/30',
-  resume: 'from-emerald-500/20 to-emerald-600/5 border-emerald-500/30',
 }
 
 function buildFallbackSummary(results: AnalysisResults, reason?: string): AISummaryResult {
@@ -309,7 +290,6 @@ function StreamingChatBox({
   mismatches,
   isGuest = false,
   isHistory = false,
-  onReset,
   renderSourceDetails,
   portfolioAnalysis,
   githubAnalysis,
@@ -325,7 +305,6 @@ function StreamingChatBox({
   mismatches?: AIMismatch[]
   isGuest?: boolean
   isHistory?: boolean
-  onReset: () => void
   renderSourceDetails: (id: 'portfolio' | 'github' | 'resume', label: string) => React.ReactNode
   portfolioAnalysis?: PortfolioAnalysis | null
   githubAnalysis?: GitHubAnalysis | null
@@ -346,39 +325,10 @@ function StreamingChatBox({
   const [showResumeModal, setShowResumeModal] = useState(false)
   const [resumeData, setResumeData] = useState<ImprovedResumeData | null>(null)
   const [showRadarChart, setShowRadarChart] = useState(isHistory)
-  const pdfRef = useRef<HTMLDivElement>(null)
 
   const advanceStep = useCallback(() => {
     setVisibleStep(prev => prev + 1)
   }, [])
-
-  const handleGeneratePDF = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (isGuest) {
-      window.location.href = '/register?next=/dashboard/reviews/latest'
-      return
-    }
-    
-    if (!pdfRef.current) return
-    
-    toast.loading('Generating PDF...', { id: 'pdf-gen' })
-    try {
-      const canvas = await html2canvas(pdfRef.current, { scale: 2 })
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: 'a4',
-      })
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-      pdf.save('PilotReview_Report.pdf')
-      toast.success('PDF Generated successfully!', { id: 'pdf-gen' })
-    } catch (error) {
-      toast.error('Failed to generate PDF', { id: 'pdf-gen' })
-    }
-  }
 
   const handleGenerateImprovedResume = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -1030,8 +980,6 @@ function StreamingChatBox({
         </div>
       </div>
 
-      <ReportTemplate ref={pdfRef} result={result} mismatches={mismatches} />
-
       {/* Telemetry Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
@@ -1197,7 +1145,7 @@ function LiveCrawlerPreview({
   )
 }
 
-export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 0, reviews = [], initialReviewData }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[], initialReviewData?: Record<string, unknown> | null }) {
+export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], initialReviewData }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[], initialReviewData?: Record<string, unknown> | null }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isGuestFallback, setIsGuestFallback] = useState(false)
@@ -1206,7 +1154,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [showEmailGate, setShowEmailGate] = useState(false)
   const [guestEmail, setGuestEmail] = useState('')
   const [guestEmailSubmitting, setGuestEmailSubmitting] = useState(false)
-  const [guestEmailVerified, setGuestEmailVerified] = useState(false)
   const [guestEmailError, setGuestEmailError] = useState<string | null>(null)
 
   // Pre-fill from URL params (used by landing page HeroChatInput)
@@ -1230,7 +1177,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   }, [initialReviewData])
 
   const [analysisId, setAnalysisId] = useState<string>(typeof initialReviewData?.id === 'string' ? initialReviewData.id : '')
-  const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(typeof initialReviewData?.portfolio_url === 'string' ? initialReviewData.portfolio_url : null)
   
   // NEW: Repository Selection State
   const [repoSelection, setRepoSelection] = useState<{ 
@@ -1245,49 +1191,12 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
   const [phase, setPhase] = useState<Phase>(initialReviewData ? 'finalizing' : 'form')
   const [collectingSteps, setCollectingSteps] = useState<CollectingStep[]>([])
   const [results, setResults] = useState<AnalysisResults>(initialReviewData?.full_results || {})
-  const [showDetails, setShowDetails] = useState<Record<string, boolean>>({})
-  const [isDragging, setIsDragging] = useState(false)
-  const [isHistoryMode, setIsHistoryMode] = useState(!!initialReviewData)
+  const [isHistoryMode] = useState(!!initialReviewData)
   const [showHistoryDropdown, setShowHistoryDropdown] = useState(false)
   const [historyList, setHistoryList] = useState<ReviewHistoryItem[]>(reviews)
   const [isSwitchingHistory, setIsSwitchingHistory] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState<'login' | 'register' | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   const supabase = createClient()
-
-  const handleHistorySelect = async (id: string) => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('reviews')
-        .select('full_results')
-        .eq('id', id)
-        .single()
-
-      if (fetchError || !data?.full_results) {
-        throw new Error('Failed to load review details.')
-      }
-
-      setResults(data.full_results)
-      setIsHistoryMode(true)
-      
-      const selectedReview = historyList.find((r) => r.id === id)
-      if (selectedReview?.portfolio_url) {
-        setActiveIframeUrl(selectedReview.portfolio_url)
-      } else {
-        setActiveIframeUrl(null)
-      }
-
-      setPhase('finalizing')
-    } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(String(err))
-      toast.error(error.message || 'Error loading review.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
 
   const hasDetails = useCallback((result: Record<string, unknown>, id: string): boolean => {
@@ -1306,7 +1215,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
     setIsLoading(true)
     setError(null)
     setResults({})
-    setShowDetails({})
 
     let cleanPortfolio = portfolioUrl.trim()
     if (cleanPortfolio) {
@@ -1315,14 +1223,12 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       }
       try {
         new URL(cleanPortfolio)
-        setActiveIframeUrl(cleanPortfolio)
       } catch {
         setError('Please enter a valid Portfolio URL (e.g. https://your-portfolio.com)')
         setIsLoading(false)
         return
       }
     } else {
-      setActiveIframeUrl(null)
     }
 
     const cleanGithub = githubUsername ? normalizeGitHubUsername(githubUsername) : ''
@@ -1667,7 +1573,6 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
         setGuestEmailError(json.error || 'Failed to verify email.')
         return
       }
-      setGuestEmailVerified(true)
       setShowEmailGate(false)
       toast.success('Results saved to your email! Create a free account to access them anytime.')
     } catch {
@@ -2299,91 +2204,13 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
                                isGuestFallback={isGuestFallback}
                                setShowAuthModal={setShowAuthModal}
                                createdAt={typeof initialReviewData?.created_at === 'string' ? initialReviewData.created_at : undefined}
-                               onReset={() => {
-                                 setPhase('form')
-                                 setResults({})
-                                 setCollectingSteps([])
-                                 setIsHistoryMode(false)
-                               }} 
                              />
                          ) : null
                        }
                      />
                     </div>
               </div>
-              
-              {/* Right Side: 3D Visual (Removed) */}
-              <div className="hidden">
-                
-                {/* Desktop Iframe/Screenshot Preview */}
-                {activeIframeUrl && phase !== 'form' ? (
-                  <div className="absolute inset-0 z-0 bg-background/50 backdrop-blur-sm overflow-hidden flex flex-col items-center justify-center p-8">
-                     {/* Overlay to prevent clicking iframe during animation */}
-                     <div className="absolute inset-0 z-10 bg-transparent" />
-                     <div className="relative w-full h-full flex items-center justify-center">
-                       {credits > 0 ? (
-                         <div className="w-[1280px] h-[800px] origin-center scale-[0.35] sm:scale-[0.4] md:scale-[0.45] lg:scale-[0.5] xl:scale-[0.6] 2xl:scale-[0.7] transition-transform duration-500 rounded-2xl overflow-hidden border border-border/50 shadow-2xl bg-background">
-                           <img 
-                             src={`https://api.microlink.io?url=${encodeURIComponent(activeIframeUrl)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800`}
-                             alt="Portfolio Preview Screenshot"
-                             className="w-full h-full object-cover opacity-90"
-                             loading="eager"
-                           />
-                         </div>
-                       ) : (
-                         <div className="w-[1280px] h-[800px] origin-center scale-[0.35] sm:scale-[0.4] md:scale-[0.45] lg:scale-[0.5] xl:scale-[0.6] 2xl:scale-[0.7] transition-transform duration-500 rounded-2xl overflow-hidden border border-border/50 shadow-2xl bg-background">
-                           <iframe 
-                             src={activeIframeUrl} 
-                             className="w-full h-full border-none opacity-90"
-                             title="Portfolio Preview"
-                             scrolling="no"
-                             sandbox="allow-same-origin allow-scripts"
-                           />
-                         </div>
-                       )}
-                     </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Glowing background meshes */}
-                    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2)_0%,transparent_70%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_2s_ease-in-out_infinite]' : 'animate-[pulse_4s_ease-in-out_infinite]'}`} />
-                    <div className={`absolute top-1/4 left-1/4 w-full h-full bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.1)_0%,transparent_50%)] dark:bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,transparent_50%)] transition-all duration-700 ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_3s_ease-in-out_infinite_reverse]' : 'animate-[pulse_6s_ease-in-out_infinite_reverse]'}`} />
-                  </>
-                )}
-                
-                {/* Grid Lines Overlay */}
-                <div className={`absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] transition-opacity duration-1000 ${activeIframeUrl && phase !== 'form' ? 'opacity-30 [mask-image:linear-gradient(to_top,black_10%,transparent_50%)]' : '[mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_70%)]'}`} />
-                
-                {/* 3D Floating Asset */}
-                <div className={`z-20 transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${
-                  activeIframeUrl && phase !== 'form'
-                    ? 'absolute bottom-28 right-8 w-[140px] h-[140px] opacity-100 drop-shadow-2xl'
-                    : `relative w-full max-w-[320px] aspect-square ${phase !== 'form' ? 'scale-110' : 'group-hover:scale-105'}`
-                }`}>
-                   <div className={`absolute inset-0 bg-blue-500/20 dark:bg-blue-500/10 blur-[60px] rounded-full mix-blend-multiply dark:mix-blend-overlay ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[pulse_2s_ease-in-out_infinite]' : 'animate-pulse'}`} />
-                   <img 
-                     src="/ai-review-bot.png" 
-                     alt="AI Analysis Core" 
-                     className={`w-full h-full object-contain ${
-                       activeIframeUrl && phase !== 'form'
-                         ? 'drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)]'
-                         : 'drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]'
-                     } ${phase !== 'form' && phase !== 'finalizing' ? 'animate-[float_2s_ease-in-out_infinite]' : 'animate-float'}`}
-                   />
-                </div>
-                
-                {/* Status Overlay UI */}
-                <div className={`absolute bottom-8 left-8 right-8 z-20 rounded-2xl bg-white/80 dark:bg-black/40 border border-black/5 dark:border-white/10 backdrop-blur-xl p-4 shadow-xl dark:shadow-2xl transform transition-all duration-500 ${phase !== 'form' ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`h-2 w-2 rounded-full ${error ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'} dark:${error ? 'shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'shadow-[0_0_10px_rgba(34,197,94,0.8)]'} ${phase !== 'form' && !error && phase !== 'finalizing' ? 'animate-ping' : 'animate-pulse'}`} />
-                    <p className={`text-sm font-medium ${error ? 'text-red-500' : 'text-slate-800 dark:text-white/90'}`}>
-                      {error ? (error.includes('Oops!') ? 'Insufficient Credits' : 'Analysis Terminated') : phase === 'finalizing' ? 'Analysis Complete' : phase === 'form' ? 'Pilot Agent Standing By' : 'Processing Telemetry...'}
-                    </p>
-                  </div>
-                </div>
-              </div>
           </div>
-
 
       {/* Email Gate Modal - shows after guest analysis completes */}
       {showEmailGate && (
