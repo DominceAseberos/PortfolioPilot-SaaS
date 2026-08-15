@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.artifacts/resume-reliability/
 
 # next.js
 /.next/

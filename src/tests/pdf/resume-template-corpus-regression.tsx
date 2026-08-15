@@ -5,6 +5,7 @@ import type { ImprovedResumeData } from '../../types/resume'
 import { extractResumeLayout } from '../../features/resume/services/resume-layout-extraction.service'
 import { verifyUploadedRenderedResumePdf } from '../../features/resume/services/resume-pdf-verification.service'
 import { buildResumeTemplateCapabilityReport } from '../../features/resume/services/resume-template-capability.service'
+import { writeReliabilitySuiteReport, type ReliabilityCaseResult } from './resume-reliability-report'
 import { UploadedResumeTemplateRenderer } from '../../components/pdf/ImprovedResumeTemplate'
 
 interface CorpusExpectation {
@@ -398,6 +399,25 @@ async function main() {
   console.table(rows)
   const minimum = Math.min(...rows.map((row) => Number(String(row.fidelity).replace('%', ''))))
   const average = Math.round(rows.reduce((sum, row) => sum + Number(String(row.fidelity).replace('%', '')), 0) / rows.length)
+  const reportCases: ReliabilityCaseResult[] = rows.map((row) => ({
+    id: String(row.template),
+    status: 'passed',
+    metrics: {
+      columns: Number(row.columns),
+      sourcePages: Number(row.sourcePages),
+      renderedPages: Number(row.renderedPages),
+      confidence: String(row.confidence),
+      fidelity: String(row.fidelity),
+      capability: String(row.capability),
+      unsupported: Number(row.unsupported),
+    },
+  }))
+  writeReliabilitySuiteReport('Template Corpus Benchmark', reportCases, {
+    families: rows.length,
+    averageFidelity: `${average}%`,
+    minimumFidelity: `${minimum}%`,
+    exactPageCountMatches: rows.filter((row) => row.sourcePages === row.renderedPages).length,
+  })
   console.log(`Template corpus benchmark passed: ${rows.length} families, ${average}% average fidelity, ${minimum}% minimum fidelity.`)
 }
 

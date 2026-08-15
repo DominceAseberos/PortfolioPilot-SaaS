@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import type { ImprovedResumeData } from '../../types/resume'
 import type { ResumeTemplateContract } from '../../types/resume-template-contract'
+import { writeReliabilitySuiteReport, type ReliabilityCaseResult } from './resume-reliability-report'
 
 process.env.PDF_REGRESSION_TEST = '1'
 
@@ -59,6 +60,7 @@ async function main() {
   const { cmykToHex, extractResumeGraphicStyle } = await import('../../features/resume/services/resume-template-graphics.service')
   const { inspectPdfWithoutReadableText } = await import('../../features/resume/services/resume-scanned-pdf.service')
 
+  const cases: ReliabilityCaseResult[] = []
   let rendered = 0
   for (const fixture of fixtures) {
     for (const templateId of templates) {
@@ -85,6 +87,17 @@ async function main() {
       assert.equal(verification.actualPages, parsed.totalPages, `${templateId}/${fixture.name} page count disagrees with parsed PDF`)
       assert.ok(verification.actualPages >= 1, `${templateId}/${fixture.name} must render at least one page`)
 
+      cases.push({
+        id: `builtin:${templateId}:${fixture.name}`,
+        status: 'passed',
+        metrics: {
+          pages: verification.actualPages,
+          estimatedPages: verification.estimatedPages,
+          pageDelta: verification.pageDelta,
+          density: verification.preflight.density,
+          contentCoverage: verification.contentCoverage,
+        },
+      })
       rendered += 1
       const estimateNote = verification.pageDelta === 0 ? 'estimate matched' : `estimate delta ${verification.pageDelta > 0 ? '+' : ''}${verification.pageDelta}`
       console.log(`PASS ${templateId}/${fixture.name} (${verification.actualPages}p, ${estimateNote}, density ${verification.preflight.density})`)
@@ -109,6 +122,11 @@ async function main() {
   )
   assert.equal(mismatchVerification.status, 'failed', 'Verifier should fail when expected resume content is absent from the rendered PDF')
   assert.ok(mismatchVerification.missingContent.some((item) => item.value === 'UNRENDERED_SENTINEL_SKILL'), 'Verifier should identify the missing rendered field')
+  cases.push({
+    id: 'negative:rendered-content-loss',
+    status: 'passed',
+    metrics: { rejectedMissingContent: true, missingItemsDetected: mismatchVerification.missingContent.length },
+  })
   console.log('PASS rendered-content loss detection')
 
   const longData: ImprovedResumeData = {
@@ -166,6 +184,17 @@ async function main() {
     )
     assert.equal(longVerification.status, 'verified', `${templateId} long multi-page resume should preserve all expected content`)
     assert.ok(longVerification.actualPages >= 2, `${templateId} long fixture should render multiple pages, got ${longVerification.actualPages}`)
+    cases.push({
+      id: `long:${templateId}`,
+      status: 'passed',
+      metrics: {
+        pages: longVerification.actualPages,
+        estimatedPages: longVerification.estimatedPages,
+        pageDelta: longVerification.pageDelta,
+        density: longVerification.preflight.density,
+        contentCoverage: longVerification.contentCoverage,
+      },
+    })
     console.log(`PASS ${templateId} multi-page render verification (${longVerification.actualPages}p, estimated ${longVerification.estimatedPages}p, density ${longVerification.preflight.density})`)
   }
 
@@ -232,6 +261,11 @@ async function main() {
   assert.ok(fidelity.checks.some((check) => check.key === 'graphics:accent-text-color' && check.passed), 'uploaded render should verify accent text color')
   assert.ok(fidelity.checks.some((check) => check.key === 'graphics:background:0' && check.passed), 'uploaded render should verify the detected header background')
   assert.equal(fidelity.actualContract.graphics?.unsupportedFeatures?.length ?? 0, 0, 'supported dividers/backgrounds should not be mislabeled as unsupported artwork')
+  cases.push({
+    id: 'uploaded:structure-style-graphics',
+    status: 'passed',
+    metrics: { fidelity: fidelity.score, pages: uploadedParsed.totalPages, columns: fidelity.actualContract.columnCount },
+  })
   console.log(`PASS uploaded contract render fidelity (${fidelity.score}% structure/style/graphics score, ${uploadedParsed.totalPages}p)`)
 
   const uploadedVerification = await verifyUploadedRenderedResumePdf(
@@ -242,6 +276,15 @@ async function main() {
   assert.equal(uploadedVerification.status, 'verified', 'uploaded combined content + geometry verification should pass')
   assert.equal(uploadedVerification.contentCoverage, 1, 'uploaded combined verification should preserve all expected content')
   assert.equal(uploadedVerification.templateFidelity?.score, fidelity.score, 'combined verification should include the geometry fidelity result')
+  cases.push({
+    id: 'uploaded:combined-verification',
+    status: 'passed',
+    metrics: {
+      pages: uploadedVerification.actualPages,
+      contentCoverage: uploadedVerification.contentCoverage,
+      fidelity: uploadedVerification.templateFidelity?.score ?? 0,
+    },
+  })
   console.log('PASS uploaded combined render verification')
 
   const continuationGraphics = {
@@ -273,10 +316,20 @@ async function main() {
   assert.ok((uploadedLongVerification.actualPages ?? 0) >= 3, 'uploaded long fixture should render at least three pages')
   assert.ok(uploadedLongVerification.templateFidelity?.checks.some((check) => check.key === 'page-graphics:2' && check.passed), 'page 2 continuation graphics should verify')
   assert.ok(uploadedLongVerification.templateFidelity?.checks.some((check) => check.key === 'page-graphics:3' && check.passed), 'page 3 continuation graphics should verify')
+  cases.push({
+    id: 'uploaded:multi-page-continuation',
+    status: 'passed',
+    metrics: {
+      pages: uploadedLongVerification.actualPages,
+      contentCoverage: uploadedLongVerification.contentCoverage,
+      fidelity: uploadedLongVerification.templateFidelity?.score ?? 0,
+    },
+  })
   console.log(`PASS uploaded multi-page continuation verification (${uploadedLongVerification.actualPages}p, bounded profiles verified)`)
 
   assert.equal(cmykToHex([0, 1, 1, 0]), '#ff0000', 'fractional CMYK should normalize to RGB hex')
   assert.equal(cmykToHex([0, 100, 100, 0]), '#ff0000', 'percentage CMYK should normalize to RGB hex')
+  cases.push({ id: 'graphics:cmyk-normalization', status: 'passed', metrics: { normalized: true } })
   console.log('PASS CMYK graphic color normalization')
 
   const decorated = new jsPDF({ unit: 'pt', format: 'a4' })
@@ -289,6 +342,7 @@ async function main() {
   const decoratedGraphics = await extractResumeGraphicStyle(decoratedProxy, decoratedViewport.width, decoratedViewport.height)
   await decoratedProxy.destroy()
   assert.ok(decoratedGraphics?.unsupportedFeatures?.includes('raster-image'), 'Raster image operators should be surfaced as an unsupported fidelity capability')
+  cases.push({ id: 'graphics:unsupported-raster-detection', status: 'passed', metrics: { detected: true } })
   console.log('PASS unsupported raster graphic detection')
 
   const scanned = new jsPDF()
@@ -297,8 +351,18 @@ async function main() {
   const scanInspection = await inspectPdfWithoutReadableText(scannedBuffer)
   assert.equal(scanInspection.code, 'SCANNED_PDF', 'Image-only PDF should be detected as scanned')
   assert.ok(scanInspection.detectedImageCount > 0, 'Scanned PDF should contain an image drawing operator')
+  cases.push({
+    id: 'pdf:scanned-image-only-detection',
+    status: 'passed',
+    metrics: { detectedImages: scanInspection.detectedImageCount },
+  })
   console.log('PASS scanned/image-only detection')
 
+  writeReliabilitySuiteReport('Generated PDF Regression', cases, {
+    builtInPdfs: rendered,
+    totalCases: cases.length,
+    allCasesPassed: true,
+  })
   console.log(`Generated PDF regression passed: ${rendered} PDFs + scanned detection`)
 }
 

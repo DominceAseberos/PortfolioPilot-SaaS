@@ -1,4 +1,4 @@
-﻿# PortfolioPilot Resume Intelligence & PDF Architecture
+# PortfolioPilot Resume Intelligence & PDF Architecture
 
 > Status: Active implementation plan
 > Last updated: 2026-08-13
@@ -1168,6 +1168,32 @@ Phase 5 is now complete.
 - Validation passed: legacy generated-PDF regression, 28/28 Jest suites with 117/117 tests, six-family corpus benchmark, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 - Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
 
+### Phase 22 - Machine-Readable Reliability Reports & CI Regression Gate
+
+- [x] Add a shared versioned JSON/Markdown report schema for resume reliability suites
+- [x] Emit structured per-case results from the legacy generated-PDF regression
+- [x] Emit structured per-family results from the differential template corpus benchmark
+- [x] Add one `npm run test:resume-reliability` command that runs both suites and writes an aggregate pass/fail summary
+- [x] Preserve suite stdout/stderr logs beside reports for CI failure diagnosis
+- [x] Keep generated reliability artifacts under a git-ignored test-only directory
+- [x] Make report references portable instead of embedding machine-specific absolute paths
+- [x] Add a focused GitHub Actions workflow that runs the reliability gate on relevant PRs/main pushes and uploads the reports
+- [x] Keep the reliability gate free of production runtime dependencies and private resume data
+- [x] Run the unified gate, TypeScript, targeted lint, full Jest, production build, and diff-hygiene validation
+
+#### Cycle 30 implementation notes
+
+- Added `resume-reliability-report.ts` with schema version `1`, typed suite/case/aggregate records, JSON output, and human-readable Markdown output.
+- `resume-pdf-regression.ts` now emits 19 structured cases covering the nine profession/template renders, deliberate content-loss rejection, all three dense multi-page templates, uploaded structure/style/graphics verification, combined uploaded verification, multi-page continuation, CMYK normalization, unsupported-raster detection, and scanned-PDF detection.
+- `resume-template-corpus-regression.tsx` emits one structured case for each of the six corpus families with columns, source/rendered page counts, contract confidence, fidelity, capability status, and unsupported-feature count.
+- Added `resume-reliability-gate.ts`. It clears only `.artifacts/resume-reliability`, runs both suites through cross-platform npm invocation, requires each structured suite report to exist and pass, preserves suite logs, then writes `resume-reliability-summary.json` and `.md`.
+- Aggregate reports reference portable artifact file names rather than local absolute paths. Local console output may still show the resolved summary path for convenience.
+- `.artifacts/resume-reliability/` is git-ignored and only created by the explicit reliability gate, so ordinary app/runtime behavior is unaffected.
+- Added `.github/workflows/resume-reliability.yml` because this repository did not already have a GitHub Actions workflow directory. It runs on relevant pull requests/main pushes plus manual dispatch, uses Node 20 + `npm ci`, executes `npm run test:resume-reliability`, and uploads the generated reports/logs for seven days even when the gate fails.
+- Current structured gate result is passed: Generated PDF Regression passed all 19 cases; Template Corpus Benchmark passed all six families at 100% average/minimum measurable fidelity with exact page-count matching for all six.
+- Final validation passed: unified reliability gate, TypeScript, targeted reliability-script ESLint, 28/28 Jest suites with 117/117 tests, production Next.js build, report git-ignore verification, and `git diff --check`.
+- Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1183,15 +1209,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 22 - Machine-Readable Reliability Reports & CI Regression Gate**.
+The next implementation should be **Phase 23 - Sanitized Real-World Fixture Intake & Benchmark Baseline Expansion**.
 
 Reason:
 
-- Phase 21 now proves differential fidelity across six structurally different synthetic template families, but its benchmark result primarily lives in console output.
-- The next reliability step is to emit structured benchmark results that CI, release checks, and future fixture additions can compare without scraping human-readable logs.
-- Benchmark diagnostics should be machine-readable and stable enough for CI/release comparisons without introducing production runtime dependencies.
-- One bounded reliability command should run the generated-PDF regression plus the differential template corpus and fail on content loss, fidelity regression, unexpected page expansion, new blocking capabilities, or benchmark-threshold drift.
-- Reports should identify the exact family/check that regressed while keeping known capability limitations separate from hard verification failures, and they must remain local/generated artifacts with no private resume data.
+- Phase 22 now provides a deterministic CI/release gate with structured per-case reports, so the next gap is broader source-PDF diversity rather than test observability.
+- Synthetic fixtures deliberately cover layout families, but third-party resume generators can still expose unusual font encodings, PDF producers, text transforms, clipping, and operator combinations that synthetic React-PDF fixtures do not exercise.
+- The next benchmark layer should support a bounded manifest of intentionally sanitized real-world PDFs with explicit expected capabilities and no personal/private resume data.
+- Real-world fixtures should reuse the existing reliability-report schema so CI can compare extraction confidence, content coverage, capability status, fidelity, and page-count behavior consistently.
+- Exact embedded fonts, private source resumes, and unsupported artwork should remain outside committed fixtures unless they are legally safe, anonymized, and explicitly intended for regression use.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 

@@ -11,6 +11,7 @@
     "test": "jest",
     "test:pdf": "tsx src/tests/pdf/resume-pdf-regression.ts",
     "test:template-corpus": "cross-env PDF_REGRESSION_TEST=1 tsx src/tests/pdf/resume-template-corpus-regression.tsx",
+    "test:resume-reliability": "tsx src/tests/pdf/resume-reliability-gate.ts",
     "test:watch": "jest --watch",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
