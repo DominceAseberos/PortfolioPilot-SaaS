@@ -51,12 +51,12 @@ const fixtures: { name: string; expected: string[]; data: ImprovedResumeData }[]
 async function main() {
   const React = await import('react')
   const { renderToBuffer } = await import('@react-pdf/renderer')
-  const { extractText } = await import('unpdf')
+  const { extractText, getDocumentProxy } = await import('unpdf')
   const { jsPDF } = await import('jspdf')
   const { ResumeTemplateRenderer, UploadedResumeTemplateRenderer } = await import('../../components/pdf/ImprovedResumeTemplate')
   const { verifyRenderedResumePdf, verifyUploadedRenderedResumePdf } = await import('../../features/resume/services/resume-pdf-verification.service')
   const { verifyResumeTemplateFidelity } = await import('../../features/resume/services/resume-template-fidelity.service')
-  const { cmykToHex } = await import('../../features/resume/services/resume-template-graphics.service')
+  const { cmykToHex, extractResumeGraphicStyle } = await import('../../features/resume/services/resume-template-graphics.service')
   const { inspectPdfWithoutReadableText } = await import('../../features/resume/services/resume-scanned-pdf.service')
 
   let rendered = 0
@@ -231,6 +231,7 @@ async function main() {
   assert.ok(fidelity.checks.some((check) => check.key === 'graphics:body-text-color' && check.passed), 'uploaded render should verify body text color')
   assert.ok(fidelity.checks.some((check) => check.key === 'graphics:accent-text-color' && check.passed), 'uploaded render should verify accent text color')
   assert.ok(fidelity.checks.some((check) => check.key === 'graphics:background:0' && check.passed), 'uploaded render should verify the detected header background')
+  assert.equal(fidelity.actualContract.graphics?.unsupportedFeatures?.length ?? 0, 0, 'supported dividers/backgrounds should not be mislabeled as unsupported artwork')
   console.log(`PASS uploaded contract render fidelity (${fidelity.score}% structure/style/graphics score, ${uploadedParsed.totalPages}p)`)
 
   const uploadedVerification = await verifyUploadedRenderedResumePdf(
@@ -277,6 +278,18 @@ async function main() {
   assert.equal(cmykToHex([0, 1, 1, 0]), '#ff0000', 'fractional CMYK should normalize to RGB hex')
   assert.equal(cmykToHex([0, 100, 100, 0]), '#ff0000', 'percentage CMYK should normalize to RGB hex')
   console.log('PASS CMYK graphic color normalization')
+
+  const decorated = new jsPDF({ unit: 'pt', format: 'a4' })
+  decorated.text('Resume with logo', 36, 48)
+  decorated.addImage({ data: new Uint8ClampedArray([20, 40, 60, 255]), width: 1, height: 1 }, 'RGBA', 36, 64, 24, 24)
+  const decoratedBuffer = Buffer.from(decorated.output('arraybuffer'))
+  const decoratedProxy = await getDocumentProxy(new Uint8Array(decoratedBuffer.buffer, decoratedBuffer.byteOffset, decoratedBuffer.byteLength))
+  const decoratedPage = await decoratedProxy.getPage(1)
+  const decoratedViewport = decoratedPage.getViewport({ scale: 1 })
+  const decoratedGraphics = await extractResumeGraphicStyle(decoratedProxy, decoratedViewport.width, decoratedViewport.height)
+  await decoratedProxy.destroy()
+  assert.ok(decoratedGraphics?.unsupportedFeatures?.includes('raster-image'), 'Raster image operators should be surfaced as an unsupported fidelity capability')
+  console.log('PASS unsupported raster graphic detection')
 
   const scanned = new jsPDF()
   scanned.addImage({ data: new Uint8ClampedArray([255, 255, 255, 255]), width: 1, height: 1 }, 'RGBA', 15, 15, 100, 100)

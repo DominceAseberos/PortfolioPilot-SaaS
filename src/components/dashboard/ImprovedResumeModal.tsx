@@ -9,6 +9,7 @@ import { ResumeEvidenceBadge } from '@/components/dashboard/ResumeEvidenceBadge'
 import { InitialResumeChangesReview } from '@/components/dashboard/InitialResumeChangesReview'
 import { analyzeResumePreflight, type ResumePreflightResult } from '@/features/resume/services/resume-layout.service'
 import { analyzeUploadedTemplatePreflight } from '@/features/resume/services/resume-template-layout-plan.service'
+import { buildResumeTemplateCapabilityReport } from '@/features/resume/services/resume-template-capability.service'
 import type { ResumeRenderVerificationResult } from '@/features/resume/services/resume-pdf-verification.service'
 import type { ResumeChangeOperation } from '@/features/resume/services/resume-diff.service'
 import { getSectionSemanticType, reorderResumeSections } from '@/features/resume/services/resume-template-allocation.service'
@@ -62,6 +63,10 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const preflight = selectedTemplate === 'uploaded' && data.templateContract?.source === 'uploaded'
     ? analyzeUploadedTemplatePreflight(data, data.templateContract)
     : analyzeResumePreflight(data, selectedTemplate === 'uploaded' ? 'classic' : selectedTemplate)
+  const capabilityReport = selectedTemplate === 'uploaded' && data.templateContract?.source === 'uploaded'
+    ? buildResumeTemplateCapabilityReport(data.templateContract)
+    : null
+  const uploadedExportBlocked = capabilityReport?.overall === 'blocked'
 
   useEffect(() => {
     const timer = window.setTimeout(() => setPreviewData(data), 250)
@@ -369,8 +374,34 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           </div>
         )}
 
-        {selectedTemplate === 'uploaded' && (
-          <p className="text-[10px] text-muted-foreground">Preserve Uploaded Layout uses region capacity and rendered-geometry verification. Content is never auto-shrunk below the detected readable font floor.</p>
+        {selectedTemplate === 'uploaded' && capabilityReport && (
+          <div className="space-y-2 pt-1">
+            <p className="text-[10px] text-muted-foreground">Preserve Uploaded Layout uses region capacity and rendered verification. Content is never auto-shrunk below the detected readable font floor.</p>
+            <div className={`rounded-lg border p-3 space-y-2 ${capabilityReport.overall === 'blocked' ? 'border-red-500/30 bg-red-500/5' : capabilityReport.overall === 'limited' ? 'border-amber-500/30 bg-amber-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-bold">Template fidelity capabilities</p>
+                <span className="text-[10px] font-semibold uppercase tracking-wide">
+                  {capabilityReport.overall === 'blocked' ? 'Export blocked' : capabilityReport.overall === 'limited' ? 'Verified with limits' : 'Fully supported'}
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {capabilityReport.counts.preserved} preserved · {capabilityReport.counts.approximated} approximated · {capabilityReport.counts.unsupported} unsupported · {capabilityReport.counts.blocking} blocking
+              </p>
+              <div className="space-y-1.5">
+                {capabilityReport.items.map((item) => (
+                  <div key={item.key} className="flex items-start justify-between gap-3 text-[10px]">
+                    <div className="min-w-0">
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-muted-foreground leading-relaxed">{item.detail}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 font-semibold capitalize ${item.status === 'blocking' ? 'border-red-500/30 text-red-600' : item.status === 'unsupported' ? 'border-amber-500/30 text-amber-700' : item.status === 'approximated' ? 'border-blue-500/30 text-blue-700' : 'border-emerald-500/30 text-emerald-700'}`}>
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
         {optimizationError && <p className="text-xs text-amber-600">{optimizationError}</p>}
 
@@ -638,9 +669,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
               <Button
                 size="sm"
                 className="bg-primary text-primary-foreground font-bold shadow-md px-4 sm:px-6"
-                disabled={loading || verifyingPdf || !blob || !url || Boolean(error)}
+                disabled={loading || verifyingPdf || !blob || !url || Boolean(error) || uploadedExportBlocked}
                 onClick={() => verifyAndDownloadPdf(blob, url)}
-                title={error ? 'Could not generate the PDF' : 'Verify the rendered PDF before downloading'}
+                title={uploadedExportBlocked ? 'Uploaded continuation-page artwork cannot be reproduced safely. Choose a built-in template for verified export.' : error ? 'Could not generate the PDF' : 'Verify the rendered PDF before downloading'}
               >
                 {loading ? 'Generating...' : verifyingPdf ? 'Verifying...' : <><Download className="h-4 w-4 mr-2" /> Download PDF</>}
               </Button>

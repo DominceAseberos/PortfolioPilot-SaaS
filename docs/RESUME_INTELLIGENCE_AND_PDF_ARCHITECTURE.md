@@ -1114,6 +1114,31 @@ Phase 5 is now complete.
 - Final validation passed: 27/27 Jest suites, 112/112 tests, generated-PDF regression including 100% uploaded structure/style/graphics fidelity, three-page continuation verification, CMYK normalization, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 - Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
 
+### Phase 20 - Fidelity Capability Report & Safe Fallback UX
+
+- [x] Add deterministic template capability reporting with preserved, approximated, unsupported, and blocking states
+- [x] Report measured structure, page geometry, typography hierarchy, exact-font approximation, verified graphics, and continuation behavior separately
+- [x] Detect unsupported raster image/logo operators from the uploaded PDF
+- [x] Detect gradients/shading, pattern/special-color operators, and bounded complex vector artwork without attempting unsafe reproduction
+- [x] Keep unsupported graphic features informational unless they create a known verification blocker
+- [x] Surface the capability report directly in the uploaded-layout editor instead of relying on one opaque fidelity percentage
+- [x] Disable verified download when the capability report already knows page-specific continuation artwork is blocking
+- [x] Keep preview/editing available when export is blocked so users can inspect the resume or choose another template
+- [x] Add real PDF regression for unsupported raster artwork and guard against false-positive unsupported flags on verified dividers/backgrounds
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+
+#### Cycle 28 implementation notes
+
+- Added `resume-template-capability.service.ts`. The report is deterministic and derives only from the extracted template contract/operator evidence; no LLM is asked to judge visual fidelity.
+- Capability items use four explicit states: `preserved`, `approximated`, `unsupported`, and `blocking`. The report summarizes them as `verified`, `limited`, or `blocked`.
+- Exact embedded font-family reproduction remains intentionally approximated. PortfolioPilot preserves measured font class and type scale but does not copy embedded font files, avoiding licensing/runtime instability.
+- `ResumeTemplateGraphicStyleContract` now records unsupported graphic primitives. PDF.js image operators become `raster-image`; shading operators become `gradient-or-shading`; pattern/special-color operators are recorded separately; significant unrecognized vector paths become `complex-vector-artwork`.
+- Unsupported artwork does not silently disappear from the user's mental model anymore. The editor lists the detected limitation and explains that text/layout verification remains available.
+- Known page-specific continuation artwork remains a blocking capability because the flowing React-PDF renderer cannot deterministically switch arbitrary artwork by auto-generated page number. The Download PDF action is disabled in that known-blocked state while preview/editing stay available.
+- Real generated-PDF regression now proves a text resume containing a raster logo is classified with `raster-image`, while the fully supported uploaded fixture still reports zero unsupported graphic flags.
+- Final validation passed: 28/28 Jest suites, 114/114 tests, generated-PDF regression including 100% uploaded structure/style/graphics fidelity, three-page continuation verification, CMYK normalization, unsupported-raster detection, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+- Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1129,15 +1154,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 20 - Fidelity Capability Report & Safe Fallback UX**.
+The next implementation should be **Phase 21 - Template Corpus & Differential Fidelity Benchmarks**.
 
 Reason:
 
-- PortfolioPilot can now verify content, structure, typography, measured graphics, and bounded multi-page continuation behavior.
-- Some uploaded PDFs will still contain intentionally unsupported visual primitives such as raster decorations, gradients, complex vector artwork, unusual color spaces, or page-specific artwork that a flowing renderer cannot reproduce exactly.
-- The next reliability step is to make those boundaries explicit to the user before export instead of representing fidelity as a single opaque percentage.
-- A deterministic capability report should distinguish preserved, approximated, unsupported, and verification-blocking template features without asking the LLM to judge visual fidelity.
-- Exact embedded font files and arbitrary artwork should remain outside reproduction until deterministic extraction, licensing, and render verification are all safe.
+- The pipeline now has deterministic extraction, capability reporting, safe fallbacks, and render verification, but most deep fidelity regression still centers on a small number of controlled layouts.
+- The next reliability risk is overfitting: a rule that works for one two-column resume may regress centered single-column, serif, sidebar-heavy, multi-page, or visually minimal resumes.
+- A bounded template corpus should exercise structurally different resume families and compare source-contract → rendered-PDF → re-extracted-contract behavior using the same verification services production uses.
+- Benchmarks should remain synthetic or sanitized so regression fixtures contain no private resume data.
+- Unsupported artwork should continue to be reported rather than forcing the benchmark suite to fake fidelity that PortfolioPilot cannot verify.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 

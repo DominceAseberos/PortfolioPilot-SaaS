@@ -3,6 +3,7 @@ import type {
   ResumeTemplateBackgroundRegion,
   ResumeTemplateGraphicStyleContract,
   ResumeTemplatePageGraphicProfile,
+  ResumeTemplateUnsupportedGraphicFeature,
 } from '@/types/resume-template-contract'
 
 type PdfProxy = Awaited<ReturnType<typeof getDocumentProxy>>
@@ -256,6 +257,7 @@ export async function extractResumeGraphicStyle(
   const textSamples: TextColorSample[] = []
   const backgrounds: RawBackground[] = []
   const dividers: DividerSample[] = []
+  const unsupportedFeatures = new Set<ResumeTemplateUnsupportedGraphicFeature>()
   const pageArea = Math.max(1, pageWidth * pageHeight)
 
   for (let index = 0; index < operatorList.fnArray.length; index++) {
@@ -272,6 +274,27 @@ export async function extractResumeGraphicStyle(
     }
     if (fn === PDFJS.OPS.transform && args && args.length >= 6 && args.slice(0, 6).every((value) => typeof value === 'number')) {
       transform = multiplyMatrix(transform, args.slice(0, 6) as Matrix)
+      continue
+    }
+    if (
+      fn === PDFJS.OPS.paintImageXObject
+      || fn === PDFJS.OPS.paintInlineImageXObject
+      || fn === PDFJS.OPS.paintImageMaskXObject
+      || fn === PDFJS.OPS.paintImageMaskXObjectGroup
+      || fn === PDFJS.OPS.paintInlineImageXObjectGroup
+      || fn === PDFJS.OPS.paintImageXObjectRepeat
+      || fn === PDFJS.OPS.paintImageMaskXObjectRepeat
+      || fn === PDFJS.OPS.paintSolidColorImageMask
+    ) {
+      unsupportedFeatures.add('raster-image')
+      continue
+    }
+    if (fn === PDFJS.OPS.shadingFill) {
+      unsupportedFeatures.add('gradient-or-shading')
+      continue
+    }
+    if (fn === PDFJS.OPS.setFillColorN || fn === PDFJS.OPS.setStrokeColorN) {
+      unsupportedFeatures.add('pattern-or-special-color')
       continue
     }
     if (fn === PDFJS.OPS.setFillRGBColor) {
@@ -352,17 +375,23 @@ export async function extractResumeGraphicStyle(
       || paintOperator === PDFJS.OPS.fillStroke
       || paintOperator === PDFJS.OPS.eoFillStroke
 
-    if (isStroke && width >= pageWidth * 0.15 && height <= Math.max(3, lineWidth * 2)) {
+    const isDivider = isStroke && width >= pageWidth * 0.15 && height <= Math.max(3, lineWidth * 2)
+    if (isDivider) {
       dividers.push({ color: strokeColor, width: lineWidth, length: width })
     }
 
     const area = width * height
-    if (isFill && area >= pageArea * 0.04 && !isAlmostWhite(fillColor)) {
+    const isBackground = isFill && area >= pageArea * 0.04 && !isAlmostWhite(fillColor)
+    if (isBackground) {
       backgrounds.push({ color: fillColor, xMin, yMin, xMax, yMax, area })
+    }
+
+    if ((isStroke || isFill) && !isDivider && !isBackground && area >= pageArea * 0.005 && width >= 12 && height >= 8) {
+      unsupportedFeatures.add('complex-vector-artwork')
     }
   }
 
-  if (textSamples.length === 0 && backgrounds.length === 0 && dividers.length === 0) return undefined
+  if (textSamples.length === 0 && backgrounds.length === 0 && dividers.length === 0 && unsupportedFeatures.size === 0) return undefined
 
   const normalizedBackgrounds = distinctBackgrounds(backgrounds)
   const outsideBackgrounds = textSamples.filter((sample) => !normalizedBackgrounds.some((region) => containsPoint(region, sample)))
@@ -377,5 +406,6 @@ export async function extractResumeGraphicStyle(
     dividerColor: divider?.color,
     dividerWidth: divider?.width,
     backgroundRegions: normalizedBackgrounds.map((background) => toBackgroundRegion(background, pageWidth, pageHeight, textSamples)),
+    unsupportedFeatures: Array.from(unsupportedFeatures).sort(),
   }
 }

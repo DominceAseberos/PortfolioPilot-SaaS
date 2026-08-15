@@ -29,12 +29,19 @@ export interface ResumeTemplateBackgroundRegion {
   textColor?: string
 }
 
+export type ResumeTemplateUnsupportedGraphicFeature =
+  | 'raster-image'
+  | 'gradient-or-shading'
+  | 'pattern-or-special-color'
+  | 'complex-vector-artwork'
+
 export interface ResumeTemplateGraphicStyleContract {
   bodyTextColor: string
   accentTextColor?: string
   dividerColor?: string
   dividerWidth?: number
   backgroundRegions: ResumeTemplateBackgroundRegion[]
+  unsupportedFeatures?: ResumeTemplateUnsupportedGraphicFeature[]
 }
 
 export interface ResumeTemplatePageGraphicProfile {
