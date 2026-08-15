@@ -53,7 +53,7 @@ export async function extractResumeLayout(buffer: Buffer): Promise<ResumeLayoutD
       for (let pageIndex = 0; pageIndex < inspectedPageCount; pageIndex++) {
         const dimensions = pageDimensions[pageIndex] ?? DEFAULT_PAGE
         const graphics = await extractResumeGraphicStyle(pdf, dimensions.width, dimensions.height, pageIndex + 1)
-        if (graphics) pageGraphics.push({ pageNumber: pageIndex + 1, graphics })
+        pageGraphics.push({ pageNumber: pageIndex + 1, graphics })
       }
       layout.templateContract.pageGraphics = pageGraphics
       layout.templateContract.graphics = pageGraphics.find((profile) => profile.pageNumber === 1)?.graphics

@@ -1,4 +1,4 @@
-import { planResumeTemplateLayout } from '@/features/resume/services/resume-template-layout-plan.service'
+import { analyzeUploadedTemplatePreflight, planResumeTemplateLayout } from '@/features/resume/services/resume-template-layout-plan.service'
 import type { ImprovedResumeData } from '@/types/resume'
 import type { ResumeTemplateContract } from '@/types/resume-template-contract'
 
@@ -99,5 +99,59 @@ describe('resume template layout plan', () => {
     expect(main?.requiredPages).toBeGreaterThan(1)
     expect(plan.estimatedPages).toBeGreaterThan(1)
     expect(plan.regions.flatMap((item) => item.sections).find((section) => section.title === 'Experience')).toBeDefined()
+  })
+
+  it('accepts continuation graphics that match the flowing renderer repeat policy', () => {
+    const graphics = {
+      bodyTextColor: '#111827',
+      accentTextColor: '#2563eb',
+      dividerColor: '#2563eb',
+      dividerWidth: 0.8,
+      backgroundRegions: [
+        { color: '#f1f5f9', xRatio: 0, topRatio: 0, widthRatio: 0.32, heightRatio: 1 },
+      ],
+    }
+    const repeatableContract: ResumeTemplateContract = {
+      ...contract,
+      sourcePageCount: 2,
+      graphics,
+      pageGraphics: [
+        { pageNumber: 1, graphics },
+        { pageNumber: 2, graphics },
+      ],
+    }
+
+    const preflight = analyzeUploadedTemplatePreflight({ ...data, templateContract: repeatableContract }, repeatableContract)
+    expect(preflight.warnings.some((warning) => warning.code === 'page-graphics-variation')).toBe(false)
+  })
+
+  it('warns before export when continuation artwork cannot be reproduced by the flowing renderer', () => {
+    const firstPageGraphics = {
+      bodyTextColor: '#111827',
+      backgroundRegions: [
+        { color: '#f1f5f9', xRatio: 0, topRatio: 0, widthRatio: 0.32, heightRatio: 1 },
+      ],
+    }
+    const pageSpecificContract: ResumeTemplateContract = {
+      ...contract,
+      sourcePageCount: 2,
+      graphics: firstPageGraphics,
+      pageGraphics: [
+        { pageNumber: 1, graphics: firstPageGraphics },
+        {
+          pageNumber: 2,
+          graphics: {
+            bodyTextColor: '#111827',
+            backgroundRegions: [
+              { color: '#fee2e2', xRatio: 0.68, topRatio: 0, widthRatio: 0.32, heightRatio: 1 },
+            ],
+          },
+        },
+      ],
+    }
+
+    const preflight = analyzeUploadedTemplatePreflight({ ...data, templateContract: pageSpecificContract }, pageSpecificContract)
+    expect(preflight.warnings.some((warning) => warning.code === 'page-graphics-variation')).toBe(true)
+    expect(preflight.recommendations.some((recommendation) => recommendation.includes('built-in template'))).toBe(true)
   })
 })

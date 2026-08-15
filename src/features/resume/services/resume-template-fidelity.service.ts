@@ -290,9 +290,34 @@ export async function verifyResumeTemplateFidelity(
       continue
     }
 
-    const bodyDistance = rgbDistance(expectedProfile.graphics.bodyTextColor, actualProfile.graphics.bodyTextColor)
-    const expectedBackgrounds = expectedProfile.graphics.backgroundRegions.filter((background) => background.heightRatio >= 0.45)
-    const backgroundMatch = expectedBackgrounds.every((expectedBackground) => actualProfile.graphics.backgroundRegions.some((actualBackground) => (
+    const expectedGraphics = expectedProfile.graphics
+    const actualGraphics = actualProfile.graphics
+    if (!expectedGraphics) {
+      const unexpectedBackgrounds = actualGraphics?.backgroundRegions.filter((background) => background.heightRatio >= 0.45) ?? []
+      const passed = unexpectedBackgrounds.length === 0
+      checks.push({
+        key: `page-graphics:${expectedProfile.pageNumber}`,
+        passed,
+        message: passed
+          ? `Continuation page ${expectedProfile.pageNumber} preserved its blank/simple graphic profile.`
+          : `Continuation page ${expectedProfile.pageNumber} gained repeatable background artwork that was absent from the uploaded source page.`,
+      })
+      continue
+    }
+
+    if (!actualGraphics) {
+      checks.push({
+        key: `page-graphics:${expectedProfile.pageNumber}`,
+        passed: false,
+        message: `Continuation page ${expectedProfile.pageNumber} lost the uploaded visual profile.`,
+      })
+      continue
+    }
+
+    const bodyDistance = rgbDistance(expectedGraphics.bodyTextColor, actualGraphics.bodyTextColor)
+    const expectedBackgrounds = expectedGraphics.backgroundRegions.filter((background) => background.heightRatio >= 0.45)
+    const actualBackgrounds = actualGraphics.backgroundRegions.filter((background) => background.heightRatio >= 0.45)
+    const matches = (expectedBackground: (typeof expectedBackgrounds)[number], actualBackground: (typeof actualBackgrounds)[number]) => (
       rgbDistance(expectedBackground.color, actualBackground.color) <= 24
       && Math.max(
         Math.abs(expectedBackground.xRatio - actualBackground.xRatio),
@@ -300,7 +325,9 @@ export async function verifyResumeTemplateFidelity(
         Math.abs(expectedBackground.widthRatio - actualBackground.widthRatio),
         Math.abs(expectedBackground.heightRatio - actualBackground.heightRatio)
       ) <= 0.05
-    )))
+    )
+    const backgroundMatch = expectedBackgrounds.every((expectedBackground) => actualBackgrounds.some((actualBackground) => matches(expectedBackground, actualBackground)))
+      && actualBackgrounds.every((actualBackground) => expectedBackgrounds.some((expectedBackground) => matches(expectedBackground, actualBackground)))
     const passed = bodyDistance <= 24 && backgroundMatch
     checks.push({
       key: `page-graphics:${expectedProfile.pageNumber}`,

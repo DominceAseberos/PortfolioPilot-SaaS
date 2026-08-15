@@ -31,6 +31,7 @@ export interface ResumePreflightWarning {
     | 'region-tight'
     | 'region-overflow'
     | 'region-rerouted'
+    | 'page-graphics-variation'
   severity: 'info' | 'warning'
   message: string
   section?: string

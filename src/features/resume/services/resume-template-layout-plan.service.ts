@@ -3,6 +3,7 @@ import type { ResumeTemplateContract, ResumeTemplateRegionContract } from '@/typ
 import { getResumeEntryBlocks, type ResumePreflightResult, type ResumePreflightWarning } from './resume-layout.service'
 import { getSectionSemanticType } from './resume-template-allocation.service'
 import { getTemplateRegionForSemanticType } from './resume-template-contract.service'
+import { assessResumeGraphicContinuation } from './resume-template-graphics.service'
 
 export type ResumeRegionFit = 'comfortable' | 'tight' | 'overflow-risk'
 
@@ -264,6 +265,15 @@ export function analyzeUploadedTemplatePreflight(
     })
   }
 
+  const graphicContinuation = assessResumeGraphicContinuation(contract.pageGraphics)
+  if (graphicContinuation.status === 'page-specific') {
+    warnings.push({
+      code: 'page-graphics-variation',
+      severity: 'warning',
+      message: `Uploaded continuation page${graphicContinuation.incompatiblePages.length > 1 ? 's' : ''} ${graphicContinuation.incompatiblePages.join(', ')} use page-specific graphics that the flowing renderer cannot safely reproduce exactly. Final export verification will block if those visual differences are lost.`,
+    })
+  }
+
   const density = plan.regions.reduce((sum, regionPlan) => sum + regionPlan.estimatedLines, 0)
   const warningPenalty = warnings.reduce((total, warning) => total + (warning.severity === 'warning' ? 5 : 2), 0)
   const fitPenalty = plan.fit === 'overflow-risk' ? 15 : plan.fit === 'tight' ? 6 : 0
@@ -272,6 +282,9 @@ export function analyzeUploadedTemplatePreflight(
 
   if (plan.overflowMoves.length > 0) {
     recommendations.push('Keep overflow routing enabled so complete sections move safely instead of being clipped.')
+  }
+  if (graphicContinuation.status === 'page-specific') {
+    recommendations.push('Use a built-in template if the continuation-page artwork must be preserved exactly; Preserve Uploaded Layout will keep content safe but will reject visual drift at final verification.')
   }
   if (plan.fit === 'overflow-risk') {
     recommendations.push('Allow additional pages or shorten content manually; do not force the uploaded layout below its readable font floor.')

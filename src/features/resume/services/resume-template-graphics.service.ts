@@ -2,6 +2,7 @@ import { getDocumentProxy, getResolvedPDFJS } from 'unpdf'
 import type {
   ResumeTemplateBackgroundRegion,
   ResumeTemplateGraphicStyleContract,
+  ResumeTemplatePageGraphicProfile,
 } from '@/types/resume-template-contract'
 
 type PdfProxy = Awaited<ReturnType<typeof getDocumentProxy>>
@@ -157,6 +158,79 @@ function distinctBackgrounds(backgrounds: RawBackground[]): RawBackground[] {
     if (output.length >= 3) break
   }
   return output
+}
+
+function rgbDistance(expected: string, actual: string): number {
+  const parse = (value: string) => [
+    Number.parseInt(value.slice(1, 3), 16),
+    Number.parseInt(value.slice(3, 5), 16),
+    Number.parseInt(value.slice(5, 7), 16),
+  ]
+  const left = parse(expected)
+  const right = parse(actual)
+  return Math.sqrt(left.reduce((sum, value, index) => sum + (value - right[index]) ** 2, 0))
+}
+
+function backgroundMatches(expected: ResumeTemplateBackgroundRegion, actual: ResumeTemplateBackgroundRegion): boolean {
+  const geometryDistance = Math.max(
+    Math.abs(expected.xRatio - actual.xRatio),
+    Math.abs(expected.topRatio - actual.topRatio),
+    Math.abs(expected.widthRatio - actual.widthRatio),
+    Math.abs(expected.heightRatio - actual.heightRatio)
+  )
+  return rgbDistance(expected.color, actual.color) <= 24 && geometryDistance <= 0.04
+}
+
+export interface ResumeGraphicContinuationAssessment {
+  status: 'single-page' | 'reproducible' | 'page-specific'
+  inspectedPages: number[]
+  incompatiblePages: number[]
+}
+
+export function assessResumeGraphicContinuation(
+  pageProfiles: ResumeTemplatePageGraphicProfile[] | undefined
+): ResumeGraphicContinuationAssessment {
+  const inspectedPages = (pageProfiles ?? []).map((profile) => profile.pageNumber).sort((a, b) => a - b)
+  const first = pageProfiles?.find((profile) => profile.pageNumber === 1)?.graphics
+  const continuationProfiles = (pageProfiles ?? []).filter((profile) => profile.pageNumber > 1)
+
+  if (continuationProfiles.length === 0) {
+    return { status: 'single-page', inspectedPages, incompatiblePages: [] }
+  }
+
+  const repeatableBackgrounds = (first?.backgroundRegions ?? []).filter((background) => background.heightRatio >= 0.8)
+  const incompatiblePages: number[] = []
+
+  for (const profile of continuationProfiles) {
+    const graphics = profile.graphics
+    if (!graphics) {
+      if (repeatableBackgrounds.length > 0) incompatiblePages.push(profile.pageNumber)
+      continue
+    }
+
+    let compatible = Boolean(first) && rgbDistance(first!.bodyTextColor, graphics.bodyTextColor) <= 24
+
+    if (compatible && graphics.accentTextColor && first?.accentTextColor) {
+      compatible = rgbDistance(first.accentTextColor, graphics.accentTextColor) <= 24
+    }
+    if (compatible && graphics.dividerColor && first?.dividerColor) {
+      compatible = rgbDistance(first.dividerColor, graphics.dividerColor) <= 24
+    }
+
+    const continuationBackgrounds = graphics.backgroundRegions.filter((background) => background.heightRatio >= 0.45)
+    if (compatible) {
+      compatible = continuationBackgrounds.every((background) => repeatableBackgrounds.some((candidate) => backgroundMatches(background, candidate)))
+        && repeatableBackgrounds.every((background) => continuationBackgrounds.some((candidate) => backgroundMatches(background, candidate)))
+    }
+
+    if (!compatible) incompatiblePages.push(profile.pageNumber)
+  }
+
+  return {
+    status: incompatiblePages.length > 0 ? 'page-specific' : 'reproducible',
+    inspectedPages,
+    incompatiblePages,
+  }
 }
 
 export async function extractResumeGraphicStyle(

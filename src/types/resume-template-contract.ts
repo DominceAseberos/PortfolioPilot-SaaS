@@ -39,7 +39,7 @@ export interface ResumeTemplateGraphicStyleContract {
 
 export interface ResumeTemplatePageGraphicProfile {
   pageNumber: number
-  graphics: ResumeTemplateGraphicStyleContract
+  graphics?: ResumeTemplateGraphicStyleContract
 }
 
 export interface ResumeTemplateRegionContract {

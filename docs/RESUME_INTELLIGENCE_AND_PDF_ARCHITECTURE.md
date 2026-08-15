@@ -1089,6 +1089,31 @@ Phase 5 is now complete.
 - Final validation passed: 27/27 Jest suites, 110/110 tests, all built-in generated-PDF checks, uploaded structure/style/graphics fidelity at 100%, combined export verification, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 - Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither is introduced by this phase.
 
+### Phase 19 - Multi-page Visual Continuation & Operator Coverage
+
+- [x] Bound uploaded per-page graphic inspection to the first three pages
+- [x] Preserve an explicit page graphic profile for every inspected page, including pages without extractable graphic metadata
+- [x] Normalize PDF CMYK fill/stroke color state into deterministic RGB hex tokens
+- [x] Verify continuation-page body palette and large background geometry against the uploaded source profile
+- [x] Compare continuation backgrounds bidirectionally so extra repeated artwork is detected, not only missing artwork
+- [x] Model the flowing renderer's actual repeat policy: full-height backgrounds repeat, first-page header bands do not
+- [x] Add preflight detection for page-specific continuation artwork before PDF generation
+- [x] Keep final rendered-PDF verification as the hard export gate when page-specific visuals are not safely reproducible
+- [x] Add regressions for safe repeated continuation styling, deliberately incompatible page-specific styling, three-page uploaded resumes, and CMYK conversion
+- [x] Run full Jest, generated-PDF, TypeScript, targeted lint, production build, and diff-hygiene validation
+
+#### Cycle 27 implementation notes
+
+- Uploaded graphic inspection remains deliberately bounded to three pages, preventing long resumes from creating unbounded contracts or expensive operator scans.
+- `ResumeTemplatePageGraphicProfile` now represents every inspected page explicitly. An inspected page can carry no graphic contract rather than being indistinguishable from a page that was never inspected.
+- Added deterministic CMYK-to-RGB normalization for PDF fill/stroke state. Unsupported color spaces continue to fall back without weakening text/layout extraction.
+- Added `assessResumeGraphicContinuation()`. It evaluates source continuation pages against the renderer's real policy instead of assuming every page should match page one: only first-page backgrounds covering at least 80% of page height are considered repeatable; short header bands remain first-page-only.
+- Uploaded-template preflight now emits `page-graphics-variation` before rendering when inspected continuation pages contain palette/background artwork that cannot be reproduced safely by the flowing renderer. The user is directed toward a built-in template when exact page-specific artwork is required.
+- Final fidelity verification now matches large continuation backgrounds in both directions. This closes a false-positive case where the rendered PDF could add a repeated sidebar/background that was absent from the corresponding uploaded source page.
+- The native regression renders a long uploaded-layout resume across three pages and verifies page-2/page-3 continuation profiles. Separate unit coverage verifies both repeatable and deliberately page-specific continuation contracts.
+- Final validation passed: 27/27 Jest suites, 112/112 tests, generated-PDF regression including 100% uploaded structure/style/graphics fidelity, three-page continuation verification, CMYK normalization, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+- Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1104,15 +1129,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 19 - Multi-page Visual Continuation & Operator Coverage**.
+The next implementation should be **Phase 20 - Fidelity Capability Report & Safe Fallback UX**.
 
 Reason:
 
-- First-page RGB palette, divider, and large background extraction now round-trip with verified fidelity.
-- The next reliability gap is multi-page/custom-template variation: repeated sidebars, continuation-page backgrounds, and pages whose visual regions differ from page one.
-- Additional safe operator coverage should include normalized CMYK color state and per-page graphic contracts without treating unsupported patterns/images as reproducible styling.
-- Multi-page visual metadata must remain bounded so long resumes do not create unbounded contracts or slow normal parsing.
-- Exact font files, raster decorations, complex gradients, and arbitrary vector artwork should stay outside verified reproduction until they have safe deterministic adapters.
+- PortfolioPilot can now verify content, structure, typography, measured graphics, and bounded multi-page continuation behavior.
+- Some uploaded PDFs will still contain intentionally unsupported visual primitives such as raster decorations, gradients, complex vector artwork, unusual color spaces, or page-specific artwork that a flowing renderer cannot reproduce exactly.
+- The next reliability step is to make those boundaries explicit to the user before export instead of representing fidelity as a single opaque percentage.
+- A deterministic capability report should distinguish preserved, approximated, unsupported, and verification-blocking template features without asking the LLM to judge visual fidelity.
+- Exact embedded font files and arbitrary artwork should remain outside reproduction until deterministic extraction, licensing, and render verification are all safe.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 
