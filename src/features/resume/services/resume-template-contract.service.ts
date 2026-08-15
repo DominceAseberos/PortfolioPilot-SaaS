@@ -230,16 +230,26 @@ function getDetectedSectionHeadings(page: ResumeLayoutPage) {
 }
 
 function estimateColumnWidth(page: ResumeLayoutPage, column: 1 | 2): number {
-  const all = page.lines.filter((line) => line.width > 0)
-  const selected = all.filter((line) => line.column === column)
-  if (!all.length || !selected.length) return 0.5
+  const all = page.lines.filter((line) => line.width > 0 && (line.column === 1 || line.column === 2))
+  const left = all.filter((line) => line.column === 1)
+  const right = all.filter((line) => line.column === 2)
+  if (!left.length || !right.length) return 0.5
 
-  const minX = Math.min(...all.map((line) => line.x))
-  const maxX = Math.max(...all.map((line) => line.x + line.width))
-  const span = Math.max(1, maxX - minX)
-  const selectedMin = Math.min(...selected.map((line) => line.x))
-  const selectedMax = Math.max(...selected.map((line) => line.x + line.width))
-  return Math.max(0.2, Math.min(0.8, (selectedMax - selectedMin) / span))
+  const contentMinX = Math.min(...all.map((line) => line.x))
+  const observedContentMaxX = Math.max(...all.map((line) => line.x + line.width))
+  const pageWidth = page.width ?? 595.28
+  const symmetricContentMaxX = Math.max(contentMinX + 1, pageWidth - contentMinX)
+  const contentMaxX = Math.max(observedContentMaxX, symmetricContentMaxX)
+  const usableSpan = Math.max(1, contentMaxX - contentMinX)
+
+  // Text often occupies only a fraction of its visual column (for example a
+  // short skills list in a wide sidebar). Derive the split from where the
+  // right column actually starts rather than from each column's longest line.
+  const rightStart = Math.min(...right.map((line) => line.x))
+  const typicalGutter = Math.max(8, Math.min(24, usableSpan * 0.035))
+  const splitX = rightStart - typicalGutter / 2
+  const leftRatio = Math.max(0.2, Math.min(0.8, (splitX - contentMinX) / usableSpan))
+  return column === 1 ? leftRatio : 1 - leftRatio
 }
 
 function estimateMinimumFontSize(page: ResumeLayoutPage): number {
@@ -257,6 +267,13 @@ function medianNumber(values: number[], fallback: number): number {
   const sorted = [...values].sort((a, b) => a - b)
   const middle = Math.floor(sorted.length / 2)
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+}
+
+function quantileNumber(values: number[], quantile: number, fallback: number): number {
+  if (!values.length) return fallback
+  const sorted = [...values].sort((a, b) => a - b)
+  const index = Math.max(0, Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * quantile)))
+  return sorted[index]
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -308,11 +325,15 @@ function inferStyleContract(page: ResumeLayoutPage, minimumFontSize: number): No
   for (const column of [0, 1, 2]) {
     const lines = bodyLines.filter((line) => line.column === column).sort((a, b) => b.y - a.y)
     for (let index = 1; index < lines.length; index++) {
-      const ratio = (lines[index - 1].y - lines[index].y) / Math.max(1, bodyFontSize)
+      const previous = lines[index - 1]
+      const current = lines[index]
+      if (Math.abs(previous.fontSize - current.fontSize) > 0.75) continue
+      if (Math.abs(previous.x - current.x) > 18) continue
+      const ratio = (previous.y - current.y) / Math.max(1, bodyFontSize)
       if (ratio >= 1.05 && ratio <= 2.2) pitchRatios.push(ratio)
     }
   }
-  const lineHeight = Math.round(clamp(medianNumber(pitchRatios, 1.3), 1.15, 1.6) * 20) / 20
+  const lineHeight = Math.round(clamp(quantileNumber(pitchRatios, 0.1, 1.3), 1.15, 1.6) * 20) / 20
 
   const sectionGaps: number[] = []
   for (const heading of detectedHeadings) {
@@ -327,7 +348,7 @@ function inferStyleContract(page: ResumeLayoutPage, minimumFontSize: number): No
     const gap = previousContent.y - heading.y - bodyFontSize
     if (gap >= 4 && gap <= 36) sectionGaps.push(gap)
   }
-  const sectionGap = Math.round(clamp(medianNumber(sectionGaps, 10), 6, 18))
+  const sectionGap = Math.round(clamp(quantileNumber(sectionGaps, 0.35, 10), 6, 18))
 
   const nameCenter = nameLine ? nameLine.x + nameLine.width / 2 : 0
   const headerAlignment = nameLine && Math.abs(nameCenter - pageWidth / 2) <= pageWidth * 0.08 ? 'center' : 'left'
@@ -422,10 +443,14 @@ export function inferResumeTemplateContract(
     }
   }
 
+  const contentMinX = Math.min(...page.lines.map((line) => line.x))
+  const contentMaxX = Math.max(...page.lines.map((line) => line.x + line.width))
+  const contentSpan = Math.max(1, contentMaxX - contentMinX)
   const headings = getDetectedSectionHeadings(page).map((heading) => {
     if (heading.line.column === 0) return heading
     const nearbyFullWidthBody = page.lines.find((line) => (
       line.column === 0
+      && line.width >= contentSpan * 0.72
       && line.y < heading.line.y
       && heading.line.y - line.y <= Math.max(36, heading.line.fontSize * 4)
       && line.x <= heading.line.x + 12

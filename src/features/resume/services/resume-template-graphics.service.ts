@@ -211,13 +211,6 @@ export function assessResumeGraphicContinuation(
 
     let compatible = Boolean(first) && rgbDistance(first!.bodyTextColor, graphics.bodyTextColor) <= 24
 
-    if (compatible && graphics.accentTextColor && first?.accentTextColor) {
-      compatible = rgbDistance(first.accentTextColor, graphics.accentTextColor) <= 24
-    }
-    if (compatible && graphics.dividerColor && first?.dividerColor) {
-      compatible = rgbDistance(first.dividerColor, graphics.dividerColor) <= 24
-    }
-
     const continuationBackgrounds = graphics.backgroundRegions.filter((background) => background.heightRatio >= 0.45)
     if (compatible) {
       compatible = continuationBackgrounds.every((background) => repeatableBackgrounds.some((candidate) => backgroundMatches(background, candidate)))

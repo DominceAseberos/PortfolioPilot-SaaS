@@ -40,7 +40,7 @@ function joinItems(items: StructuredTextItem[]): string {
   return output.replace(/\s+/g, ' ').trim()
 }
 
-function splitHorizontalSegments(items: StructuredTextItem[]): StructuredTextItem[][] {
+function splitHorizontalSegments(items: StructuredTextItem[], columnSplit?: number): StructuredTextItem[][] {
   const sorted = [...items].sort((a, b) => a.x - b.x)
   const segments: StructuredTextItem[][] = []
   let current: StructuredTextItem[] = []
@@ -49,7 +49,10 @@ function splitHorizontalSegments(items: StructuredTextItem[]): StructuredTextIte
     if (previous) {
       const gap = item.x - (previous.x + previous.width)
       const fontScale = Math.max(previous.fontSize || 10, item.fontSize || 10)
-      if (gap > Math.max(24, fontScale * 2.4)) {
+      const crossesDetectedColumnBoundary = columnSplit != null
+        && previous.x + previous.width <= columnSplit
+        && item.x >= columnSplit
+      if (crossesDetectedColumnBoundary || gap > Math.max(24, fontScale * 2.4)) {
         if (current.length) segments.push(current)
         current = []
       }
@@ -59,6 +62,53 @@ function splitHorizontalSegments(items: StructuredTextItem[]): StructuredTextIte
   }
   if (current.length) segments.push(current)
   return segments
+}
+
+export function detectColumns(lines: ResumeLayoutLine[]): { columnCount: number; splitX?: number } {
+  if (lines.length < 6) return { columnCount: 1 }
+  const minX = Math.min(...lines.map((line) => line.x))
+  const maxX = Math.max(...lines.map((line) => line.x + line.width))
+  const span = Math.max(1, maxX - minX)
+  const candidates = lines.filter((line) => line.width < span * 0.72 && line.text.length > 1)
+  if (candidates.length < 6) return { columnCount: 1 }
+
+  let bestSplit: number | undefined
+  let bestScore = 0
+  for (let ratio = 0.2; ratio <= 0.75; ratio += 0.05) {
+    const split = minX + span * ratio
+    const left = candidates.filter((line) => line.x + line.width * 0.5 < split)
+    const right = candidates.filter((line) => line.x + line.width * 0.5 >= split)
+    if (left.length < 3 || right.length < 3) continue
+    const crossing = candidates.filter((line) => line.x < split && line.x + line.width > split).length
+    const balance = Math.min(left.length, right.length) / Math.max(left.length, right.length)
+    const score = balance - crossing / candidates.length
+    if (score > bestScore) {
+      bestScore = score
+      bestSplit = split
+    }
+  }
+
+  if (bestSplit === undefined) return { columnCount: 1 }
+
+  const left = candidates.filter((line) => line.x + line.width * 0.5 < bestSplit)
+  const right = candidates.filter((line) => line.x + line.width * 0.5 >= bestSplit)
+  const leftHeadings = left.filter((line) => line.isHeading)
+  const rightHeadings = right.filter((line) => line.isHeading)
+  const minY = Math.min(...candidates.map((line) => line.y))
+  const maxY = Math.max(...candidates.map((line) => line.y))
+  const headingAlignmentTolerance = Math.max(30, (maxY - minY) * 0.1)
+  const hasAlignedHeadings = leftHeadings.some((leftHeading) => (
+    rightHeadings.some((rightHeading) => Math.abs(leftHeading.y - rightHeading.y) <= headingAlignmentTolerance)
+  ))
+  const hasStructuralHeadings = hasAlignedHeadings || (leftHeadings.length >= 2 && rightHeadings.length >= 2)
+  if (hasStructuralHeadings) {
+    const leftEdge = Math.max(...left.map((line) => line.x + line.width))
+    const rightEdge = Math.min(...right.map((line) => line.x))
+    const refinedSplit = rightEdge - leftEdge >= 4 ? (leftEdge + rightEdge) / 2 : bestSplit
+    return { columnCount: 2, splitX: refinedSplit }
+  }
+
+  return { columnCount: 1 }
 }
 
 export function groupTextItemsIntoLines(items: StructuredTextItem[]): ResumeLayoutLine[] {
@@ -74,7 +124,8 @@ export function groupTextItemsIntoLines(items: StructuredTextItem[]): ResumeLayo
     } else groups.push({ items: [item], y: item.y })
   }
   const bodySize = median(usable.map((item) => item.fontSize).filter((size) => size > 0)) || 10
-  return groups.flatMap((group) => splitHorizontalSegments(group.items).map((lineItems) => {
+
+  const buildLines = (columnSplit?: number) => groups.flatMap((group) => splitHorizontalSegments(group.items, columnSplit).map((lineItems) => {
     const text = joinItems(lineItems)
     const x = Math.min(...lineItems.map((item) => item.x))
     const endX = Math.max(...lineItems.map((item) => item.x + item.width))
@@ -95,6 +146,26 @@ export function groupTextItemsIntoLines(items: StructuredTextItem[]): ResumeLayo
       isBullet: BULLET.test(text),
     }
   })).filter((line) => line.text).sort((a, b) => b.y - a.y || a.x - b.x)
+
+  const firstPass = buildLines()
+  const detection = detectColumns(firstPass)
+  if (detection.columnCount !== 2 || detection.splitX == null) return firstPass
+
+  const itemMinX = Math.min(...usable.map((item) => item.x))
+  const itemMaxX = Math.max(...usable.map((item) => item.x + item.width))
+  const itemSpan = Math.max(1, itemMaxX - itemMinX)
+  const narrowItems = usable.filter((item) => item.width < itemSpan * 0.72)
+  const leftItems = narrowItems.filter((item) => item.x + item.width * 0.5 < detection.splitX!)
+  const rightItems = narrowItems.filter((item) => item.x + item.width * 0.5 >= detection.splitX!)
+
+  let regroupSplit = detection.splitX
+  if (leftItems.length && rightItems.length) {
+    const leftEdge = Math.max(...leftItems.map((item) => item.x + item.width))
+    const rightEdge = Math.min(...rightItems.map((item) => item.x))
+    if (rightEdge - leftEdge >= 4) regroupSplit = (leftEdge + rightEdge) / 2
+  }
+
+  return buildLines(regroupSplit)
 }
 
 export function formatLayoutLine(line: ResumeLayoutLine): string {

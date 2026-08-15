@@ -1,33 +1,6 @@
-import type { ResumeLayoutLine } from './resume-layout-geometry.service'
+import { detectColumns, type ResumeLayoutLine } from './resume-layout-geometry.service'
 
-export function detectColumns(lines: ResumeLayoutLine[]): { columnCount: number; splitX?: number } {
-  if (lines.length < 6) return { columnCount: 1 }
-  const minX = Math.min(...lines.map((line) => line.x))
-  const maxX = Math.max(...lines.map((line) => line.x + line.width))
-  const span = Math.max(1, maxX - minX)
-  const candidates = lines.filter((line) => line.width < span * 0.72 && line.text.length > 1)
-  if (candidates.length < 6) return { columnCount: 1 }
-
-  let bestSplit: number | undefined
-  let bestScore = 0
-  for (let ratio = 0.35; ratio <= 0.65; ratio += 0.05) {
-    const split = minX + span * ratio
-    const left = candidates.filter((line) => line.x + line.width * 0.5 < split)
-    const right = candidates.filter((line) => line.x + line.width * 0.5 >= split)
-    if (left.length < 3 || right.length < 3) continue
-    const crossing = candidates.filter((line) => line.x < split && line.x + line.width > split).length
-    const balance = Math.min(left.length, right.length) / Math.max(left.length, right.length)
-    const score = balance - crossing / candidates.length
-    if (score > bestScore) {
-      bestScore = score
-      bestSplit = split
-    }
-  }
-
-  return bestSplit !== undefined && bestScore >= 0.38
-    ? { columnCount: 2, splitX: bestSplit }
-    : { columnCount: 1 }
-}
+export { detectColumns }
 
 export function assignReadingOrder(lines: ResumeLayoutLine[]): { columnCount: number; lines: ResumeLayoutLine[] } {
   const detection = detectColumns(lines)

@@ -1,4 +1,4 @@
-# PortfolioPilot Resume Intelligence & PDF Architecture
+﻿# PortfolioPilot Resume Intelligence & PDF Architecture
 
 > Status: Active implementation plan
 > Last updated: 2026-08-13
@@ -1139,6 +1139,35 @@ Phase 5 is now complete.
 - Final validation passed: 28/28 Jest suites, 114/114 tests, generated-PDF regression including 100% uploaded structure/style/graphics fidelity, three-page continuation verification, CMYK normalization, unsupported-raster detection, scanned-PDF detection, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
 - Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
 
+### Phase 21 - Template Corpus & Differential Fidelity Benchmarks
+
+- [x] Add a synthetic/sanitized resume-template corpus that exercises structurally different uploaded PDF families
+- [x] Cover centered serif single-column, minimal sans single-column, header-band two-column, sidebar-heavy two-column, multi-page sidebar, and raster-logo-limited layouts
+- [x] Run each family through source PDF -> layout extraction -> inferred contract -> uploaded-contract renderer -> rendered PDF -> re-extracted contract verification
+- [x] Require 100% expected-content coverage and family-specific structural/style/graphics fidelity thresholds
+- [x] Benchmark source-versus-rendered page count and fail avoidable page expansion
+- [x] Keep unsupported raster artwork explicit in capability reporting rather than pretending it is reproduced
+- [x] Add fast geometry regressions for cross-column line merging, centered identity/date false columns, and sparse sidebar detection
+- [x] Run the legacy generated-PDF regression and full application Jest suite after shared geometry changes
+- [x] Run TypeScript, touched-file ESLint, production build, and diff-hygiene validation
+
+#### Cycle 29 implementation notes
+
+- Added `src/tests/pdf/resume-template-corpus-regression.tsx` and `npm run test:template-corpus`. All fixtures are synthetic and contain no private resume data.
+- The corpus uses the same production services as uploaded resumes. It does not compare hand-authored expected contracts only; it generates a source PDF, infers the contract from that PDF, renders the canonical resume through the inferred contract, and then verifies the exact generated PDF again.
+- Six substantially different families now benchmark the pipeline: centered serif single-column, minimal sans single-column, dark header-band two-column, persistent sidebar two-column, dense multi-page sidebar, and a layout with an intentionally unsupported raster logo.
+- Final corpus result is 100% average and minimum differential fidelity across measurable structure/style/graphics, with exact page-count preservation for every family: 1->1 for all single-page sources and 2->2 for the multi-page source.
+- Exact embedded font files still make otherwise-safe uploaded layouts report `limited`; this is expected capability behavior because PortfolioPilot preserves font class/type scale without copying embedded font binaries.
+- The corpus exposed a real column-width inference bug: sparse sidebar widths were previously derived from the longest text line. Width inference now uses the actual column boundary/start positions and usable page span.
+- The corpus exposed same-baseline cross-column text merging. Layout grouping now performs a two-pass column-aware regroup using raw PDF text-item geometry so left/right fragments cannot be concatenated into one fake full-width line.
+- Full-width section promotion now requires a genuinely wide nearby body line instead of any line temporarily labeled column 0.
+- Column detection now searches realistic asymmetric resume splits and uses aligned/repeated section-heading evidence to distinguish true sparse sidebars from centered names plus right-aligned date columns.
+- Multi-page capability assessment now matches the final verification gate: body palette plus repeatable large backgrounds determine continuation compatibility; page-local accent/divider sampling differences do not create false blocking states.
+- Typography inference now selects the lower stable repeated-line pitch so measured paragraph leading is not inflated by inter-block gaps. This removed avoidable 1-page -> 2-page expansion in serif/minimal single-column corpus fixtures.
+- Added focused unit regressions covering separate-column same-baseline text, centered identity/right-aligned dates remaining single-column, and sparse-sidebar detection with a much denser main column.
+- Validation passed: legacy generated-PDF regression, 28/28 Jest suites with 117/117 tests, six-family corpus benchmark, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check`.
+- Production build still reports the pre-existing multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning; neither was introduced by this phase.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1154,15 +1183,15 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 21 - Template Corpus & Differential Fidelity Benchmarks**.
+The next implementation should be **Phase 22 - Machine-Readable Reliability Reports & CI Regression Gate**.
 
 Reason:
 
-- The pipeline now has deterministic extraction, capability reporting, safe fallbacks, and render verification, but most deep fidelity regression still centers on a small number of controlled layouts.
-- The next reliability risk is overfitting: a rule that works for one two-column resume may regress centered single-column, serif, sidebar-heavy, multi-page, or visually minimal resumes.
-- A bounded template corpus should exercise structurally different resume families and compare source-contract → rendered-PDF → re-extracted-contract behavior using the same verification services production uses.
-- Benchmarks should remain synthetic or sanitized so regression fixtures contain no private resume data.
-- Unsupported artwork should continue to be reported rather than forcing the benchmark suite to fake fidelity that PortfolioPilot cannot verify.
+- Phase 21 now proves differential fidelity across six structurally different synthetic template families, but its benchmark result primarily lives in console output.
+- The next reliability step is to emit structured benchmark results that CI, release checks, and future fixture additions can compare without scraping human-readable logs.
+- Benchmark diagnostics should be machine-readable and stable enough for CI/release comparisons without introducing production runtime dependencies.
+- One bounded reliability command should run the generated-PDF regression plus the differential template corpus and fail on content loss, fidelity regression, unexpected page expansion, new blocking capabilities, or benchmark-threshold drift.
+- Reports should identify the exact family/check that regressed while keeping known capability limitations separate from hard verification failures, and they must remain local/generated artifacts with no private resume data.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 
