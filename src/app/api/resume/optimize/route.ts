@@ -6,6 +6,15 @@ import { analyzeResumePreflight, type ResumeTemplateId } from '@/features/resume
 import type { ImprovedResumeData } from '@/types/resume'
 
 const TEMPLATE_IDS = new Set<ResumeTemplateId>(['classic', 'modern', 'compact'])
+const MAX_JSON_BYTES = 750_000
+const MAX_SECTIONS = 60
+
+function declaredBodyTooLarge(req: Request, limit: number): boolean {
+  const raw = req.headers.get('content-length')
+  if (!raw) return false
+  const length = Number(raw)
+  return Number.isFinite(length) && length > limit
+}
 
 export async function POST(req: Request) {
   try {
@@ -13,12 +22,31 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await req.json()
-    const data = body?.data as ImprovedResumeData | undefined
-    const templateId = body?.templateId as ResumeTemplateId | undefined
+    if (declaredBodyTooLarge(req, MAX_JSON_BYTES)) {
+      return NextResponse.json({ error: 'Resume data is too large to optimize safely' }, { status: 413 })
+    }
+    const rawBody = await req.text()
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_JSON_BYTES) {
+      return NextResponse.json({ error: 'Resume data is too large to optimize safely' }, { status: 413 })
+    }
+
+    let body: { data?: ImprovedResumeData; templateId?: ResumeTemplateId }
+    try {
+      const parsed: unknown = JSON.parse(rawBody)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid')
+      body = parsed as { data?: ImprovedResumeData; templateId?: ResumeTemplateId }
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 })
+    }
+
+    const data = body.data
+    const templateId = body.templateId
 
     if (!data || !Array.isArray(data.sections)) {
       return NextResponse.json({ error: 'Missing resume data' }, { status: 400 })
+    }
+    if (data.sections.length > MAX_SECTIONS) {
+      return NextResponse.json({ error: 'Resume contains too many sections to optimize safely' }, { status: 413 })
     }
     if (!templateId || !TEMPLATE_IDS.has(templateId)) {
       return NextResponse.json({ error: 'Invalid templateId' }, { status: 400 })

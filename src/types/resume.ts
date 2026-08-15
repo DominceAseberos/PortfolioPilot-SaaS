@@ -56,6 +56,7 @@ export interface ImprovedResumeData {
   originalSections?: DynamicSection[]
   improvementOperations?: ResumeChangeOperation[]
   templateContract?: ResumeTemplateContract
+  generationWarning?: string
   
   // Legacy fields (kept optional for backward compatibility during transition)
   summary?: string

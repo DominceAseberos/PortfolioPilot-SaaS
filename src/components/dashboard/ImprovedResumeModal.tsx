@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate, Columns } from 'lucide-react'
 import { BlobProvider } from '@react-pdf/renderer'
@@ -40,6 +40,21 @@ export interface ImprovedResumeModalProps {
   onClose: () => void
 }
 
+type JsonRecord = Record<string, unknown>
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
+async function readJsonObject(response: Response): Promise<JsonRecord> {
+  try {
+    const value: unknown = await response.json()
+    if (value && typeof value === 'object' && !Array.isArray(value)) return value as JsonRecord
+  } catch {
+    // Fall through to a stable error below.
+  }
+  throw new Error(response.ok ? 'The server returned an invalid response.' : `Request failed (${response.status}).`)
+}
 interface ResumeOptimizationProposal {
   sections: DynamicSection[]
   operations: ResumeChangeOperation[]
@@ -60,6 +75,13 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const [pdfVerification, setPdfVerification] = useState<ResumeRenderVerificationResult | null>(null)
   const [verifyingPdf, setVerifyingPdf] = useState(false)
   const [pdfVerificationError, setPdfVerificationError] = useState<string | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
+  const optimizationAbortRef = useRef<AbortController | null>(null)
+  const verificationAbortRef = useRef<AbortController | null>(null)
+  const mountedRef = useRef(true)
+  const requestRevisionRef = useRef(0)
+  const busy = optimizing || verifyingPdf
+  const editingLocked = busy
   const preflight = selectedTemplate === 'uploaded' && data.templateContract?.source === 'uploaded'
     ? analyzeUploadedTemplatePreflight(data, data.templateContract)
     : analyzeResumePreflight(data, selectedTemplate === 'uploaded' ? 'classic' : selectedTemplate)
@@ -67,6 +89,46 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     ? buildResumeTemplateCapabilityReport(data.templateContract)
     : null
   const uploadedExportBlocked = capabilityReport?.overall === 'blocked'
+
+  const cancelPendingWork = useCallback(() => {
+    requestRevisionRef.current += 1
+    optimizationAbortRef.current?.abort()
+    verificationAbortRef.current?.abort()
+    optimizationAbortRef.current = null
+    verificationAbortRef.current = null
+  }, [])
+
+  const handleClose = useCallback(() => {
+    if (typeof window !== 'undefined' && (isDirty || busy)) {
+      const message = busy
+        ? 'Close the resume generator and cancel the operation currently in progress?'
+        : 'Close the resume generator and discard your unsaved edits?'
+      if (!window.confirm(message)) return
+    }
+    cancelPendingWork()
+    onClose()
+  }, [busy, cancelPendingWork, isDirty, onClose])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      cancelPendingWork()
+    }
+  }, [cancelPendingWork])
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') handleClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [handleClose])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setPreviewData(data), 250)
@@ -76,37 +138,55 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   // Create object URL for original resume
   const [originalUrl, setOriginalUrl] = useState<string | null>(null)
   useEffect(() => {
-    if (resumeFile) {
-      const url = URL.createObjectURL(resumeFile)
-      setTimeout(() => setOriginalUrl(url), 0)
-      return () => URL.revokeObjectURL(url)
+    if (!resumeFile) {
+      const timer = window.setTimeout(() => setOriginalUrl(null), 0)
+      return () => window.clearTimeout(timer)
+    }
+
+    const url = URL.createObjectURL(resumeFile)
+    const timer = window.setTimeout(() => {
+      if (mountedRef.current) setOriginalUrl(url)
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timer)
+      URL.revokeObjectURL(url)
     }
   }, [resumeFile])
 
-  const invalidatePdfVerification = () => {
+  const invalidatePdfVerification = useCallback(() => {
     setPdfVerification(null)
     setPdfVerificationError(null)
-  }
+  }, [])
+
+  const markEditorMutation = useCallback(() => {
+    if (editingLocked) return false
+    requestRevisionRef.current += 1
+    setOptimizationProposal(null)
+    setOptimizationError(null)
+    invalidatePdfVerification()
+    setIsDirty(true)
+    return true
+  }, [editingLocked, invalidatePdfVerification])
 
   const selectTemplate = (templateId: ResumeTemplateChoiceId) => {
+    if (busy || templateId === selectedTemplate) return
+    requestRevisionRef.current += 1
     setSelectedTemplate(templateId)
     setOptimizationProposal(null)
     setOptimizationError(null)
     invalidatePdfVerification()
+    setIsDirty(true)
   }
 
   // Simple handlers
   const updateField = <K extends keyof ImprovedResumeData>(field: K, value: ImprovedResumeData[K]) => {
-    setOptimizationProposal(null)
-    setOptimizationError(null)
-    invalidatePdfVerification()
+    if (!markEditorMutation()) return
     setData(prev => ({ ...prev, [field]: value }))
   }
 
   const updateIdentityField = (field: ResumeIdentityEvidenceField, value: string) => {
-    setOptimizationProposal(null)
-    setOptimizationError(null)
-    invalidatePdfVerification()
+    if (!markEditorMutation()) return
     setData(prev => ({
       ...prev,
       [field]: value,
@@ -202,9 +282,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   }
 
   const restoreInitialAiSection = (group: ResumeChangeGroup) => {
-    setOptimizationProposal(null)
-    setOptimizationError(null)
-    invalidatePdfVerification()
+    if (!markEditorMutation()) return
     setData(prev => ({
       ...prev,
       sections: restoreOriginalResumeSection(
@@ -222,44 +300,87 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   }
 
   const requestLayoutOptimization = async () => {
+    if (busy) return
     if (selectedTemplate === 'uploaded') {
       setOptimizationError('Automatic AI shortening is disabled for Preserve Uploaded Layout. Edit the flagged region manually or allow another page so the original structure stays authoritative.')
       return
     }
+
+    optimizationAbortRef.current?.abort()
+    const controller = new AbortController()
+    optimizationAbortRef.current = controller
+    const requestRevision = requestRevisionRef.current
+    const templateAtRequest = selectedTemplate
+
     setOptimizing(true)
     setOptimizationError(null)
     setOptimizationProposal(null)
+
     try {
       const response = await fetch('/api/resume/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data, templateId: selectedTemplate }),
+        body: JSON.stringify({ data, templateId: templateAtRequest }),
+        signal: controller.signal,
       })
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload?.error || 'Could not optimize resume content')
-      if (!Array.isArray(payload.operations) || payload.operations.length === 0) {
+      const payload = await readJsonObject(response)
+      if (!response.ok) {
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'Could not optimize resume content')
+      }
+      if (
+        !Array.isArray(payload.sections)
+        || !Array.isArray(payload.operations)
+        || !payload.before
+        || typeof payload.before !== 'object'
+        || !payload.after
+        || typeof payload.after !== 'object'
+      ) {
+        throw new Error('The optimization service returned an incomplete proposal.')
+      }
+      if (
+        controller.signal.aborted
+        || !mountedRef.current
+        || requestRevision !== requestRevisionRef.current
+        || templateAtRequest !== selectedTemplate
+      ) return
+
+      if (payload.operations.length === 0) {
         setOptimizationError('No safe shortening was found. Keep two pages or edit the longest sections manually.')
         return
       }
-      setOptimizationProposal(payload as ResumeOptimizationProposal)
+      setOptimizationProposal(payload as unknown as ResumeOptimizationProposal)
     } catch (error) {
-      setOptimizationError(error instanceof Error ? error.message : 'Could not optimize resume content')
+      if (isAbortError(error) || controller.signal.aborted) return
+      if (mountedRef.current && requestRevision === requestRevisionRef.current) {
+        setOptimizationError(error instanceof Error ? error.message : 'Could not optimize resume content')
+      }
     } finally {
-      setOptimizing(false)
+      if (optimizationAbortRef.current === controller) {
+        optimizationAbortRef.current = null
+        if (mountedRef.current) setOptimizing(false)
+      }
     }
   }
 
   const applyLayoutOptimization = () => {
-    if (!optimizationProposal) return
+    if (!optimizationProposal || editingLocked) return
     const sections = optimizationProposal.sections
+    requestRevisionRef.current += 1
     setOptimizationProposal(null)
     setOptimizationError(null)
     invalidatePdfVerification()
+    setIsDirty(true)
     setData(prev => ({ ...prev, sections }))
   }
 
   const verifyAndDownloadPdf = async (blob: Blob | null, url: string | null) => {
-    if (!blob || !url || verifyingPdf) return
+    if (!blob || !url || busy || uploadedExportBlocked) return
+
+    verificationAbortRef.current?.abort()
+    const controller = new AbortController()
+    verificationAbortRef.current = controller
+    const requestRevision = requestRevisionRef.current
+    const templateAtRequest = selectedTemplate
 
     setVerifyingPdf(true)
     setPdfVerificationError(null)
@@ -269,16 +390,33 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       const form = new FormData()
       form.append('pdf', blob, 'resume.pdf')
       form.append('data', JSON.stringify(data))
-      form.append('templateId', selectedTemplate)
+      form.append('templateId', templateAtRequest)
 
       const response = await fetch('/api/resume/verify-pdf', {
         method: 'POST',
         body: form,
+        signal: controller.signal,
       })
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload?.error || 'Could not verify the final PDF')
+      const payload = await readJsonObject(response)
+      if (!response.ok) {
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'Could not verify the final PDF')
+      }
+      if (
+        (payload.status !== 'verified' && payload.status !== 'failed')
+        || typeof payload.actualPages !== 'number'
+        || typeof payload.contentCoverage !== 'number'
+        || !Array.isArray(payload.missingContent)
+      ) {
+        throw new Error('The PDF verification service returned an invalid result.')
+      }
+      if (
+        controller.signal.aborted
+        || !mountedRef.current
+        || requestRevision !== requestRevisionRef.current
+        || templateAtRequest !== selectedTemplate
+      ) return
 
-      const verification = payload as ResumeRenderVerificationResult
+      const verification = payload as unknown as ResumeRenderVerificationResult
       setPdfVerification(verification)
 
       if (verification.status !== 'verified') {
@@ -295,13 +433,21 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       const anchor = document.createElement('a')
       anchor.href = url
       anchor.download = `${safeName}_Improved_Resume.pdf`
+      anchor.rel = 'noopener'
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
+      setIsDirty(false)
     } catch (error) {
-      setPdfVerificationError(error instanceof Error ? error.message : 'Could not verify the final PDF')
+      if (isAbortError(error) || controller.signal.aborted) return
+      if (mountedRef.current && requestRevision === requestRevisionRef.current) {
+        setPdfVerificationError(error instanceof Error ? error.message : 'Could not verify the final PDF')
+      }
     } finally {
-      setVerifyingPdf(false)
+      if (verificationAbortRef.current === controller) {
+        verificationAbortRef.current = null
+        if (mountedRef.current) setVerifyingPdf(false)
+      }
     }
   }
 
@@ -315,10 +461,10 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
             <ResumeEvidenceBadge evidence={section.provenance?.section} />
             {!isSummary && (
               <>
-                <button type="button" onClick={() => moveSection(sectionIndex, -1)} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Move ${section.title} up`} title="Move section up">
+                <button type="button" onClick={() => moveSection(sectionIndex, -1)} disabled={editingLocked || sectionIndex === 0} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Move ${section.title} up`} title="Move section up">
                   <ChevronUp className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => moveSection(sectionIndex, 1)} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Move ${section.title} down`} title="Move section down">
+                <button type="button" onClick={() => moveSection(sectionIndex, 1)} disabled={editingLocked || sectionIndex >= (data.sections?.length ?? 0) - 1} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Move ${section.title} down`} title="Move section down">
                   <ChevronDown className="h-3.5 w-3.5" />
                 </button>
               </>
@@ -339,20 +485,31 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
 
   // Edit Panel Sections
   const renderEditPanel = () => (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <fieldset disabled={editingLocked} aria-busy={busy} className="space-y-8 animate-in fade-in duration-300">
+      {data.generationWarning && (
+        <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-800">
+          <p className="font-semibold flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Original resume loaded safely</p>
+          <p className="mt-1 text-amber-800/90">{data.generationWarning}</p>
+        </div>
+      )}
       <div className={`rounded-xl border p-4 space-y-2 ${preflight.fit === 'overflow-risk' ? 'border-red-500/30 bg-red-500/5' : preflight.fit === 'tight' ? 'border-amber-500/30 bg-amber-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
+        {busy && (
+          <div role="status" className="rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-[11px] text-blue-700">
+            {optimizing ? 'Finding safe content optimizations. Editing is temporarily locked.' : 'Verifying the exact rendered PDF. Editing and template changes are temporarily locked.'}
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" /> Layout Preflight
           </h3>
-          <span className="text-xs font-semibold">{preflight.score}/100 · ~{preflight.estimatedPages} page{preflight.estimatedPages === 1 ? '' : 's'}</span>
+          <span className="text-xs font-semibold">{preflight.score}/100 Â· ~{preflight.estimatedPages} page{preflight.estimatedPages === 1 ? '' : 's'}</span>
         </div>
         <p className="text-xs text-muted-foreground">
           {preflight.fit === 'comfortable' ? 'This template should fit comfortably with the current content.' : preflight.fit === 'tight' ? 'This template is getting dense. Review long sections before export.' : 'This template has overflow risk. Prefer another page, a better-fitting template, or content optimization instead of tiny text.'}
         </p>
         {pdfVerification && (
           <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-700">
-            <p className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Render verified · {pdfVerification.actualPages} page{pdfVerification.actualPages === 1 ? '' : 's'} · {Math.round(pdfVerification.contentCoverage * 100)}% expected content present</p>
+            <p className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Render verified Â· {pdfVerification.actualPages} page{pdfVerification.actualPages === 1 ? '' : 's'} Â· {Math.round(pdfVerification.contentCoverage * 100)}% expected content present</p>
             {pdfVerification.templateFidelity && <p className="mt-1">Uploaded template fidelity: {pdfVerification.templateFidelity.score}%.</p>}
             {pdfVerification.pageDelta !== 0 && <p className="mt-1 text-amber-700">The real render differs from the heuristic estimate by {Math.abs(pdfVerification.pageDelta)} page{Math.abs(pdfVerification.pageDelta) === 1 ? '' : 's'}; the rendered count is authoritative.</p>}
           </div>
@@ -366,7 +523,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
 
         {preflight.fit !== 'comfortable' && selectedTemplate !== 'uploaded' && !optimizationProposal && (
           <div className="pt-2 flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" variant="outline" className="gap-2" onClick={requestLayoutOptimization} disabled={optimizing}>
+            <Button type="button" size="sm" variant="outline" className="gap-2" onClick={requestLayoutOptimization} disabled={busy} aria-busy={optimizing}>
               <Sparkles className="h-3.5 w-3.5" />
               {optimizing ? 'Finding safe shortening...' : 'Optimize for this template'}
             </Button>
@@ -385,7 +542,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                {capabilityReport.counts.preserved} preserved · {capabilityReport.counts.approximated} approximated · {capabilityReport.counts.unsupported} unsupported · {capabilityReport.counts.blocking} blocking
+                {capabilityReport.counts.preserved} preserved Â· {capabilityReport.counts.approximated} approximated Â· {capabilityReport.counts.unsupported} unsupported Â· {capabilityReport.counts.blocking} blocking
               </p>
               <div className="space-y-1.5">
                 {capabilityReport.items.map((item) => (
@@ -413,7 +570,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                 <p className="text-[10px] text-muted-foreground">Review every rewrite before applying it.</p>
               </div>
               <span className="text-[10px] font-semibold text-muted-foreground">
-                {optimizationProposal.before.score}/100 → {optimizationProposal.after.score}/100 · ~{optimizationProposal.before.estimatedPages}p → ~{optimizationProposal.after.estimatedPages}p
+                {optimizationProposal.before.score}/100 â†’ {optimizationProposal.after.score}/100 Â· ~{optimizationProposal.before.estimatedPages}p â†’ ~{optimizationProposal.after.estimatedPages}p
               </span>
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -426,8 +583,8 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
               ))}
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" size="sm" variant="ghost" onClick={() => setOptimizationProposal(null)}>Keep current text</Button>
-              <Button type="button" size="sm" onClick={applyLayoutOptimization}>Apply proposal</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setOptimizationProposal(null)} disabled={busy}>Keep current text</Button>
+              <Button type="button" size="sm" onClick={applyLayoutOptimization} disabled={busy}>Apply proposal</Button>
             </div>
           </div>
         )}
@@ -510,7 +667,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                   <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted border border-border/50 group">
                     {item}
                     <ResumeEvidenceBadge evidence={section.provenance?.items?.[normalizeResumeEvidenceKey(item)]} compact />
-                    <button type="button" onClick={() => removeSectionListItem(sIndex, i)} className="text-muted-foreground hover:text-red-500 opacity-50 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
+                    <button type="button" onClick={() => removeSectionListItem(sIndex, i)} className="text-muted-foreground hover:text-red-500 opacity-50 group-hover:opacity-100 transition-opacity" aria-label={`Remove ${item}`} title="Remove item"><X className="h-3 w-3"/></button>
                   </span>
                 ))}
                 <input 
@@ -532,7 +689,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                 {(section.entries || []).map((entry, i) => (
                   <div key={i} className={`p-4 rounded-xl border border-border/50 bg-card space-y-3 relative group ${entry.isEnhanced ? 'border-blue-500/30 bg-blue-500/5' : ''}`}>
                      <div className="pr-8 min-h-5"><ResumeEvidenceBadge evidence={collectEntryEvidence(entry)} compact /></div>
-                     <button type="button" onClick={() => removeSectionEntry(sIndex, i)} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4"/></button>
+                     <button type="button" onClick={() => removeSectionEntry(sIndex, i)} className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100" aria-label={`Remove ${entry.title || section.title} entry`} title="Remove entry"><Trash2 className="h-4 w-4"/></button>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
                        <div>
                          <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center justify-between gap-2"><span>Title / Role</span><ResumeEvidenceBadge evidence={entry.fieldEvidence?.title} compact /></label>
@@ -564,7 +721,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
                          </label>
                          {(entry.bullets || []).map((bullet, bulletIndex) => (
                            <div key={bulletIndex} className="flex items-center gap-2">
-                             <span className="text-muted-foreground text-xs">•</span>
+                             <span className="text-muted-foreground text-xs">â€¢</span>
                              <input
                                className="flex-1 px-2.5 py-1.5 bg-background border border-border/50 rounded-md text-sm"
                                value={bullet}
@@ -608,7 +765,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         return null;
       })}
 
-    </div>
+    </fieldset>
   )
 
   if (typeof document === 'undefined') return null
@@ -624,7 +781,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
             </div>
             <h2 className="text-lg font-bold">Improved Resume Generator</h2>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+          <Button type="button" variant="ghost" size="icon" onClick={handleClose} className="rounded-full" aria-label="Close resume generator" title="Close">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -656,11 +813,11 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setCompareMode(!compareMode)}>
+          <Button type="button" variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setCompareMode(!compareMode)} disabled={busy}>
             <Columns className="h-3.5 w-3.5" />
             {compareMode ? 'Exit Compare' : 'Compare PDFs'}
           </Button>
-          <Button variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setStep('pick-template')}>
+          <Button type="button" variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setStep('pick-template')} disabled={busy}>
             <LayoutTemplate className="h-3.5 w-3.5" />
             Change Template
           </Button>
@@ -669,15 +826,16 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
               <Button
                 size="sm"
                 className="bg-primary text-primary-foreground font-bold shadow-md px-4 sm:px-6"
-                disabled={loading || verifyingPdf || !blob || !url || Boolean(error) || uploadedExportBlocked}
+                disabled={loading || busy || !blob || !url || Boolean(error) || uploadedExportBlocked}
+                aria-busy={loading || verifyingPdf}
                 onClick={() => verifyAndDownloadPdf(blob, url)}
                 title={uploadedExportBlocked ? 'Uploaded continuation-page artwork cannot be reproduced safely. Choose a built-in template for verified export.' : error ? 'Could not generate the PDF' : 'Verify the rendered PDF before downloading'}
               >
-                {loading ? 'Generating...' : verifyingPdf ? 'Verifying...' : <><Download className="h-4 w-4 mr-2" /> Download PDF</>}
+                {optimizing ? 'Optimizing...' : loading ? 'Generating...' : verifyingPdf ? 'Verifying...' : error ? 'Render unavailable' : <><Download className="h-4 w-4 mr-2" /> Download PDF</>}
               </Button>
             )}
           </BlobProvider>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+          <Button type="button" variant="ghost" size="icon" onClick={handleClose} className="rounded-full" aria-label="Close resume generator" title="Close">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -724,7 +882,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
          <div className={`w-full ${compareMode ? 'sm:w-1/2' : 'sm:w-1/4'} h-full bg-muted/20 flex-col ${activeTab === 'preview' ? 'flex' : 'hidden sm:flex'}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Eye className="h-4 w-4"/> Live PDF Preview</span>
-             <Badge variant="secondary" className={`text-[10px] gap-1 ${preflight.fit === 'overflow-risk' ? 'bg-red-500/10 text-red-600 border-red-500/20' : preflight.fit === 'tight' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-green-500/10 text-green-600 border-green-500/20'}`}><CheckCircle2 className="h-3 w-3"/> {preflight.fit === 'comfortable' ? 'Fits comfortably' : preflight.fit === 'tight' ? 'Tight layout' : 'Overflow risk'} · ~{preflight.estimatedPages}p</Badge>
+             <Badge variant="secondary" className={`text-[10px] gap-1 ${preflight.fit === 'overflow-risk' ? 'bg-red-500/10 text-red-600 border-red-500/20' : preflight.fit === 'tight' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-green-500/10 text-green-600 border-green-500/20'}`}><CheckCircle2 className="h-3 w-3"/> {preflight.fit === 'comfortable' ? 'Fits comfortably' : preflight.fit === 'tight' ? 'Tight layout' : 'Overflow risk'} Â· ~{preflight.estimatedPages}p</Badge>
            </div>
            <div className="flex-1 p-4 overflow-hidden relative flex flex-col items-center justify-center">
              <BlobProvider document={<ResumeTemplateChoiceRenderer data={previewData} templateId={selectedTemplate} />}>

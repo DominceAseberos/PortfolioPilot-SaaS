@@ -64,9 +64,10 @@ function TypingText({ text, speed = 12, onComplete, isHistory }: { text: string;
       return
     }
 
-    setTimeout(() => setShown(''), 0)
+    const resetTimer = setTimeout(() => setShown(''), 0)
     let index = 0
     let completed = false
+    let completionTimer: ReturnType<typeof setTimeout> | undefined
     const interval = setInterval(() => {
       index += 2
       setShown(text.slice(0, index))
@@ -74,7 +75,7 @@ function TypingText({ text, speed = 12, onComplete, isHistory }: { text: string;
         clearInterval(interval)
         completed = true
         if (onCompleteRef.current) {
-          setTimeout(() => {
+          completionTimer = setTimeout(() => {
             if (onCompleteRef.current) onCompleteRef.current()
           }, 300)
         }
@@ -82,6 +83,8 @@ function TypingText({ text, speed = 12, onComplete, isHistory }: { text: string;
     }, speed)
 
     return () => {
+      clearTimeout(resetTimer)
+      if (completionTimer) clearTimeout(completionTimer)
       clearInterval(interval)
       completed = true
     }
@@ -100,6 +103,7 @@ function TypingText({ text, speed = 12, onComplete, isHistory }: { text: string;
 function TypingList({ items, speed = 12, onComplete, isHistory, renderPrefix }: { items: string[]; speed?: number; onComplete?: () => void; isHistory?: boolean; renderPrefix?: (i: number) => React.ReactNode }) {
   const [currentIndex, setCurrentIndex] = useState(isHistory ? items.length : 0)
   const onCompleteRef = useRef(onComplete)
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
   useEffect(() => {
     onCompleteRef.current = onComplete
@@ -111,12 +115,20 @@ function TypingList({ items, speed = 12, onComplete, isHistory, renderPrefix }: 
     }
   }, [isHistory])
 
+  useEffect(() => {
+    return () => {
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
+    }
+  }, [])
+
   const handleComplete = useCallback(() => {
     setCurrentIndex(prev => {
       const next = prev + 1
       if (next >= items.length) {
         if (onCompleteRef.current) {
-          setTimeout(() => {
+          if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
+          completionTimerRef.current = setTimeout(() => {
+            completionTimerRef.current = null
             if (onCompleteRef.current) onCompleteRef.current()
           }, 300)
         }
@@ -318,6 +330,7 @@ function StreamingChatBox({
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
   const [isGeneratingResume, setIsGeneratingResume] = useState(false)
+  const resumeGenerationAbortRef = useRef<AbortController | null>(null)
   const [animatedScore, setAnimatedScore] = useState(isHistory ? (result.normalFeedback?.overallScore ?? result.overallScore) : 0)
   const [displayedText, setDisplayedText] = useState(isHistory ? (result.normalFeedback?.summary ?? result.summary) : '')
   const [visibleStep, setVisibleStep] = useState(isHistory ? 99 : 0)
@@ -330,30 +343,49 @@ function StreamingChatBox({
     setVisibleStep(prev => prev + 1)
   }, [])
 
+  useEffect(() => {
+    return () => {
+      resumeGenerationAbortRef.current?.abort()
+      resumeGenerationAbortRef.current = null
+    }
+  }, [])
+
   const handleGenerateImprovedResume = async (e: React.MouseEvent) => {
     e.preventDefault()
+    if (isGeneratingResume) return
     if (isGuest) {
       window.location.href = '/register?next=/dashboard/reviews/latest'
       return
     }
-    
+
+    resumeGenerationAbortRef.current?.abort()
+    const controller = new AbortController()
+    resumeGenerationAbortRef.current = controller
     setIsGeneratingResume(true)
+
     try {
       const initialData = await buildImprovedResume({
         details: resumeAnalysis?.details,
-        githubAnalysis: githubAnalysis,
-        mismatches: mismatches,
+        githubAnalysis,
+        mismatches,
         portfolioUrl: portfolioUrl || undefined,
         githubUsername: githubUsername || undefined,
-        portfolioMarkdown: portfolioAnalysis?.details?.markdown || undefined
+        portfolioMarkdown: portfolioAnalysis?.details?.markdown || undefined,
+        signal: controller.signal,
       })
+      if (controller.signal.aborted) return
 
       setResumeData(initialData)
       setShowResumeModal(true)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       console.error('Failed to generate improved resume', err)
+      toast.error('Could not generate the improved resume. Please try again.')
     } finally {
-      setIsGeneratingResume(false)
+      if (resumeGenerationAbortRef.current === controller) {
+        resumeGenerationAbortRef.current = null
+        setIsGeneratingResume(false)
+      }
     }
   }
 
@@ -372,11 +404,12 @@ function StreamingChatBox({
     let interval: ReturnType<typeof setInterval> | undefined
     const text = result.normalFeedback?.summary ?? result.summary
     const targetScore = result.normalFeedback?.overallScore ?? result.overallScore
-    setTimeout(() => {
+    const resetTimeout = setTimeout(() => {
       setDisplayedText('')
       setVisibleStep(0)
       setShowRadarChart(false)
     }, 0)
+    let advanceTimeout: ReturnType<typeof setTimeout> | undefined
 
     const thinkTimeout = setTimeout(() => {
       setIsThinking(false)
@@ -386,7 +419,7 @@ function StreamingChatBox({
           setDisplayedText(text)
           setAnimatedScore(targetScore)
           if (interval) clearInterval(interval)
-          setTimeout(advanceStep, 500)
+          advanceTimeout = setTimeout(advanceStep, 500)
           return
         }
         setDisplayedText(text.slice(0, i))
@@ -399,7 +432,9 @@ function StreamingChatBox({
     }, 1500) // 1.5 seconds thinking delay
 
     return () => {
+      clearTimeout(resetTimeout)
       clearTimeout(thinkTimeout)
+      if (advanceTimeout) clearTimeout(advanceTimeout)
       if (interval) clearInterval(interval)
     }
   }, [result.summary, result.overallScore, result.normalFeedback, isHistory, advanceStep])
@@ -415,21 +450,26 @@ function StreamingChatBox({
         const t = setTimeout(advanceStep, 1500)
         return () => clearTimeout(t)
       } else {
-        setTimeout(advanceStep, 0)
+        const t = setTimeout(advanceStep, 0)
+        return () => clearTimeout(t)
       }
     }
     
     // Auto-skip empty list steps
     if (visibleStep === 2 && (result.normalFeedback?.topStrengths ?? result.topStrengths).length === 0) {
-      setTimeout(advanceStep, 0)
+      const t = setTimeout(advanceStep, 0)
+      return () => clearTimeout(t)
     }
     
     // Guest jump logic (guests only see up to step 2 visually typing, then it blurs out and jumps to 8)
     if (visibleStep === 3) {
       if (isGuest) {
-        setTimeout(() => setVisibleStep(8), 0)
-      } else if ((result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length === 0) {
-        setTimeout(() => advanceStep(), 0)
+        const t = setTimeout(() => setVisibleStep(8), 0)
+        return () => clearTimeout(t)
+      }
+      if ((result.deepFeedback?.topWeaknesses ?? result.topWeaknesses).length === 0) {
+        const t = setTimeout(() => advanceStep(), 0)
+        return () => clearTimeout(t)
       }
     }
     
@@ -438,16 +478,21 @@ function StreamingChatBox({
     }
     
     if (visibleStep === 5 && (!mismatches || mismatches.length === 0)) {
-      setTimeout(() => advanceStep(), 0)
+      const t = setTimeout(() => advanceStep(), 0)
+      return () => clearTimeout(t)
     }
     
     if (visibleStep === 6) {
       if (result.radar && result.overallScore > 0) {
+        let advanceTimer: ReturnType<typeof setTimeout> | undefined
         const t = setTimeout(() => {
           setShowRadarChart(true)
-          setTimeout(advanceStep, 1000)
+          advanceTimer = setTimeout(advanceStep, 1000)
         }, 2500)
-        return () => clearTimeout(t)
+        return () => {
+          clearTimeout(t)
+          if (advanceTimer) clearTimeout(advanceTimer)
+        }
       } else {
         const t = setTimeout(advanceStep, 0)
         return () => clearTimeout(t)
@@ -501,7 +546,7 @@ function StreamingChatBox({
                   )}
                 </Button>
              )}
-             <Button onClick={() => window.location.href = '/dashboard/reviews'} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2">
+             <Button onClick={() => window.location.href = '/dashboard/reviews'} disabled={isGeneratingResume} variant="outline" className="shadow-sm hover:scale-105 transition-transform gap-2">
                <RotateCcw className="w-4 h-4" /> New Analysis
              </Button>
            </>
@@ -992,7 +1037,7 @@ function StreamingChatBox({
                 </div>
                 <h2 className="text-xl font-bold">Raw Source Telemetry</h2>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-muted rounded-full transition-colors">
+              <button type="button" onClick={() => setShowModal(false)} aria-label="Close telemetry details" className="p-2 hover:bg-muted rounded-full transition-colors">
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
@@ -1162,18 +1207,28 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
 
   useEffect(() => {
-    if (initialReviewData?.resume_url && typeof initialReviewData.resume_url === 'string' && initialReviewData.resume_url.includes('/')) {
-      fetch(`/api/storage/resume?path=${encodeURIComponent(initialReviewData.resume_url)}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to fetch')
-          return res.blob()
-        })
-        .then(blob => {
-          const file = new File([blob], 'original_resume.pdf', { type: 'application/pdf' })
-          setResumeFile(file)
-        })
-        .catch(err => console.error('Failed to load history resume PDF:', err))
+    if (!initialReviewData?.resume_url || typeof initialReviewData.resume_url !== 'string' || !initialReviewData.resume_url.includes('/')) {
+      return
     }
+
+    const controller = new AbortController()
+    fetch(`/api/storage/resume?path=${encodeURIComponent(initialReviewData.resume_url)}`, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.blob()
+      })
+      .then(blob => {
+        if (controller.signal.aborted) return
+        const file = new File([blob], 'original_resume.pdf', { type: 'application/pdf' })
+        setResumeFile(file)
+      })
+      .catch(err => {
+        if (!(err instanceof Error && err.name === 'AbortError')) {
+          console.error('Failed to load history resume PDF:', err)
+        }
+      })
+
+    return () => controller.abort()
   }, [initialReviewData])
 
   const [analysisId, setAnalysisId] = useState<string>(typeof initialReviewData?.id === 'string' ? initialReviewData.id : '')
@@ -1187,6 +1242,10 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
     error: string | null 
   }>({ isOpen: false, repos: [], selected: [], isFetching: false, error: null })
   const [isLoading, setIsLoading] = useState(false)
+  const analysisSubmitLockRef = useRef(false)
+  const analysisAbortRef = useRef<AbortController | null>(null)
+  const guestEmailAbortRef = useRef<AbortController | null>(null)
+  const guestEmailGateTimerRef = useRef<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>(initialReviewData ? 'finalizing' : 'form')
   const [collectingSteps, setCollectingSteps] = useState<CollectingStep[]>([])
@@ -1198,6 +1257,23 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
   const [showAuthModal, setShowAuthModal] = useState<'login' | 'register' | null>(null)
   const supabase = createClient()
 
+
+  useEffect(() => {
+    if (!isLoading) analysisSubmitLockRef.current = false
+  }, [isLoading])
+
+  useEffect(() => {
+    return () => {
+      analysisAbortRef.current?.abort()
+      analysisAbortRef.current = null
+      guestEmailAbortRef.current?.abort()
+      guestEmailAbortRef.current = null
+      if (guestEmailGateTimerRef.current !== null) {
+        window.clearTimeout(guestEmailGateTimerRef.current)
+        guestEmailGateTimerRef.current = null
+      }
+    }
+  }, [])
 
   const hasDetails = useCallback((result: Record<string, unknown>, id: string): boolean => {
     if (id === 'portfolio') return Array.isArray(result.checks) && result.checks.length > 0
@@ -1212,6 +1288,13 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (analysisSubmitLockRef.current) return
+
+    analysisSubmitLockRef.current = true
+    analysisAbortRef.current?.abort()
+    const analysisController = new AbortController()
+    analysisAbortRef.current = analysisController
+
     setIsLoading(true)
     setError(null)
     setResults({})
@@ -1245,7 +1328,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
       if (!repoSelection.isOpen && repoSelection.selected.length === 0) {
         setRepoSelection(p => ({ ...p, isFetching: true, error: null }))
         try {
-          const res = await fetch(`/api/github/repos?username=${encodeURIComponent(cleanGithub)}`)
+          const res = await fetch(`/api/github/repos?username=${encodeURIComponent(cleanGithub)}`, { signal: analysisController.signal })
           if (res.ok) {
             const data = await res.json()
             if (data.repos && data.repos.length > 0) {
@@ -1342,14 +1425,28 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
     setCollectingSteps(initialSteps)
 
     const collected: AnalysisResults = {}
-    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    const delay = (ms: number) => new Promise<boolean>((resolve) => {
+      if (analysisController.signal.aborted) {
+        resolve(false)
+        return
+      }
+      const timer = window.setTimeout(() => {
+        analysisController.signal.removeEventListener('abort', onAbort)
+        resolve(true)
+      }, ms)
+      const onAbort = () => {
+        window.clearTimeout(timer)
+        resolve(false)
+      }
+      analysisController.signal.addEventListener('abort', onAbort, { once: true })
+    })
 
     // Run Malware Scan if needed
     if (resumeFile) {
       setCollectingSteps(prev => prev.map(s => s.id === 'resume-scan' ? { ...s, status: 'loading' } : s))
-      await delay(1500)
+      if (!(await delay(1500))) return
       setCollectingSteps(prev => prev.map(s => s.id === 'resume-scan' ? { ...s, status: 'success' } : s))
-      await delay(400)
+      if (!(await delay(400))) return
     }
 
     let serverError: string | null = null
@@ -1358,7 +1455,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
       setCollectingSteps((prev) =>
         prev.map((s) => (s.id === source.id ? { ...s, status: 'loading' } : s))
       )
-      await delay(800) // added delay for realistic load time
+      if (!(await delay(800))) return // added delay for realistic load time
 
       try {
         let res: { success: boolean; data?: unknown; message?: string; code?: string }
@@ -1367,6 +1464,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ portfolioUrl: cleanPortfolio }),
+            signal: analysisController.signal,
           }).then((r) => r.json())
         } else if (source.id === 'github') {
           res = await fetch('/api/reviews/github', {
@@ -1376,11 +1474,12 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
               githubUsername: cleanGithub,
               selectedRepos: repoSelection.selected.length > 0 ? repoSelection.selected : undefined
             }),
+            signal: analysisController.signal,
           }).then((r) => r.json())
         } else {
           const fd = new FormData()
           fd.append('resume', resumeFile!)
-          res = await fetch('/api/reviews/resume', { method: 'POST', body: fd }).then((r) =>
+          res = await fetch('/api/reviews/resume', { method: 'POST', body: fd, signal: analysisController.signal }).then((r) =>
             r.json()
           )
         }
@@ -1414,13 +1513,14 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
           }
         }
       } catch (err: unknown) {
+        if (analysisController.signal.aborted) return
         setCollectingSteps((prev) =>
           prev.map((s) => (s.id === source.id ? { ...s, status: 'error' } : s))
         )
         if (!serverError) serverError = err instanceof Error ? err.message : `Failed to connect to ${source.id} service`
       }
 
-      await delay(600)
+      if (!(await delay(600))) return
     }
 
     setResults({ ...collected })
@@ -1434,9 +1534,9 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
 
     if (resumeFile) {
       setCollectingSteps(prev => prev.map(s => s.id === 'resume-parse' ? { ...s, status: 'loading' } : s))
-      await delay(1800)
+      if (!(await delay(1800))) return
       setCollectingSteps(prev => prev.map(s => s.id === 'resume-parse' ? { ...s, status: 'success' } : s))
-      await delay(500)
+      if (!(await delay(500))) return
     }
 
     // ── Phase 2: AI Analysis ──
@@ -1452,6 +1552,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
           github: collected.github,
           resume: collected.resume,
         }),
+        signal: analysisController.signal,
       }).then((r) => r.json())
 
       if (aiRes.success && aiRes.data) {
@@ -1470,7 +1571,8 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
         setCollectingSteps(prev => prev.map(s => s.id === 'synthesize' ? { ...s, status: 'success' } : s))
         if (message) toast.error(message)
       }
-    } catch {
+    } catch (err) {
+      if (analysisController.signal.aborted || (err instanceof Error && err.name === 'AbortError')) return
       collected.aiSummary = buildFallbackSummary(
         collected,
         'AI synthesis could not be reached. Showing typed source-level results instead.'
@@ -1502,7 +1604,8 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
           try {
             const uploadRes = await fetch('/api/storage/resume', {
               method: 'POST',
-              body: fd
+              body: fd,
+              signal: analysisController.signal,
             })
             if (uploadRes.ok) {
               const uploadJson = await uploadRes.json()
@@ -1530,6 +1633,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: analysisController.signal,
       })
       const createJson = await createRes.json()
 
@@ -1542,31 +1646,44 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
       } else {
         toast.error('Failed to store analysis in history')
       }
-    } catch {
+    } catch (err) {
+      if (analysisController.signal.aborted || (err instanceof Error && err.name === 'AbortError')) return
       toast.error('Network error while saving analysis')
     }
 
+    if (analysisAbortRef.current === analysisController) analysisAbortRef.current = null
     setIsLoading(false)
 
     // Show email gate for guests after analysis
     if (isGuest || isGuestFallback) {
-      setTimeout(() => setShowEmailGate(true), 2000)
+      if (guestEmailGateTimerRef.current !== null) {
+        window.clearTimeout(guestEmailGateTimerRef.current)
+      }
+      guestEmailGateTimerRef.current = window.setTimeout(() => {
+        setShowEmailGate(true)
+        guestEmailGateTimerRef.current = null
+      }, 2000)
     }
   }
 
   const handleGuestEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (guestEmailSubmitting) return
     setGuestEmailError(null)
     if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
       setGuestEmailError('Please enter a valid email address.')
       return
     }
+    guestEmailAbortRef.current?.abort()
+    const controller = new AbortController()
+    guestEmailAbortRef.current = controller
     setGuestEmailSubmitting(true)
     try {
       const res = await fetch('/api/guest/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: guestEmail }),
+        signal: controller.signal,
       })
       const json = await res.json()
       if (!res.ok) {
@@ -1575,10 +1692,15 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
       }
       setShowEmailGate(false)
       toast.success('Results saved to your email! Create a free account to access them anytime.')
-    } catch {
-      setGuestEmailError('Network error. Please try again.')
+    } catch (error) {
+      if (!(error instanceof Error && error.name === 'AbortError')) {
+        setGuestEmailError('Network error. Please try again.')
+      }
     } finally {
-      setGuestEmailSubmitting(false)
+      if (guestEmailAbortRef.current === controller) {
+        guestEmailAbortRef.current = null
+        setGuestEmailSubmitting(false)
+      }
     }
   }
 
@@ -2034,6 +2156,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
                   <div 
                     key={repo.name}
                     onClick={() => {
+                      if (isLoading || repoSelection.isFetching) return
                       if (isSelected) {
                         setRepoSelection(p => ({ ...p, selected: p.selected.filter(n => n !== repo.name) }))
                       } else if (repoSelection.selected.length < 3) {
@@ -2063,7 +2186,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
             </div>
             
             <div className="p-4 border-t border-border bg-card flex justify-end gap-3">
-              <Button variant="outline" onClick={() => {
+              <Button variant="outline" disabled={isLoading || repoSelection.isFetching} onClick={() => {
                 setRepoSelection({ isOpen: false, repos: [], selected: [], isFetching: false, error: null })
               }}>
                 Cancel
@@ -2073,9 +2196,10 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
                   setRepoSelection(p => ({ ...p, isOpen: false }))
                   handleSubmit(e as unknown as React.FormEvent)
                 }}
+                disabled={isLoading || repoSelection.isFetching}
                 className="shadow-md"
               >
-                Start Analysis
+                {isLoading ? 'Starting...' : 'Start Analysis'}
               </Button>
             </div>
           </div>
@@ -2093,7 +2217,8 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
           <Button 
             variant="ghost" 
             className="font-bold gap-2 text-xl bg-transparent hover:bg-muted/30 border-transparent text-foreground rounded-2xl px-4 py-2.5 h-auto transition-all" 
-            onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+            onClick={() => { if (!isLoading && !isSwitchingHistory) setShowHistoryDropdown(!showHistoryDropdown) }}
+            disabled={isLoading || isSwitchingHistory}
           >
             History
             {historyList.length > 0 && (
@@ -2113,8 +2238,9 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
                      historyList.map(r => (
                         <button 
                           key={r.id} 
+                          disabled={isLoading || isSwitchingHistory || analysisId === r.id}
                           onClick={() => { 
-                            if (analysisId !== r.id) {
+                            if (!isLoading && !isSwitchingHistory && analysisId !== r.id) {
                               setShowHistoryDropdown(false); 
                               setIsSwitchingHistory(true);
                               router.push(`/dashboard/reviews/${r.id}`);
@@ -2220,7 +2346,9 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
             {/* Dismiss button */}
             <button
               onClick={() => setShowEmailGate(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+              disabled={guestEmailSubmitting}
+              aria-label="Close email save dialog"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               <X className="h-4 w-4" />
             </button>
@@ -2277,6 +2405,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
                 type="button"
                 variant="outline"
                 className="w-full gap-2"
+                disabled={guestEmailSubmitting}
                 onClick={() => { setShowEmailGate(false); setShowAuthModal('register') }}
               >
                 <Sparkles className="w-4 h-4" /> Create Free Account

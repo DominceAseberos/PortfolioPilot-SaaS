@@ -129,8 +129,24 @@ function SmartGithubPreview({ profile, username }: { profile: { avatarUrl?: stri
   )
 }
 
-function SmartResumePreview({ pdfUrl, fileObj, fileName }: { pdfUrl: string | null, fileObj: File | null, fileName: string }) {
+function SmartResumePreview({ fileObj, fileName }: { fileObj: File | null, fileName: string }) {
   const { resumeFile } = React.useContext(DynamicProceedContext)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!fileObj) {
+      const timer = window.setTimeout(() => setPdfUrl(null), 0)
+      return () => window.clearTimeout(timer)
+    }
+
+    const url = URL.createObjectURL(fileObj)
+    const timer = window.setTimeout(() => setPdfUrl(url), 0)
+    return () => {
+      window.clearTimeout(timer)
+      URL.revokeObjectURL(url)
+    }
+  }, [fileObj])
+
   const isSelected = resumeFile && fileObj && resumeFile.name === fileName && resumeFile.size === fileObj.size
   const isDismissed = resumeFile && !isSelected
   if (isDismissed) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><FileText className="h-4 w-4 opacity-50"/>Previous Resume Dismissed</div>
@@ -379,6 +395,21 @@ export function NeuralChatLanding({
   const [chatInputValue, setChatInputValue] = useState('')
   const [isChatProcessing, setIsChatProcessing] = useState(false)
   const submitLock = useRef(false)
+  const submitUnlockTimerRef = useRef<number | null>(null)
+  const lifecycleAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    lifecycleAbortRef.current = controller
+    return () => {
+      controller.abort()
+      lifecycleAbortRef.current = null
+      if (submitUnlockTimerRef.current !== null) {
+        window.clearTimeout(submitUnlockTimerRef.current)
+        submitUnlockTimerRef.current = null
+      }
+    }
+  }, [])
   
   const sourceCost = (portfolioUrl ? getAnalysisCost('portfolio') : 0) +
                     (githubUsername ? getAnalysisCost('github') : 0) +
@@ -416,9 +447,10 @@ export function NeuralChatLanding({
 
   // Append resultNode to chatLog for continuous session history
   useEffect(() => {
-    if (resultNode && analysisId) {
-      setTimeout(() => {
-        setChatLog(prev => {
+    if (!resultNode || !analysisId) return
+
+    const timer = window.setTimeout(() => {
+      setChatLog(prev => {
           const resultId = `result-${analysisId}`
           if (prev.find(m => m.id === resultId)) return prev
           
@@ -436,8 +468,9 @@ export function NeuralChatLanding({
             content: storedNode
           }]
         })
-      }, 0)
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [resultNode, analysisId])
 
   const renderDetectedLinks = (links: ResumeValidatedLinks | undefined) => {
@@ -480,7 +513,13 @@ export function NeuralChatLanding({
     if (isChatProcessing || isLoading || submitLock.current) return
     
     submitLock.current = true
-    setTimeout(() => { submitLock.current = false }, 1000)
+    if (submitUnlockTimerRef.current !== null) {
+      window.clearTimeout(submitUnlockTimerRef.current)
+    }
+    submitUnlockTimerRef.current = window.setTimeout(() => {
+      submitLock.current = false
+      submitUnlockTimerRef.current = null
+    }, 1000)
 
     if (activeInputMode === 'resume') {
        fileInputRef.current?.click()
@@ -550,7 +589,22 @@ export function NeuralChatLanding({
     fileObj?: File,
     autoDetected = false
   ) => {
-     const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
+     const delay = (ms: number) => new Promise<boolean>((resolve) => {
+       const signal = lifecycleAbortRef.current?.signal
+       if (!signal || signal.aborted) {
+         resolve(false)
+         return
+       }
+       const timer = window.setTimeout(() => {
+         signal.removeEventListener('abort', onAbort)
+         resolve(true)
+       }, ms)
+       const onAbort = () => {
+         window.clearTimeout(timer)
+         resolve(false)
+       }
+       signal.addEventListener('abort', onAbort, { once: true })
+     })
 
      // For manual entries: run banned word filter, show user bubble, set processing state
      if (!autoDetected) {
@@ -594,7 +648,8 @@ export function NeuralChatLanding({
            const valRes = await fetch('/api/reviews/validate-portfolio', {
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ portfolioUrl: normalizedUrl })
+             body: JSON.stringify({ portfolioUrl: normalizedUrl }),
+             signal: lifecycleAbortRef.current?.signal
            })
            const valData = await valRes.json()
 
@@ -611,7 +666,8 @@ export function NeuralChatLanding({
               if (!autoDetected) setIsChatProcessing(false)
               return
            }
-         } catch {
+         } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return
             setChatLog(prev => prev.map(msg => msg.id === stepId ? {
               ...msg,
               content: (
@@ -652,7 +708,7 @@ export function NeuralChatLanding({
             return msg
          }))
 
-         await delay(1000)
+         if (!(await delay(1000))) return
 
          setChatLog(prev => prev.map(msg => msg.id === stepId ? {
            ...msg,
@@ -667,7 +723,7 @@ export function NeuralChatLanding({
            )
          } : msg))
 
-         await delay(1500)
+         if (!(await delay(1500))) return
 
          setChatLog(prev => prev.map(msg => msg.id === stepId ? {
            ...msg,
@@ -715,7 +771,8 @@ export function NeuralChatLanding({
            const res = await fetch('/api/reviews/validate-github', {
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ username: value })
+             body: JSON.stringify({ username: value }),
+             signal: lifecycleAbortRef.current?.signal
            })
            const data = await res.json()
 
@@ -782,7 +839,8 @@ export function NeuralChatLanding({
              return msg
            }))
 
-         } catch {
+         } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return
             setChatLog(prev => prev.map(msg => msg.id === stepId ? {
               ...msg,
               content: (
@@ -809,7 +867,7 @@ export function NeuralChatLanding({
           ) 
         }])
         
-        await delay(800)
+        if (!(await delay(800))) return
 
         setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
           ...msg,
@@ -832,7 +890,8 @@ export function NeuralChatLanding({
 
             const res = await fetch('/api/reviews/validate-resume', {
               method: 'POST',
-              body: formData
+              body: formData,
+              signal: lifecycleAbortRef.current?.signal
             })
             const data = await res.json()
 
@@ -872,7 +931,8 @@ export function NeuralChatLanding({
                 )
               }])
             }
-          } catch {
+          } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return
             setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
               ...msg,
               content: (
@@ -897,11 +957,9 @@ export function NeuralChatLanding({
           )
         } : msg))
 
-        await delay(1000)
+        if (!(await delay(1000))) return
         
         setResumeFile(fileObj || null)
-        const pdfPreviewUrl = fileObj ? URL.createObjectURL(fileObj) : null
-
         setChatLog(prev => prev.map(msg => {
             if (msg.role === 'system' && msg.id.includes('-sys-resume') && msg.id !== step1Id) {
                return {
@@ -921,7 +979,7 @@ export function NeuralChatLanding({
                             <FileText className="h-4 w-4 shrink-0" /> Resume Verified
                           </p>
                        </div>
-                       <SmartResumePreview pdfUrl={pdfPreviewUrl} fileObj={fileObj || null} fileName={value} />
+                       <SmartResumePreview fileObj={fileObj || null} fileName={value} />
                    </div>
                  )
                }
@@ -931,17 +989,17 @@ export function NeuralChatLanding({
 
         // Auto-trigger previews for detected links (with approval rows)
         if (autoDetectedPortfolio) {
-          await delay(500)
+          if (!(await delay(500))) return
           await addChatFlowRef.current(autoDetectedPortfolio.normalized, 'portfolio', undefined, true)
         }
         if (autoDetectedGithub) {
-          await delay(500)
+          if (!(await delay(500))) return
           await addChatFlowRef.current(autoDetectedGithub.username, 'github', undefined, true)
         }
 
         // If no links detected, show manual add hint
         if (!autoDetectedPortfolio && !autoDetectedGithub) {
-          await delay(300)
+          if (!(await delay(300))) return
           setChatLog(prev => [...prev, {
             id: Date.now().toString() + '-manual-hint',
             role: 'system',
@@ -1046,21 +1104,21 @@ export function NeuralChatLanding({
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
                <div className="flex flex-wrap gap-2">
                   {portfolioUrl && (
-                     <Badge variant="secondary" className="gap-1.5 bg-card border-border/50 shadow-sm py-1.5 px-3 rounded-full text-xs font-semibold cursor-default hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all group" onClick={() => setPortfolioUrl('')}>
+                     <Badge variant="secondary" className="gap-1.5 bg-card border-border/50 shadow-sm py-1.5 px-3 rounded-full text-xs font-semibold cursor-default hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all group" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setPortfolioUrl('') }}>
                        <Globe className="h-3.5 w-3.5 text-blue-500" />
                        <span className="truncate max-w-[150px]">{portfolioUrl.replace(/^https?:\/\//, '')}</span>
                        <span className="hidden group-hover:inline ml-1 text-red-500">×</span>
                      </Badge>
                   )}
                   {githubUsername && (
-                     <Badge variant="secondary" className="gap-1.5 bg-card border-border/50 shadow-sm py-1.5 px-3 rounded-full text-xs font-semibold cursor-default hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all group" onClick={() => setGithubUsername('')}>
+                     <Badge variant="secondary" className="gap-1.5 bg-card border-border/50 shadow-sm py-1.5 px-3 rounded-full text-xs font-semibold cursor-default hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all group" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setGithubUsername('') }}>
                        <GitBranch className="h-3.5 w-3.5 text-purple-500" />
                        <span className="truncate max-w-[150px]">{githubUsername}</span>
                        <span className="hidden group-hover:inline ml-1 text-red-500">×</span>
                      </Badge>
                   )}
                   {resumeFile && (
-                     <Badge variant="secondary" className="gap-1.5 bg-card border-border/50 shadow-sm py-1.5 px-3 rounded-full text-xs font-semibold cursor-default hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all group" onClick={() => setResumeFile(null)}>
+                     <Badge variant="secondary" className="gap-1.5 bg-card border-border/50 shadow-sm py-1.5 px-3 rounded-full text-xs font-semibold cursor-default hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all group" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setResumeFile(null) }}>
                        <FileText className="h-3.5 w-3.5 text-emerald-500" />
                        <span className="truncate max-w-[150px]">{resumeFile.name}</span>
                        <span className="hidden group-hover:inline ml-1 text-red-500">×</span>
@@ -1069,8 +1127,8 @@ export function NeuralChatLanding({
                </div>
 
                {totalCost > 0 && (
-                  <Button onClick={(e) => onSubmitRef.current(e as unknown as React.FormEvent<HTMLFormElement>)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 rounded-full px-5 animate-in fade-in slide-in-from-bottom-2 shrink-0">
-                    Proceed ({totalCost} {totalCost === 1 ? 'Credit' : 'Credits'}) <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  <Button onClick={(e) => onSubmitRef.current(e as unknown as React.FormEvent<HTMLFormElement>)} disabled={isChatProcessing || isLoading || isScanning} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 rounded-full px-5 animate-in fade-in slide-in-from-bottom-2 shrink-0">
+                    {isLoading || isScanning ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Analyzing...</> : <>Proceed ({totalCost} {totalCost === 1 ? 'Credit' : 'Credits'}) <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>}
                   </Button>
                )}
             </div>
@@ -1086,17 +1144,17 @@ export function NeuralChatLanding({
                   {/* Dropdown for tabs */}
                   <div className="absolute bottom-full left-0 mb-3 w-56 bg-card border border-border/50 shadow-2xl rounded-2xl p-2 opacity-0 invisible group-hover/tabs:opacity-100 group-hover/tabs:visible transition-all -translate-y-2 group-hover/tabs:translate-y-0">
                      <div className="text-xs font-bold text-muted-foreground px-3 mb-2 uppercase tracking-wider">Analysis Mode</div>
-                     <button type="button" onClick={() => setActiveInputMode('portfolio')} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors ${activeInputMode === 'portfolio' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
+                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('portfolio') }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors ${activeInputMode === 'portfolio' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                        <Globe className="h-4 w-4 text-blue-500" /> 
                        <span className="flex-1">Live Portfolio URL</span>
                        <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">{getAnalysisCost('portfolio')} <span className="text-[10px]">Token</span></span>
                      </button>
-                     <button type="button" onClick={() => setActiveInputMode('github')} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'github' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
+                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('github') }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'github' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                        <GitBranch className="h-4 w-4 text-purple-500" /> 
                        <span className="flex-1">GitHub Username</span>
                        <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">{getAnalysisCost('github')} <span className="text-[10px]">Token</span></span>
                      </button>
-                     <button type="button" onClick={() => setActiveInputMode('resume')} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'resume' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
+                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('resume') }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'resume' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                        <FileText className="h-4 w-4 text-emerald-500" /> 
                        <span className="flex-1">Resume/CV (PDF)</span>
                        <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">{getAnalysisCost('resume')} <span className="text-[10px]">Token</span></span>
@@ -1106,8 +1164,8 @@ export function NeuralChatLanding({
 
                {activeInputMode === 'resume' ? (
                   <div className="flex-1 px-3 h-10 sm:h-12 flex items-center bg-transparent border-none focus:outline-none">
-                     <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                     <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors h-full w-full justify-start text-left">
+                     <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileChange} disabled={isChatProcessing || isLoading || isScanning} />
+                     <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatProcessing || isLoading || isScanning} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors h-full w-full justify-start text-left disabled:cursor-not-allowed disabled:opacity-50">
                        <Upload className="h-4 w-4" /> Upload your Resume/CV PDF first... (Max {FILE_UPLOAD.maxFileSize / (1024 * 1024)}MB)
                      </button>
                   </div>
@@ -1117,7 +1175,8 @@ export function NeuralChatLanding({
                     value={chatInputValue}
                     onChange={(e) => setChatInputValue(e.target.value)}
                     placeholder={activeInputMode === 'portfolio' ? "Enter portfolio URL..." : "Enter GitHub username..."}
-                    className="flex-1 px-3 h-10 sm:h-12 text-sm sm:text-base font-medium bg-transparent border-none focus:outline-none text-foreground placeholder:text-muted-foreground w-full"
+                    disabled={isChatProcessing || isLoading || isScanning}
+                    className="flex-1 px-3 h-10 sm:h-12 text-sm sm:text-base font-medium bg-transparent border-none focus:outline-none text-foreground placeholder:text-muted-foreground w-full disabled:cursor-not-allowed disabled:opacity-50"
                  />
                )}
 

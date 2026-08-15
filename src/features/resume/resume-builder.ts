@@ -10,6 +10,7 @@ export interface BuildResumeOptions {
   portfolioUrl?: string
   githubUsername?: string
   portfolioMarkdown?: string
+  signal?: AbortSignal
 }
 
 export async function buildImprovedResume({
@@ -18,7 +19,8 @@ export async function buildImprovedResume({
   mismatches,
   portfolioUrl,
   githubUsername,
-  portfolioMarkdown
+  portfolioMarkdown,
+  signal,
 }: BuildResumeOptions): Promise<ImprovedResumeData> {
   const notAligned = mismatches ?? []
   const isGithubIsolated = notAligned.some(
@@ -54,11 +56,13 @@ export async function buildImprovedResume({
 
   let enhancedSections = originalSections
   let improvementOperations: ResumeChangeOperation[] = []
+  let generationWarning: string | undefined
   if (rawRepos.length > 0 || originalSections.length > 0 || portfolioMarkdown) {
     try {
       const response = await fetch('/api/resume/improve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal,
         body: JSON.stringify({
           originalSections,
           githubRepos: rawRepos,
@@ -67,12 +71,30 @@ export async function buildImprovedResume({
           portfolioUrl
         })
       })
-      if (response.ok) {
-        const data = await response.json()
-        enhancedSections = data.sections || originalSections
-        improvementOperations = Array.isArray(data.operations) ? data.operations : []
+      if (!response.ok) {
+        let message = `Improvement request failed (${response.status})`
+        try {
+          const payload = await response.json() as { error?: unknown }
+          if (typeof payload.error === 'string' && payload.error.trim()) message = payload.error
+        } catch {
+          // Preserve the stable status-based message.
+        }
+        throw new Error(message)
       }
+
+      const payload: unknown = await response.json()
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        throw new Error('Improvement service returned an invalid response')
+      }
+      const improved = payload as { sections?: unknown; operations?: unknown }
+      if (!Array.isArray(improved.sections)) {
+        throw new Error('Improvement service returned invalid sections')
+      }
+      enhancedSections = improved.sections as DynamicSection[]
+      improvementOperations = Array.isArray(improved.operations) ? improved.operations as ResumeChangeOperation[] : []
     } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') throw e
+      generationWarning = 'AI enhancement was unavailable, so PortfolioPilot loaded your verified original resume content without applying generated changes.'
       console.error('Failed to generate improved resume sections', e)
     }
   }
@@ -111,6 +133,7 @@ export async function buildImprovedResume({
     originalSections,
     improvementOperations,
     templateContract: details?.templateContract,
+    generationWarning,
     
     // Legacy fallback bindings (for templates that haven't been updated yet)
     summary: details?.professionalSummary || '',

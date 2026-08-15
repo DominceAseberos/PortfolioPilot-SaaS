@@ -6,6 +6,16 @@ import type { ImprovedResumeData } from '@/types/resume'
 
 const TEMPLATE_IDS = new Set<ResumeTemplateId>(['classic', 'modern', 'compact'])
 const MAX_PDF_BYTES = 5 * 1024 * 1024
+const MAX_REQUEST_BYTES = 8 * 1024 * 1024
+const MAX_RESUME_DATA_CHARS = 1_000_000
+const MAX_SECTIONS = 60
+
+function declaredBodyTooLarge(req: Request, limit: number): boolean {
+  const raw = req.headers.get('content-length')
+  if (!raw) return false
+  const length = Number(raw)
+  return Number.isFinite(length) && length > limit
+}
 
 function isPdfSignature(bytes: Uint8Array): boolean {
   return bytes.length >= 5 && String.fromCharCode(...bytes.subarray(0, 5)) === '%PDF-'
@@ -16,6 +26,10 @@ export async function POST(req: Request) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    if (declaredBodyTooLarge(req, MAX_REQUEST_BYTES)) {
+      return NextResponse.json({ error: 'Verification request is too large' }, { status: 413 })
+    }
 
     const form = await req.formData()
     const pdf = form.get('pdf')
@@ -31,6 +45,9 @@ export async function POST(req: Request) {
     if (typeof rawData !== 'string') {
       return NextResponse.json({ error: 'Missing resume data' }, { status: 400 })
     }
+    if (rawData.length > MAX_RESUME_DATA_CHARS) {
+      return NextResponse.json({ error: 'Resume data is too large to verify safely' }, { status: 413 })
+    }
     if (typeof templateId !== 'string' || (templateId !== 'uploaded' && !TEMPLATE_IDS.has(templateId as ResumeTemplateId))) {
       return NextResponse.json({ error: 'Invalid templateId' }, { status: 400 })
     }
@@ -44,6 +61,9 @@ export async function POST(req: Request) {
 
     if (!data || typeof data.name !== 'string' || !Array.isArray(data.sections)) {
       return NextResponse.json({ error: 'Invalid resume data' }, { status: 400 })
+    }
+    if (data.sections.length > MAX_SECTIONS) {
+      return NextResponse.json({ error: 'Resume contains too many sections to verify safely' }, { status: 413 })
     }
 
     const bytes = new Uint8Array(await pdf.arrayBuffer())

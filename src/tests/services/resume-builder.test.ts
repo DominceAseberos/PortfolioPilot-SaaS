@@ -207,6 +207,26 @@ describe('buildImprovedResume review metadata', () => {
     expect(result.sections[0].type === 'text' ? result.sections[0].text : '').toBe('Original summary.')
     expect(result.originalSections?.[0].type === 'text' ? result.originalSections[0].text : '').toBe('Original summary.')
     expect(result.improvementOperations).toEqual([])
+    expect(result.generationWarning).toMatch(/verified original resume content/i)
     expect(consoleSpy).toHaveBeenCalled()
   })
+
+  it('propagates aborted improve requests instead of silently falling back', async () => {
+    const abortError = Object.assign(new Error('aborted'), { name: 'AbortError' })
+    const fetchMock = jest.fn().mockRejectedValue(abortError)
+    installFetchMock(fetchMock)
+    const controller = new AbortController()
+
+    await expect(buildImprovedResume({
+      details,
+      githubAnalysis: null,
+      mismatches: [],
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/resume/improve', expect.objectContaining({
+      signal: controller.signal,
+    }))
+  })
+
 })

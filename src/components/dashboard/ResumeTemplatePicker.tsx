@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import { BlobProvider } from '@react-pdf/renderer'
-import { CheckCircle2, ArrowRight, Sparkles, FileUp } from 'lucide-react'
+import { CheckCircle2, ArrowRight, Sparkles, FileUp, AlertTriangle } from 'lucide-react'
 import {
   RESUME_TEMPLATES,
   type ResumeTemplateChoiceId,
@@ -10,6 +10,7 @@ import {
 import type { ImprovedResumeData } from '@/components/pdf/ImprovedResumeTemplate'
 import { recommendResumeTemplate } from '@/features/resume/services/resume-template-recommendation.service'
 import { analyzeUploadedTemplatePreflight } from '@/features/resume/services/resume-template-layout-plan.service'
+import { buildResumeTemplateCapabilityReport } from '@/features/resume/services/resume-template-capability.service'
 import { Button } from '@/components/common/Button'
 
 interface ResumeTemplatePickerProps {
@@ -34,7 +35,15 @@ interface TemplateOption {
 function TemplateMiniPreview({ data, templateId }: { data: ImprovedResumeData; templateId: ResumeTemplateChoiceId }) {
   return (
     <BlobProvider document={<ResumeTemplateChoiceRenderer data={data} templateId={templateId} />}>
-      {({ url, loading }) => {
+      {({ url, loading, error }) => {
+        if (error) {
+          return (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2 px-4 text-center text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="text-[10px] font-semibold">Preview unavailable</span>
+            </div>
+          )
+        }
         if (loading || !url) {
           return (
             <div className="w-full h-full flex items-center justify-center">
@@ -59,6 +68,7 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
   const recommendedTemplate = RESUME_TEMPLATES.find((template) => template.id === recommendation.templateId)
   const uploadedContract = data.templateContract?.source === 'uploaded' ? data.templateContract : null
   const uploadedPreflight = uploadedContract ? analyzeUploadedTemplatePreflight(data, uploadedContract) : null
+  const uploadedCapability = uploadedContract ? buildResumeTemplateCapabilityReport(uploadedContract) : null
 
   const options: TemplateOption[] = [
     ...(uploadedContract && uploadedPreflight ? [{
@@ -115,6 +125,7 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
                 key={option.id}
                 type="button"
                 onClick={() => onSelect(option.id)}
+                aria-pressed={isSelected}
                 className={`relative flex flex-col rounded-2xl border-2 overflow-hidden text-left transition-all duration-200 group focus:outline-none ${
                   isSelected
                     ? 'border-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.15)] scale-[1.02]'
@@ -144,7 +155,9 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
                       <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">Recommended</span>
                     )}
                     {option.uploaded && (
-                      <span className="ml-auto rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">Your PDF</span>
+                      <span className={`ml-auto rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${uploadedCapability?.overall === 'blocked' ? 'bg-red-500/10 text-red-700' : 'bg-emerald-500/10 text-emerald-700'}`}>
+                        {uploadedCapability?.overall === 'blocked' ? 'Export blocked' : 'Your PDF'}
+                      </span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{option.description}</p>
@@ -178,7 +191,7 @@ export function ResumeTemplatePicker({ data, selected, onSelect, onConfirm }: Re
         <p className="text-xs text-muted-foreground">
           Selected: <span className="font-semibold text-foreground">{selectedOption?.name ?? 'Template'}</span>
         </p>
-        <Button onClick={onConfirm} className="bg-primary text-primary-foreground font-bold px-6 gap-2">
+        <Button onClick={onConfirm} disabled={!selectedOption} className="bg-primary text-primary-foreground font-bold px-6 gap-2">
           Edit Content
           <ArrowRight className="h-4 w-4" />
         </Button>

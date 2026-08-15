@@ -6,6 +6,7 @@ import type {
   ResumeAnalysis,
   AISummaryResult,
   AIMismatch,
+  GitHubRepo,
 } from '@/types'
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
@@ -167,7 +168,7 @@ Strengths, weaknesses, and recommendations should be highly personalized to the 
   }
 }
 
-async function extractAndMergeSkills(client: OpenAI, currentSections: DynamicSection[], githubRepos: any[]): Promise<DynamicSection | null> {
+async function extractAndMergeSkills(client: OpenAI, currentSections: DynamicSection[], githubRepos: GitHubRepo[]): Promise<DynamicSection | null> {
   try {
     const existingSkillsSection = currentSections.find(isSkillSection)
     if (githubRepos.length === 0) return existingSkillsSection ?? null
@@ -216,7 +217,7 @@ CRITICAL RULES:
   }
 }
 
-async function weaveProjects(client: OpenAI, currentSections: DynamicSection[], githubRepos: any[], githubUsername?: string): Promise<DynamicSection | null> {
+async function weaveProjects(client: OpenAI, currentSections: DynamicSection[], githubRepos: GitHubRepo[], githubUsername?: string): Promise<DynamicSection | null> {
   try {
     const existingProjectsSection = currentSections.find(isProjectSection)
     if (githubRepos.length === 0) return existingProjectsSection ?? null
@@ -272,7 +273,7 @@ CRITICAL RULES:
   }
 }
 
-async function generateProfessionalSummary(client: OpenAI, skillsSection: DynamicSection | null, projectsSection: DynamicSection | null, githubRepos: any[]): Promise<DynamicSection | null> {
+async function generateProfessionalSummary(client: OpenAI, skillsSection: DynamicSection | null, projectsSection: DynamicSection | null, githubRepos: GitHubRepo[]): Promise<DynamicSection | null> {
   try {
     const response = await client.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -365,7 +366,7 @@ type EnhancedSections = {
 async function fetchAIResumeEnhancements(
   client: OpenAI,
   originalSections: DynamicSection[],
-  githubRepos: any[],
+  githubRepos: GitHubRepo[],
   githubUsername?: string,
   portfolioMarkdown?: string
 ): Promise<EnhancedSections> {
@@ -435,7 +436,7 @@ function mergeResumeSections(
 
 export async function generateImprovedResumeContent(
   originalSections: DynamicSection[],
-  githubRepos: any[],
+  githubRepos: GitHubRepo[],
   githubUsername?: string,
   portfolioMarkdown?: string
 ): Promise<DynamicSection[]> {

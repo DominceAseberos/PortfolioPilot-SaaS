@@ -1279,6 +1279,32 @@ Phase 5 is now complete.
 - Final gate: sanitized intake, reliability suites, 31/31 Jest suites and 137/137 tests, TypeScript, dashboard lint with zero errors, production compile/generate, and git diff --check.
 
 
+### Phase 26 - End-to-End Resume UX Lifecycle Hardening
+
+- [x] Own and cancel stale upload, validation, analysis, generation, optimization, verification, and email requests
+- [x] Prevent duplicate submit/generate/optimize/download/history actions while work is active
+- [x] Lock editor/template mutation during critical render or optimization work
+- [x] Confirm before closing dirty or busy resume editing sessions
+- [x] Dispose timers, observers, object URLs, abort controllers, and temporary download anchors deterministically
+- [x] Surface template-preview failures and blocked uploaded-template export capability before download
+- [x] Make AI-generation fallback explicit while preserving verified original resume content
+- [x] Bound improve/optimize/verify API payloads and resume section counts before expensive work
+- [x] Add resource-limit and generation-abort regressions
+- [x] Validate all existing PDF fidelity, pagination, sanitized intake, and adversarial regressions
+
+#### Cycle 34 implementation notes
+
+- ImprovedResumeModal now uses request revisions plus AbortController ownership so stale optimization or PDF verification cannot overwrite newer edits/template choices. Busy operations lock mutating controls; close/Escape confirms dirty or active work and cancels owned requests.
+- Resume generation is abortable end-to-end. Non-abort AI failures fall back to canonical verified content and carry a visible generation warning instead of pretending enhancement succeeded.
+- NeuralChatLanding owns resume blob URLs, validation AbortControllers, delayed chat transitions, and submit-unlock timers; source and input controls are disabled while validation/analysis is active.
+- ReviewsPageClient shares one analysis submission lock across Proceed/repository-confirm paths, aborts historical-resume/analysis/email work on unmount, and owns all progress/typing/auto-advance timers. History/new-analysis/email transitions are locked during incompatible active work.
+- Template picker reports mini-preview render failure explicitly and labels uploaded contracts whose capability report blocks verified export.
+- Improve/optimize/verify APIs reject oversized JSON/PDF/metadata and excessive section/repository counts before AI, layout optimization, or PDF parsing.
+- AI resume helpers now use typed GitHubRepo[] inputs instead of loose any[] arrays.
+- New API regressions verify 413 resource limits and builder tests verify AbortSignal propagation plus transparent verified-original fallback.
+- Final validation: 32/32 Jest suites, 142/142 tests, sanitized jsPDF intake, Generated PDF Regression, six-family Template Corpus at 100% average/minimum measurable fidelity with exact pagination, 10/10 Adversarial PDF Resilience, touched-file ESLint, TypeScript, git diff checks, and Next.js Turbopack compile + generate all pass.
+
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1294,7 +1320,7 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-**Code-side resume/PDF reliability and production upload hardening are complete through Phase 25.**
+**Code-side resume/PDF reliability and end-to-end production UX hardening are complete through Phase 26.**
 
 The only open roadmap item is **Phase 23B - Populate the Sanitized Real-World Fixture Corpus**, which is an external fixture dependency rather than another implementation phase.
 
