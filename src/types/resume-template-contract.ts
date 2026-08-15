@@ -49,6 +49,28 @@ export interface ResumeTemplatePageGraphicProfile {
   graphics?: ResumeTemplateGraphicStyleContract
 }
 
+export type ResumeTemplateSourceDiagnosticCode =
+  | 'mixed-page-sizes'
+  | 'mixed-page-rotations'
+  | 'rotated-text'
+  | 'vertical-text'
+  | 'clipping-path'
+  | 'partially-scanned'
+  | 'image-only'
+  | 'text-decoding-anomaly'
+  | 'extreme-page-geometry'
+  | 'excessive-page-count'
+
+export type ResumeTemplateSourceDiagnosticSeverity = 'info' | 'limited' | 'blocking'
+
+export interface ResumeTemplateSourceDiagnostic {
+  code: ResumeTemplateSourceDiagnosticCode
+  severity: ResumeTemplateSourceDiagnosticSeverity
+  detail: string
+  pages?: number[]
+  count?: number
+}
+
 export interface ResumeTemplateRegionContract {
   id: string
   role: ResumeTemplateRegionRole
@@ -78,4 +100,5 @@ export interface ResumeTemplateContract {
   style?: ResumeTemplateStyleContract
   graphics?: ResumeTemplateGraphicStyleContract
   pageGraphics?: ResumeTemplatePageGraphicProfile[]
+  sourceDiagnostics?: ResumeTemplateSourceDiagnostic[]
 }

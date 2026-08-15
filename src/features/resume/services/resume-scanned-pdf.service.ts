@@ -1,4 +1,10 @@
-export type ResumePdfExtractionFailureCode = 'SCANNED_PDF' | 'UNREADABLE_PDF'
+export type ResumePdfExtractionFailureCode =
+  | 'SCANNED_PDF'
+  | 'PARTIALLY_SCANNED_PDF'
+  | 'UNREADABLE_PDF'
+  | 'PASSWORD_PROTECTED_PDF'
+  | 'MALFORMED_PDF'
+  | 'PDF_TOO_MANY_PAGES'
 
 export function isPdfBuffer(buffer: Buffer): boolean {
   return buffer.length >= 5 && buffer.subarray(0, 5).toString('ascii') === '%PDF-'
@@ -20,6 +26,40 @@ export interface ResumePdfScanInspection {
   code: ResumePdfExtractionFailureCode
   pageCount: number
   detectedImageCount: number
+}
+
+export function classifyResumePdfParserError(error: unknown): ResumePdfExtractionFailureCode | null {
+  if (!error) return null
+  const value = error as { name?: unknown; message?: unknown; code?: unknown }
+  const name = typeof value.name === 'string' ? value.name : ''
+  const message = typeof value.message === 'string' ? value.message : String(error)
+  const combined = `${name} ${message}`.toLocaleLowerCase()
+
+  if (
+    combined.includes('passwordexception')
+    || combined.includes('password required')
+    || combined.includes('no password given')
+    || combined.includes('incorrect password')
+    || combined.includes('password-protected')
+    || combined.includes('encrypted pdf')
+  ) {
+    return 'PASSWORD_PROTECTED_PDF'
+  }
+
+  if (
+    combined.includes('invalidpdfexception')
+    || combined.includes('invalid pdf')
+    || combined.includes('malformed pdf')
+    || combined.includes('pdf header')
+    || combined.includes('startxref')
+    || combined.includes('xref') && combined.includes('invalid')
+    || combined.includes('unexpected end of file')
+    || combined.includes('unexpected eof')
+  ) {
+    return 'MALFORMED_PDF'
+  }
+
+  return null
 }
 
 export async function inspectPdfWithoutReadableText(buffer: Buffer): Promise<ResumePdfScanInspection> {
@@ -63,8 +103,9 @@ export async function inspectPdfWithoutReadableText(buffer: Buffer): Promise<Res
       pageCount,
       detectedImageCount,
     }
-  } catch {
-    return { code: 'UNREADABLE_PDF', pageCount: 0, detectedImageCount: 0 }
+  } catch (error) {
+    const classified = classifyResumePdfParserError(error)
+    return { code: classified ?? 'UNREADABLE_PDF', pageCount: 0, detectedImageCount: 0 }
   }
 }
 
@@ -73,6 +114,42 @@ export function createResumePdfExtractionError(inspection: ResumePdfScanInspecti
     return new ResumePdfExtractionError(
       'SCANNED_PDF',
       'This PDF appears to be image-only or scanned. Export or OCR it as a searchable PDF before uploading.',
+      inspection.pageCount,
+      inspection.detectedImageCount
+    )
+  }
+
+  if (inspection.code === 'PARTIALLY_SCANNED_PDF') {
+    return new ResumePdfExtractionError(
+      'PARTIALLY_SCANNED_PDF',
+      'This PDF mixes searchable text pages with image-only/scanned pages. OCR every page or export a fully searchable PDF so no resume content is omitted.',
+      inspection.pageCount,
+      inspection.detectedImageCount
+    )
+  }
+
+  if (inspection.code === 'PASSWORD_PROTECTED_PDF') {
+    return new ResumePdfExtractionError(
+      'PASSWORD_PROTECTED_PDF',
+      'This PDF is password-protected or encrypted. Export an unlocked copy before uploading.',
+      inspection.pageCount,
+      inspection.detectedImageCount
+    )
+  }
+
+  if (inspection.code === 'MALFORMED_PDF') {
+    return new ResumePdfExtractionError(
+      'MALFORMED_PDF',
+      'This PDF is malformed or truncated and cannot be parsed safely. Export a fresh PDF and try again.',
+      inspection.pageCount,
+      inspection.detectedImageCount
+    )
+  }
+
+  if (inspection.code === 'PDF_TOO_MANY_PAGES') {
+    return new ResumePdfExtractionError(
+      'PDF_TOO_MANY_PAGES',
+      'This PDF contains too many pages for safe resume processing. Upload a resume/CV with 50 pages or fewer.',
       inspection.pageCount,
       inspection.detectedImageCount
     )
@@ -87,7 +164,17 @@ export function createResumePdfExtractionError(inspection: ResumePdfScanInspecti
 }
 
 export function getResumePdfExtractionErrorCode(error: unknown): ResumePdfExtractionFailureCode | null {
-  if (!error || typeof error !== 'object') return null
+  if (!error || typeof error !== 'object') return classifyResumePdfParserError(error)
   const code = (error as { code?: unknown }).code
-  return code === 'SCANNED_PDF' || code === 'UNREADABLE_PDF' ? code : null
+  if (
+    code === 'SCANNED_PDF'
+    || code === 'PARTIALLY_SCANNED_PDF'
+    || code === 'UNREADABLE_PDF'
+    || code === 'PASSWORD_PROTECTED_PDF'
+    || code === 'MALFORMED_PDF'
+    || code === 'PDF_TOO_MANY_PAGES'
+  ) {
+    return code
+  }
+  return classifyResumePdfParserError(error)
 }

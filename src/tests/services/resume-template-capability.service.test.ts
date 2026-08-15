@@ -59,6 +59,26 @@ describe('resume template capability report', () => {
     expect(report.items.some((item) => item.key === 'continuation' && item.status === 'preserved')).toBe(true)
   })
 
+  it('surfaces source-PDF diagnostics as limited or blocking capability items', () => {
+    const limited = buildResumeTemplateCapabilityReport({
+      ...baseContract,
+      sourceDiagnostics: [
+        { code: 'rotated-text', severity: 'limited', detail: 'rotated fixture', pages: [1], count: 1 },
+      ],
+    })
+    expect(limited.overall).toBe('limited')
+    expect(limited.items.some((item) => item.key === 'source:rotated-text' && item.status === 'unsupported')).toBe(true)
+
+    const blocked = buildResumeTemplateCapabilityReport({
+      ...baseContract,
+      sourceDiagnostics: [
+        { code: 'mixed-page-sizes', severity: 'blocking', detail: 'mixed fixture', pages: [1, 2] },
+      ],
+    })
+    expect(blocked.overall).toBe('blocked')
+    expect(blocked.items.some((item) => item.key === 'source:mixed-page-sizes' && item.status === 'blocking')).toBe(true)
+  })
+
   it('blocks when page-specific continuation artwork cannot follow the repeat policy', () => {
     const first = {
       bodyTextColor: '#111827',

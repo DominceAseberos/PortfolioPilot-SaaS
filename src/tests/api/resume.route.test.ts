@@ -76,6 +76,27 @@ describe('/api/reviews/resume credit safety', () => {
     expect(creditRepository.addCreditsAdmin).toHaveBeenCalledWith('user-1', 1)
   })
 
+  it.each([
+    ['PARTIALLY_SCANNED_PDF', 422, /scanned|searchable pages/i],
+    ['PASSWORD_PROTECTED_PDF', 422, /password|encrypted/i],
+    ['MALFORMED_PDF', 400, /malformed|truncated/i],
+    ['PDF_TOO_MANY_PAGES', 400, /too many pages|50 pages/i],
+  ] as const)('refunds the deducted credit for %s failures', async (code, status, messagePattern) => {
+    jest.mocked(resumeService.analyze).mockRejectedValue(
+      new ResumePdfExtractionError(code, code, 2, code === 'PARTIALLY_SCANNED_PDF' ? 1 : 0)
+    )
+
+    const response = await POST(requestWithPdf())
+    const json = await response.json()
+
+    expect(response.status).toBe(status)
+    expect(json.success).toBe(false)
+    expect(json.message).toMatch(messagePattern)
+    expect(json.message).toMatch(/credit was refunded/i)
+    expect(creditRepository.deductCredits).toHaveBeenCalledWith('user-1', 1)
+    expect(creditRepository.addCreditsAdmin).toHaveBeenCalledWith('user-1', 1)
+  })
+
   it('does not claim a refund when the refund operation fails', async () => {
     jest.mocked(resumeService.analyze).mockRejectedValue(
       new ResumePdfExtractionError('SCANNED_PDF', 'scanned', 1, 1)

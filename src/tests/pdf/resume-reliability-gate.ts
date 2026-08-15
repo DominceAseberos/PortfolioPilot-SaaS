@@ -21,6 +21,7 @@ interface ReliabilityGateSuite {
 const suites: ReliabilityGateSuite[] = [
   { name: 'Generated PDF Regression', script: 'test:pdf', reportFile: 'generated-pdf-regression.json' },
   { name: 'Template Corpus Benchmark', script: 'test:template-corpus', reportFile: 'template-corpus-benchmark.json' },
+  { name: 'Adversarial PDF Resilience', script: 'test:pdf-adversarial', reportFile: 'adversarial-pdf-resilience.json' },
 ]
 
 if (process.env.RESUME_SANITIZED_FIXTURE_DIR?.trim()) {

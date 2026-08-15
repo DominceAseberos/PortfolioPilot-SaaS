@@ -51,6 +51,30 @@ export async function POST(req: Request) {
           { status: 422 }
         )
       }
+      if (extractionCode === 'PARTIALLY_SCANNED_PDF') {
+        return NextResponse.json(
+          { success: false, code: extractionCode, message: 'This PDF mixes searchable pages with scanned/image-only pages. OCR every page or export a fully searchable PDF so no resume content is omitted.' },
+          { status: 422 }
+        )
+      }
+      if (extractionCode === 'PASSWORD_PROTECTED_PDF') {
+        return NextResponse.json(
+          { success: false, code: extractionCode, message: 'This PDF is password-protected or encrypted. Please export an unlocked copy and upload it again.' },
+          { status: 422 }
+        )
+      }
+      if (extractionCode === 'MALFORMED_PDF') {
+        return NextResponse.json(
+          { success: false, code: extractionCode, message: 'This PDF is malformed or truncated. Please export a fresh PDF and upload it again.' },
+          { status: 400 }
+        )
+      }
+      if (extractionCode === 'PDF_TOO_MANY_PAGES') {
+        return NextResponse.json(
+          { success: false, code: extractionCode, message: 'This PDF contains too many pages for safe resume processing. Please upload a resume/CV with 50 pages or fewer.' },
+          { status: 400 }
+        )
+      }
       if (extractionCode === 'UNREADABLE_PDF') {
         return NextResponse.json(
           { success: false, code: extractionCode, message: 'This PDF has no readable text layer. Please export a fresh searchable PDF and try again.' },

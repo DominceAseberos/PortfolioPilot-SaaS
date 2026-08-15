@@ -98,6 +98,27 @@ export function buildResumeTemplateCapabilityReport(contract: ResumeTemplateCont
     }
   }
 
+  for (const diagnostic of contract.sourceDiagnostics ?? []) {
+    const labels: Record<typeof diagnostic.code, string> = {
+      'mixed-page-sizes': 'Mixed page sizes',
+      'mixed-page-rotations': 'Mixed page rotations',
+      'rotated-text': 'Rotated / transformed text',
+      'vertical-text': 'Vertical text',
+      'clipping-path': 'Clipping paths / masked layout',
+      'partially-scanned': 'Partially scanned PDF',
+      'image-only': 'Image-only PDF',
+      'text-decoding-anomaly': 'Text encoding anomalies',
+      'extreme-page-geometry': 'Extreme page geometry',
+      'excessive-page-count': 'Excessive page count',
+    }
+    const status: ResumeTemplateCapabilityStatus = diagnostic.severity === 'blocking'
+      ? 'blocking'
+      : diagnostic.severity === 'limited'
+        ? 'unsupported'
+        : 'approximated'
+    addItem(items, `source:${diagnostic.code}`, labels[diagnostic.code], status, diagnostic.detail)
+  }
+
   const continuation = assessResumeGraphicContinuation(contract.pageGraphics)
   if (continuation.status === 'single-page') {
     addItem(

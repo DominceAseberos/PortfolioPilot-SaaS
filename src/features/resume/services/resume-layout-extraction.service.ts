@@ -4,6 +4,8 @@ import { assignReadingOrder } from './resume-reading-order.service'
 import type { ResumeTemplateContract } from '@/types/resume-template-contract'
 import { inferResumeTemplateContract } from './resume-template-contract.service'
 import { extractResumeGraphicStyle } from './resume-template-graphics.service'
+import { inspectResumePdfSourceDiagnostics, MAX_RESUME_PDF_PAGES } from './resume-pdf-source-diagnostics.service'
+import { createResumePdfExtractionError } from './resume-scanned-pdf.service'
 
 export interface ResumeLayoutPage { pageNumber: number; columnCount: number; width?: number; height?: number; lines: ResumeLayoutLine[] }
 export interface ResumePageDimensions { width: number; height: number }
@@ -40,6 +42,13 @@ export async function extractResumeLayout(buffer: Buffer): Promise<ResumeLayoutD
   const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
   const pdf = await getDocumentProxy(uint8)
   try {
+    if (pdf.numPages > MAX_RESUME_PDF_PAGES) {
+      throw createResumePdfExtractionError({
+        code: 'PDF_TOO_MANY_PAGES',
+        pageCount: pdf.numPages,
+        detectedImageCount: 0,
+      })
+    }
     const result = await extractTextItems(pdf)
     const pageDimensions = await Promise.all(result.items.map(async (_items, index) => {
       const page = await pdf.getPage(index + 1)
@@ -47,6 +56,8 @@ export async function extractResumeLayout(buffer: Buffer): Promise<ResumeLayoutD
       return { width: viewport.width, height: viewport.height }
     }))
     const layout = buildLayoutDocument(result.items, pageDimensions)
+    const sourceDiagnostics = await inspectResumePdfSourceDiagnostics(pdf, result.items)
+    layout.templateContract.sourceDiagnostics = sourceDiagnostics.diagnostics
     try {
       const inspectedPageCount = Math.min(result.items.length, 3)
       const pageGraphics = []

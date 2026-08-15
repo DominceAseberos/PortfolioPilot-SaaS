@@ -1,7 +1,7 @@
 # PortfolioPilot Resume Intelligence & PDF Architecture
 
 > Status: Active implementation plan
-> Last updated: 2026-08-13
+> Last updated: 2026-08-15
 > Scope: Resume extraction, cross-source enrichment, AI classification, editing, template mapping, pagination, PDF preflight, and export reliability.
 
 ## 1. Goal
@@ -1223,6 +1223,39 @@ Phase 5 is now complete.
 - Current validation passed: TypeScript, targeted ESLint, sanitized fixture jsPDF self-test, unified generated-PDF/template-corpus reliability gate, and `git diff --check`.
 - Actual real-world fixture population remains intentionally open until explicitly sanitized, legally safe source PDFs are available; PortfolioPilot does not fabricate or silently commit private resume fixtures.
 
+### Phase 24 - Adversarial PDF Resilience & Explicit Failure Classification
+
+- [x] Add deterministic source-PDF diagnostics for mixed page sizes, mixed page rotations, rotated/transformed text, vertical text, clipping paths, scan hybrids, encoding anomalies, extreme geometry, and excessive page counts
+- [x] Surface source-PDF limitations through the existing uploaded-template capability report instead of allowing false 100% fidelity claims
+- [x] Treat mixed page sizes/rotations and extreme geometry as blocking exact uploaded-layout reproduction
+- [x] Detect meaningful interior clipping while ignoring normal page/crop-boundary clipping used by healthy PDF generators
+- [x] Reject partially scanned PDFs before analysis so searchable pages cannot hide missing image-only page content
+- [x] Add stable password-protected, malformed/truncated, partially scanned, and excessive-page-count extraction error codes
+- [x] Reject PDFs over 50 pages before expensive text extraction
+- [x] Preserve existing fallback behavior for unrelated extraction/runtime failures while immediately propagating deterministic hard PDF failures
+- [x] Map all new extraction failures through validation and paid-analysis APIs with credit-refund behavior preserved
+- [x] Add operator-level regression for raster images, gradients/shading, pattern/special colors, and complex vector artwork
+- [x] Add a generated adversarial PDF suite covering clean control, mixed page sizes, extreme geometry, excessive pages, rotated text, interior clipping, partial scans, image-only scans, encryption, and truncation
+- [x] Add the adversarial suite to the structured reliability gate and CI report set
+- [x] Run focused API/service tests, full Jest, TypeScript, targeted ESLint, reliability gate, production build, and diff-hygiene validation
+
+#### Cycle 32 implementation notes
+
+- Added `resume-pdf-source-diagnostics.service.ts`. It inspects page dimensions/rotations, raw text transforms/direction, replacement-character decoding anomalies, image-only page evidence, clipping geometry, and pathological page geometry using PDF.js operator/text metadata.
+- `ResumeTemplateContract` now carries optional `sourceDiagnostics`, allowing extraction-time PDF limitations to travel with the uploaded template contract and appear in the same deterministic capability UI/report as typography and graphics limitations.
+- Mixed page sizes, mixed page rotations, extreme page geometry, scan hybrids, image-only sources, and excessive page counts are blocking capability states. Rotated text, vertical text, meaningful interior clipping, and decoding anomalies are explicit limited/unsupported states.
+- Clipping detection intentionally ignores page-sized crop/boundary clips. Only interior clipping regions with measurable non-page-sized geometry are surfaced, avoiding false limitations on normal React-PDF output.
+- `resume.service.ts` now hard-stops `PARTIALLY_SCANNED_PDF` before AI analysis. A hybrid PDF can no longer silently analyze only its searchable pages while dropping scanned pages.
+- Parser failures now normalize to `PASSWORD_PROTECTED_PDF` and `MALFORMED_PDF` when PDF.js exposes recognizable password/encryption or invalid/truncated structure errors.
+- `PDF_TOO_MANY_PAGES` is rejected immediately after opening the PDF catalog and before `extractTextItems`; the verified processing ceiling is 50 pages.
+- Both `/api/reviews/validate-resume` and paid `/api/reviews/resume` return specific actionable responses for the new codes. Paid failures continue through the existing refund path, and tests confirm the API never claims a refund when the refund itself cannot be confirmed.
+- Added `resume-pdf-adversarial-regression.ts` and `npm run test:pdf-adversarial`. Ten real generated-PDF cases exercise clean searchable input, mixed page geometry, extreme aspect ratio, 51-page rejection, rotated text, interior clipping, partially scanned pages, image-only scanning, password encryption, and truncated corruption.
+- Added `resume-template-graphics.service.test.ts` to exercise unsupported PDF operator classes directly: raster image, shading/gradient, pattern/special-color, and complex vector artwork.
+- Added source-diagnostic unit coverage for mixed rotations, vertical text, replacement-character decoding anomalies, extreme geometry, and excessive page count.
+- `npm run test:resume-reliability` now runs Generated PDF Regression + Template Corpus Benchmark + Adversarial PDF Resilience, and still conditionally includes the sanitized real-world suite when `RESUME_SANITIZED_FIXTURE_DIR` is supplied.
+- Current validation: 30/30 Jest suites, 132/132 tests, six-family corpus at 100% average/minimum measurable fidelity with exact page-count preservation, 10/10 adversarial PDF cases, sanitized jsPDF intake self-test, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check` all pass.
+- The existing Next.js multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning remain pre-existing and unchanged.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1238,15 +1271,17 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-The next implementation should be **Phase 23B - Populate the Sanitized Real-World Fixture Corpus**.
+**Code-side resume/PDF reliability implementation is complete through Phase 24.**
+
+The only open roadmap item is **Phase 23B - Populate the Sanitized Real-World Fixture Corpus**, which is an external fixture dependency rather than another implementation phase.
 
 Reason:
 
-- Phase 23 now has a safe manifest/intake runner, source-data integrity checks, optional CI integration, and a jsPDF producer self-test; the remaining gap is actual third-party source-PDF diversity.
-- The next useful corpus additions should come from intentionally sanitized exports produced by multiple external resume/PDF tools so generator-specific font encodings, transforms, clipping, and operator combinations are exercised.
-- Each added fixture should include only invented/anonymized content, a matching canonical JSON companion, and explicit confidence/fidelity/page/capability expectations in the existing manifest.
-- When a sanitized fixture directory is available, `npm run test:resume-reliability` already includes that suite automatically and emits the same structured report schema used by the synthetic baselines.
-- No real-world source file should be added merely to increase fixture count; exact fonts, private resumes, and artwork remain out unless the source is legally safe, fully sanitized, and explicitly intended for regression use.
+- The parser, uploaded-template contract, capability reporting, render verification, differential corpus, structured CI gate, sanitized-fixture intake, and adversarial PDF resilience paths are implemented and passing.
+- The remaining useful evidence must come from intentionally sanitized exports produced by genuinely different third-party resume/PDF tools. Fabricating those files inside PortfolioPilot would not provide the producer diversity that Phase 23B is intended to measure.
+- Every external fixture must use invented/anonymized content, have legal permission for regression use, include a matching canonical JSON companion, and declare explicit confidence/fidelity/page/capability expectations.
+- When an approved sanitized fixture directory is supplied, `npm run test:resume-reliability` already includes it automatically and emits the same JSON/Markdown reports as the built-in reliability suites.
+- Private resumes, copied embedded fonts, or unapproved third-party artwork must not be committed merely to make the fixture count larger.
 
 ## 26. Definition of Done for the Resume/PDF Pipeline
 

@@ -12,6 +12,7 @@
     "test:pdf": "tsx src/tests/pdf/resume-pdf-regression.ts",
     "test:template-corpus": "cross-env PDF_REGRESSION_TEST=1 tsx src/tests/pdf/resume-template-corpus-regression.tsx",
     "test:resume-reliability": "tsx src/tests/pdf/resume-reliability-gate.ts",
+    "test:pdf-adversarial": "cross-env PDF_REGRESSION_TEST=1 tsx src/tests/pdf/resume-pdf-adversarial-regression.ts",
     "test:sanitized-resume-fixtures": "cross-env PDF_REGRESSION_TEST=1 tsx src/tests/pdf/sanitized-resume-fixture-regression.tsx",
     "test:sanitized-fixture-intake": "cross-env PDF_REGRESSION_TEST=1 tsx src/tests/pdf/sanitized-resume-fixture-selftest.ts",
     "test:watch": "jest --watch",

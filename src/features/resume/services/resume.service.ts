@@ -486,6 +486,14 @@ export class ResumeService {
     try {
       const { extractResumeLayout } = await import('./resume-layout-extraction.service')
       const layout = await extractResumeLayout(buffer)
+      const partiallyScanned = layout.templateContract.sourceDiagnostics?.find((diagnostic) => diagnostic.code === 'partially-scanned')
+      if (partiallyScanned) {
+        throw createResumePdfExtractionError({
+          code: 'PARTIALLY_SCANNED_PDF',
+          pageCount: layout.totalPages,
+          detectedImageCount: partiallyScanned.pages?.length ?? partiallyScanned.count ?? 1,
+        })
+      }
       if (layout.plainText.length > 50) {
         return {
           plainText: layout.plainText,
@@ -496,6 +504,8 @@ export class ResumeService {
       }
       throw new Error('layout extraction returned too little text')
     } catch (layoutError) {
+      const hardFailure = getResumePdfExtractionErrorCode(layoutError)
+      if (hardFailure && hardFailure !== 'UNREADABLE_PDF') throw layoutError
       logger.warn('Layout-aware PDF extraction failed, using text fallback', { error: String(layoutError) })
     }
 

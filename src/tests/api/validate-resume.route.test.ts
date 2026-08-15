@@ -101,6 +101,33 @@ describe('/api/reviews/validate-resume', () => {
     expect(json.message).toMatch(/scanned|image-only/i)
   })
 
+  it.each([
+    ['PARTIALLY_SCANNED_PDF', 422, /scanned|searchable pages/i],
+    ['PASSWORD_PROTECTED_PDF', 422, /password|encrypted/i],
+    ['MALFORMED_PDF', 400, /malformed|truncated/i],
+    ['PDF_TOO_MANY_PAGES', 400, /too many pages|50 pages/i],
+  ] as const)('returns a stable %s validation response', async (code, status, messagePattern) => {
+    jest.mocked(resumeService.extractText).mockRejectedValue(
+      new ResumePdfExtractionError(code, code, 2, code === 'PARTIALLY_SCANNED_PDF' ? 1 : 0)
+    )
+
+    const file = {
+      type: 'application/pdf',
+      size: 9,
+      arrayBuffer: async () => pdfArrayBuffer(),
+    }
+
+    const response = await POST({
+      formData: async () => ({ get: () => file }),
+    } as unknown as Request)
+    const json = await response.json()
+
+    expect(response.status).toBe(status)
+    expect(json.success).toBe(false)
+    expect(json.code).toBe(code)
+    expect(json.message).toMatch(messagePattern)
+  })
+
   it('rejects files with a fake PDF MIME type but no PDF signature', async () => {
     const file = {
       type: 'application/pdf',
