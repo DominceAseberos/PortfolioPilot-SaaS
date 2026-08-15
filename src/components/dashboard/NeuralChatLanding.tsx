@@ -7,6 +7,7 @@ import { getAnalysisCost } from '@/config/pricing'
 import { FILE_UPLOAD } from '@/constants'
 import CURATED_BANNED_WORDS from '@/constants/curated-banned-words.json'
 import { normalizeGitHubUsername } from '@/utils/source-normalizers'
+import { getResumeUploadErrorPresentation } from '@/features/resume/utils/resume-upload-error'
 
 interface ChatMessage {
   id: string
@@ -357,7 +358,6 @@ export function NeuralChatLanding({
   errorNode,
   resultNode,
   analysisId,
-  credits = 0
 }: NeuralChatLandingProps) {
   const [chatLog, setChatLog] = useState<ChatMessage[]>([
     {
@@ -530,7 +530,7 @@ export function NeuralChatLanding({
               </div>
             ) 
          }])
-         toast.error(`File is too large. Maximum size is {maxMb}MB.`)
+         toast.error(`File is too large. Maximum size is ${maxMb}MB.`)
          if (fileInputRef.current) fileInputRef.current.value = ''
          return
        }
@@ -608,7 +608,7 @@ export function NeuralChatLanding({
               if (!autoDetected) setIsChatProcessing(false)
               return
            }
-         } catch (e) {
+         } catch {
             setChatLog(prev => prev.map(msg => msg.id === stepId ? {
               ...msg,
               content: (
@@ -779,7 +779,7 @@ export function NeuralChatLanding({
              return msg
            }))
 
-         } catch (e) {
+         } catch {
             setChatLog(prev => prev.map(msg => msg.id === stepId ? {
               ...msg,
               content: (
@@ -834,12 +834,17 @@ export function NeuralChatLanding({
             const data = await res.json()
 
             if (!data.success) {
+              const failure = getResumeUploadErrorPresentation(data)
               setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
                 ...msg,
                 content: (
-                  <div className="flex items-center gap-3 animate-in fade-in text-red-500">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span className="text-sm font-medium">Validation Failed: {data.message}</span>
+                  <div className="flex items-start gap-3 animate-in fade-in text-red-500">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">{failure.title}</p>
+                      <p className="text-sm text-red-500/90">{failure.explanation}</p>
+                      {failure.action && <p className="text-xs text-muted-foreground">{failure.action}</p>}
+                    </div>
                   </div>
                 )
               } : msg))
@@ -864,7 +869,7 @@ export function NeuralChatLanding({
                 )
               }])
             }
-          } catch (e) {
+          } catch {
             setChatLog(prev => prev.map(msg => msg.id === step1Id ? {
               ...msg,
               content: (
@@ -955,7 +960,7 @@ export function NeuralChatLanding({
   // Keep addChatFlowRef always current to avoid stale closures in approval callbacks
   useEffect(() => {
     addChatFlowRef.current = addChatFlow
-  }, [addChatFlow])
+  })
 
   return (
     <DynamicProceedContext.Provider value={{ portfolioUrl, githubUsername, resumeFile, isScanning: isScanning ?? false }}>

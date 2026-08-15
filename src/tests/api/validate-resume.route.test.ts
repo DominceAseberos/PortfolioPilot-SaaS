@@ -128,6 +128,30 @@ describe('/api/reviews/validate-resume', () => {
     expect(json.message).toMatch(messagePattern)
   })
 
+  it('returns a typed 400 response when a readable PDF is not a resume', async () => {
+    jest.mocked(resumeService.extractText).mockResolvedValue('Readable document text that is long enough to validate but is not a resume or CV.')
+    jest.mocked(resumeService.validateResumeContent).mockReturnValue({
+      isValid: false,
+      reason: 'Document does not appear to be a Resume/CV.',
+    })
+
+    const file = {
+      type: 'application/pdf',
+      size: 9,
+      arrayBuffer: async () => pdfArrayBuffer(),
+    }
+
+    const response = await POST({
+      formData: async () => ({ get: () => file }),
+    } as unknown as Request)
+    const json = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(json.success).toBe(false)
+    expect(json.code).toBe('NOT_A_RESUME')
+    expect(json.message).toMatch(/resume|cv/i)
+  })
+
   it('rejects files with a fake PDF MIME type but no PDF signature', async () => {
     const file = {
       type: 'application/pdf',

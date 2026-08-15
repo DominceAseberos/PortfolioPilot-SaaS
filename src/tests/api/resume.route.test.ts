@@ -71,6 +71,7 @@ describe('/api/reviews/resume credit safety', () => {
 
     expect(response.status).toBe(422)
     expect(json.success).toBe(false)
+    expect(json.code).toBe('SCANNED_PDF')
     expect(json.message).toMatch(/credit was refunded/i)
     expect(creditRepository.deductCredits).toHaveBeenCalledWith('user-1', 1)
     expect(creditRepository.addCreditsAdmin).toHaveBeenCalledWith('user-1', 1)
@@ -91,6 +92,7 @@ describe('/api/reviews/resume credit safety', () => {
 
     expect(response.status).toBe(status)
     expect(json.success).toBe(false)
+    expect(json.code).toBe(code)
     expect(json.message).toMatch(messagePattern)
     expect(json.message).toMatch(/credit was refunded/i)
     expect(creditRepository.deductCredits).toHaveBeenCalledWith('user-1', 1)

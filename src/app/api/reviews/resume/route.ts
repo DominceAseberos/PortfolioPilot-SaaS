@@ -67,25 +67,25 @@ export async function POST(request: NextRequest) {
 
       const extractionCode = getResumePdfExtractionErrorCode(error)
       if (extractionCode === 'SCANNED_PDF') {
-        return errorResponse('This PDF appears to be scanned or image-only. OCR it or export it as a searchable PDF, then try again. Your credit was refunded.', 422)
+        return errorResponse('This PDF appears to be scanned or image-only. OCR it or export it as a searchable PDF, then try again. Your credit was refunded.', 422, undefined, extractionCode)
       }
       if (extractionCode === 'PARTIALLY_SCANNED_PDF') {
-        return errorResponse('This PDF mixes searchable pages with scanned/image-only pages. OCR every page or export a fully searchable PDF so no resume content is omitted. Your credit was refunded.', 422)
+        return errorResponse('This PDF mixes searchable pages with scanned/image-only pages. OCR every page or export a fully searchable PDF so no resume content is omitted. Your credit was refunded.', 422, undefined, extractionCode)
       }
       if (extractionCode === 'PASSWORD_PROTECTED_PDF') {
-        return errorResponse('This PDF is password-protected or encrypted. Export an unlocked copy and try again. Your credit was refunded.', 422)
+        return errorResponse('This PDF is password-protected or encrypted. Export an unlocked copy and try again. Your credit was refunded.', 422, undefined, extractionCode)
       }
       if (extractionCode === 'MALFORMED_PDF') {
-        return errorResponse('This PDF is malformed or truncated. Export a fresh PDF and try again. Your credit was refunded.', 400)
+        return errorResponse('This PDF is malformed or truncated. Export a fresh PDF and try again. Your credit was refunded.', 400, undefined, extractionCode)
       }
       if (extractionCode === 'PDF_TOO_MANY_PAGES') {
-        return errorResponse('This PDF contains too many pages for safe resume processing. Upload a resume/CV with 50 pages or fewer. Your credit was refunded.', 400)
+        return errorResponse('This PDF contains too many pages for safe resume processing. Upload a resume/CV with 50 pages or fewer. Your credit was refunded.', 400, undefined, extractionCode)
       }
       if (extractionCode === 'UNREADABLE_PDF') {
-        return errorResponse('This PDF has no readable text layer. Export a fresh searchable PDF and try again. Your credit was refunded.', 422)
+        return errorResponse('This PDF has no readable text layer. Export a fresh searchable PDF and try again. Your credit was refunded.', 422, undefined, extractionCode)
       }
       if (error instanceof Error && error.message === 'NOT_A_RESUME') {
-        return errorResponse('The uploaded document does not appear to be a Resume or CV. Your credit was refunded.', 400)
+        return errorResponse('The uploaded document does not appear to be a Resume or CV. Your credit was refunded.', 400, undefined, 'NOT_A_RESUME')
       }
       return errorResponse('Resume analysis failed. Your credit was refunded.', 500)
     }

@@ -77,6 +77,7 @@ export interface ReviewWithReport extends Review {
 export interface ApiResponse<T = unknown> {
   success: boolean
   message: string
+  code?: string
   data?: T
   errors?: string[]
 }

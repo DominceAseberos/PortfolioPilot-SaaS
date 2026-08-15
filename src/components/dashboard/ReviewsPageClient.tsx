@@ -21,6 +21,7 @@ import dynamic from 'next/dynamic'
 import { AuthScreen } from '@/components/auth/AuthScreen'
 import type { ImprovedResumeData } from '@/types/resume'
 import { buildImprovedResume } from '@/features/resume/resume-builder'
+import { formatResumeUploadError, getResumeUploadErrorPresentation } from '@/features/resume/utils/resume-upload-error'
 
 const ImprovedResumeModal = dynamic(() => import('./ImprovedResumeModal'), { ssr: false })
 import type {
@@ -498,7 +499,8 @@ function StreamingChatBox({
         }, 2500)
         return () => clearTimeout(t)
       } else {
-        advanceStep()
+        const t = setTimeout(advanceStep, 0)
+        return () => clearTimeout(t)
       }
     }
     
@@ -831,10 +833,18 @@ function StreamingChatBox({
               // Compute client-side: which GitHub languages/repos are missing from resume
               const sections = resumeAnalysis?.details?.sections ?? []
               const resumeSkillNames = new Set(
-                sections.filter((s: any) => s.type === 'list').flatMap((s: any) => s.items || []).filter((item: any) => typeof item === 'string').map((item: string) => item.toLowerCase())
+                sections.flatMap((section) =>
+                  'type' in section && section.type === 'list'
+                    ? (section.items ?? []).map((item) => item.toLowerCase())
+                    : []
+                )
               )
               const resumeProjectNames = new Set(
-                sections.filter((s: any) => s.type === 'entries').flatMap((s: any) => s.entries || []).filter((e: any) => e && typeof e.title === 'string').map((e: any) => e.title.toLowerCase())
+                sections.flatMap((section) =>
+                  'type' in section && section.type === 'entries'
+                    ? (section.entries ?? []).map((entry) => entry.title.toLowerCase())
+                    : []
+                )
               )
               const notAligned = mismatches ?? []
               const isGithubIsolated = notAligned.some(m => m.type === 'github' && m.severity === 'high' && m.description.includes('Identity Mismatch'))
@@ -1165,11 +1175,9 @@ function LiveCrawlerPreview({
       setCurrentPhaseIndex(prev => (prev + 1) % (portfolioUrl ? crawlerPhases.length : resumePhases.length))
     }, 2500)
     return () => clearInterval(interval)
-  }, [portfolioUrl, resumeFileName])
+  }, [portfolioUrl, resumeFileName, crawlerPhases.length, resumePhases.length])
 
   const activePhase = portfolioUrl ? crawlerPhases[currentPhaseIndex] : (resumeFileName ? resumePhases[currentPhaseIndex] : crawlerPhases[0])
-  const normalizedUrl = portfolioUrl ? (portfolioUrl.startsWith('http') ? portfolioUrl : `https://${portfolioUrl}`) : ''
-  const baseUrl = normalizedUrl.replace(/\/$/, '')
 
   return (
     <div className="w-full flex flex-col space-y-4 animate-in fade-in zoom-in duration-500 p-2">
@@ -1447,7 +1455,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
       await delay(800) // added delay for realistic load time
 
       try {
-        let res: { success: boolean; data?: unknown; message?: string }
+        let res: { success: boolean; data?: unknown; message?: string; code?: string }
         if (source.id === 'portfolio') {
           res = await fetch('/api/reviews/portfolio', {
             method: 'POST',
@@ -1489,8 +1497,14 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
           setCollectingSteps((prev) =>
             prev.map((s) => (s.id === source.id ? { ...s, status: 'error' } : s))
           )
-          if (!serverError && res.message) {
-            serverError = res.message
+          if (!serverError) {
+            if (source.id === 'resume') {
+              serverError = formatResumeUploadError(
+                getResumeUploadErrorPresentation(res, { paidAnalysis: true })
+              )
+            } else if (res.message) {
+              serverError = res.message
+            }
           }
         }
       } catch (err: unknown) {
@@ -1974,7 +1988,7 @@ export function ReviewsPageClient({ isGuest = false, reviewCount = 0, credits = 
               Detected Sections
             </h4>
             <div className="flex flex-wrap gap-1.5 bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
-              {details.sections.map((s: any) => {
+              {details.sections.map((s) => {
                 const sectionName = ('name' in s ? s.name : s.title) || 'Section'
                 const isFound = ('found' in s ? s.found : true) ?? true
                 return (

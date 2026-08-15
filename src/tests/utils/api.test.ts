@@ -34,5 +34,11 @@ describe('API utilities', () => {
       const body = await response.json()
       expect(body.errors).toEqual(['Invalid email', 'Password too short'])
     })
+
+    it('should include an optional machine-readable error code', async () => {
+      const response = errorResponse('PDF is locked', 422, undefined, 'PASSWORD_PROTECTED_PDF')
+      const body = await response.json()
+      expect(body.code).toBe('PASSWORD_PROTECTED_PDF')
+    })
   })
 })

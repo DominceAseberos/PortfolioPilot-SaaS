@@ -98,10 +98,14 @@ export async function POST(req: Request) {
     const validationResult = resumeService.validateResumeContent(text)
 
     if (!validationResult.isValid) {
-      return NextResponse.json({
-        success: false,
-        message: validationResult.reason || 'Document does not appear to be a Resume/CV.'
-      })
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'NOT_A_RESUME',
+          message: validationResult.reason || 'Document does not appear to be a Resume/CV.',
+        },
+        { status: 400 }
+      )
     }
 
     const detectedLinks = await resumeLinkExtractionService.validate(text)

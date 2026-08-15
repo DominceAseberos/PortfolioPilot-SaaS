@@ -1256,6 +1256,29 @@ Phase 5 is now complete.
 - Current validation: 30/30 Jest suites, 132/132 tests, six-family corpus at 100% average/minimum measurable fidelity with exact page-count preservation, 10/10 adversarial PDF cases, sanitized jsPDF intake self-test, TypeScript, touched-file ESLint, production Next.js build, and `git diff --check` all pass.
 - The existing Next.js multi-lockfile/Turbopack-root warning and Node `module.register()` deprecation warning remain pre-existing and unchanged.
 
+### Phase 25 - Production Upload UX & Build Hygiene
+
+- [x] Preserve typed resume/PDF failure codes through paid analysis
+- [x] Return NOT_A_RESUME as an HTTP 400 typed validation failure
+- [x] Share one actionable upload-error presentation across chat and paid review flows
+- [x] Separate recovery guidance from confirmed credit-refund messaging
+- [x] Fix the max-size toast interpolation bug
+- [x] Remove dashboard lint errors touched by this flow without changing UI behavior
+- [x] Pin Turbopack to the PortfolioPilot project root
+- [x] Validate production output with bounded Next.js compile + generate modes
+
+#### Cycle 33 implementation notes
+
+- Added a client-safe deterministic error mapper for scanned, partial-scan, encrypted, malformed, excessive-page, unreadable, and non-resume PDFs.
+- ApiResponse/errorResponse now support an optional machine-readable code; paid failures keep refund-safe messages while exposing the typed failure.
+- Resume validation now returns 400 + NOT_A_RESUME instead of an HTTP-200 failure payload.
+- Paid UI shows a refund notice only when the server explicitly confirms the credit was refunded.
+- Dashboard review code touched by this phase now has zero lint errors; legacy warnings outside the flow remain.
+- turbopack.root now uses process.cwd(), removing the incorrect C:\Projects root warning without modifying parent lockfiles.
+- Production validation completed with Next split Turbopack compile and generate modes.
+- Final gate: sanitized intake, reliability suites, 31/31 Jest suites and 137/137 tests, TypeScript, dashboard lint with zero errors, production compile/generate, and git diff --check.
+
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1271,7 +1294,7 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-**Code-side resume/PDF reliability implementation is complete through Phase 24.**
+**Code-side resume/PDF reliability and production upload hardening are complete through Phase 25.**
 
 The only open roadmap item is **Phase 23B - Populate the Sanitized Real-World Fixture Corpus**, which is an external fixture dependency rather than another implementation phase.
 

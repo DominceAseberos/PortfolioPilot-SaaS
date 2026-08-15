@@ -9,9 +9,9 @@ export function successResponse<T>(data: T, message = 'Success') {
   })
 }
 
-export function errorResponse(message: string, status = 400, errors?: string[]) {
+export function errorResponse(message: string, status = 400, errors?: string[], code?: string) {
   return NextResponse.json<ApiResponse>(
-    { success: false, message, errors },
+    { success: false, message, code, errors },
     { status }
   )
 }
