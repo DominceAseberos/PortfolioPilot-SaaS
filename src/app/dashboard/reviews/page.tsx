@@ -6,6 +6,10 @@ import { ReviewsPageClient } from '@/components/dashboard/ReviewsPageClient'
 export const dynamic = 'force-dynamic'
 
 export default async function ReviewsPage() {
+  if (process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' && process.env.NODE_ENV !== 'production') {
+    return <ReviewsPageClient isGuest={false} reviewCount={0} credits={99} reviews={[]} />
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

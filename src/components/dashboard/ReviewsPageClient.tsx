@@ -1200,6 +1200,7 @@ function LiveCrawlerPreview({
 }
 
 export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], initialReviewData }: { isGuest?: boolean, reviewCount?: number, credits?: number, reviews?: ReviewHistoryItem[], initialReviewData?: Record<string, unknown> | null }) {
+  const e2eTestMode = process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' && process.env.NODE_ENV !== 'production'
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isGuestFallback, setIsGuestFallback] = useState(false)
@@ -1600,7 +1601,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
       let storedResumePath = resumeFile ? resumeFile.name : undefined
 
       if (resumeFile && !isHistoryMode) {
-        const { data: { user } } = await supabase.auth.getUser()
+        const user = e2eTestMode ? null : (await supabase.auth.getUser()).data.user
         if (user) {
           const fileExt = resumeFile.name.split('.').pop()
           const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`

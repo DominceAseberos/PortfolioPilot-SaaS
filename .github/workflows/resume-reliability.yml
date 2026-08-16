@@ -1,9 +1,12 @@
-name: Resume Reliability
+name: Production Reliability
 
 on:
   pull_request:
     paths:
       - 'src/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'jest.config.ts'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/resume-reliability.yml'
@@ -11,15 +14,18 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'jest.config.ts'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/resume-reliability.yml'
   workflow_dispatch:
 
 jobs:
-  resume-reliability:
+  production-reliability:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -34,17 +40,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Unit and API tests
+        run: npm test -- --runInBand
+
       - name: Validate sanitized fixture intake
         run: npm run test:sanitized-fixture-intake
 
       - name: Run resume reliability gate
         run: npm run test:resume-reliability
 
+      - name: Browser E2E
+        run: npm run test:e2e
+
+      - name: Production build
+        run: npm run build
+
       - name: Upload reliability reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: resume-reliability-reports
-          path: .artifacts/resume-reliability/
+          name: production-reliability-artifacts
+          path: |
+            .artifacts/resume-reliability/
+            playwright-report/
+            test-results/
           if-no-files-found: warn
           retention-days: 7

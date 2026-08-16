@@ -18,7 +18,9 @@
     "test:watch": "jest --watch",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:e2e": "playwright test",
+    "test:production-gate": "npm run lint && npm run type-check && npm test -- --runInBand && npm run test:sanitized-fixture-intake && npm run test:resume-reliability && npm run test:e2e && npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

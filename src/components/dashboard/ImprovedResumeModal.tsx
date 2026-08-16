@@ -180,6 +180,16 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
   }, [])
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const root = dialogRef.current
+      if (!root || root.contains(document.activeElement)) return
+      const target = root.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]')
+      ;(target ?? root).focus()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [step])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => setPreviewData(data), 250)
     return () => window.clearTimeout(timer)
   }, [data])
@@ -496,8 +506,8 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
     setData(prev => ({ ...prev, sections }))
   }
 
-  const verifyAndDownloadPdf = async (blob: Blob | null, url: string | null) => {
-    if (!blob || !url || busy || uploadedExportBlocked) return
+  const verifyAndDownloadPdf = async (blob: Blob | null) => {
+    if (!blob || busy || uploadedExportBlocked) return
 
     verificationAbortRef.current?.abort()
     const controller = new AbortController()
@@ -554,13 +564,32 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
       }
 
       const safeName = (data.name || 'Resume').trim().replace(/[^a-zA-Z0-9._-]+/g, '_') || 'Resume'
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = `${safeName}_Improved_Resume.pdf`
-      anchor.rel = 'noopener'
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
+      const fileName = `${safeName}_Improved_Resume.pdf`
+      const pdfBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = String(reader.result)
+          const commaIndex = result.indexOf(',')
+          if (commaIndex < 0) reject(new Error('Could not encode the verified PDF download.'))
+          else resolve(result.slice(commaIndex + 1))
+        }
+        reader.onerror = () => reject(reader.error ?? new Error('Could not prepare the verified PDF download.'))
+        reader.readAsDataURL(blob)
+      })
+      const downloadForm = document.createElement('form')
+      downloadForm.method = 'POST'
+      downloadForm.action = '/api/resume/download-pdf'
+      downloadForm.hidden = true
+      for (const [name, value] of [['fileName', fileName], ['pdfBase64', pdfBase64]]) {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = name
+        input.value = value
+        downloadForm.appendChild(input)
+      }
+      document.body.appendChild(downloadForm)
+      downloadForm.submit()
+      window.setTimeout(() => downloadForm.remove(), 5_000)
       setIsDirty(false)
       if (draftKey) {
         const saved = createResumeDraftVersion(draftKey, data, templateAtRequest, 'Verified download')
@@ -965,7 +994,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
                 className="bg-primary text-primary-foreground font-bold shadow-md px-4 sm:px-6"
                 disabled={loading || busy || !blob || !url || Boolean(error) || uploadedExportBlocked}
                 aria-busy={loading || verifyingPdf}
-                onClick={() => verifyAndDownloadPdf(blob, url)}
+                onClick={() => verifyAndDownloadPdf(blob)}
                 title={uploadedExportBlocked ? 'Uploaded continuation-page artwork cannot be reproduced safely. Choose a built-in template for verified export.' : error ? 'Could not generate the PDF' : 'Verify the rendered PDF before downloading'}
               >
                 {optimizing ? 'Optimizing...' : loading ? 'Generating...' : verifyingPdf ? 'Verifying...' : error ? 'Render unavailable' : <><Download className="h-4 w-4 mr-2" /> Download PDF</>}

@@ -1036,7 +1036,7 @@ export function NeuralChatLanding({
           <div className="flex flex-col items-center justify-center mb-16 pt-8">
             <div className="relative w-28 h-28 sm:w-36 sm:h-36 mb-8 animate-float z-10">
                <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full mix-blend-multiply dark:mix-blend-overlay animate-pulse" />
-               <Image src="/ai-review-bot.png" alt="AI Pilot Agent" width={144} height={144} className="relative z-10 w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]" />
+               <Image src="/ai-review-bot.png" alt="AI Pilot Agent" width={144} height={144} loading="eager" className="relative z-10 w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]" />
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent text-center">
               Unleash the Pilot Review Agent.

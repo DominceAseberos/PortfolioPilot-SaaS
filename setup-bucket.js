@@ -1,4 +1,4 @@
-
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function setup() {
   // Create bucket
-  const { data, error } = await supabase.storage.createBucket('resumes', {
+  const { error } = await supabase.storage.createBucket('resumes', {
     public: false,
     allowedMimeTypes: ['application/pdf'],
     fileSizeLimit: 5242880

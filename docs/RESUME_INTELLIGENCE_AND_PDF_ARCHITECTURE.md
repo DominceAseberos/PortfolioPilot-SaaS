@@ -1305,6 +1305,38 @@ Phase 5 is now complete.
 - Final validation: 32/32 Jest suites, 142/142 tests, sanitized jsPDF intake, Generated PDF Regression, six-family Template Corpus at 100% average/minimum measurable fidelity with exact pagination, 10/10 Adversarial PDF Resilience, touched-file ESLint, TypeScript, git diff checks, and Next.js Turbopack compile + generate all pass.
 
 
+### Phase 27 - Production Resilience, Diagnostics & Accessibility
+
+- [x] Rate-limit expensive resume/review APIs before AI, credit, or PDF work
+- [x] Return actionable 429 metadata with Retry-After, request IDs, and Server-Timing
+- [x] Add route/editor error recovery and modal keyboard/focus accessibility
+- [x] Add browser performance budgets for generation, optimization, and PDF verification
+
+#### Cycle 35 implementation notes
+
+- Added a centralized Next.js proxy guard scoped by route and authenticated/guest identity, with bounded limiter cleanup.
+- Throttled requests return `RATE_LIMITED`, retry metadata, correlation IDs, and timing headers before expensive downstream work.
+- Resume upload/generation/optimization shows cooldown guidance instead of generic AI/PDF failures.
+- Added app and resume-editor recovery boundaries plus dialog focus containment, Escape-safe close, and focus restoration.
+- Added measurable browser workflow budgets while preserving existing server timing.
+
+### Phase 28 - Draft Versions, Verified Downloads, Browser E2E & Unified CI
+
+- [x] Autosave bounded analysis-specific resume drafts with corruption recovery
+- [x] Save, restore, duplicate, delete, and clear local resume versions
+- [x] Checkpoint verified downloads and serve verified bytes through a named PDF attachment endpoint
+- [x] Cover dashboard upload/locking/Proceed, editor focus/autosave/version restore, optimization 429, and verified download in Playwright
+- [x] Separate Jest and Playwright ownership and unify lint, type-check, unit/API, PDF reliability, E2E, and production build in CI
+
+#### Cycle 36 implementation notes
+
+- Draft hydration happens in state initialization; autosave preserves manual checkpoints and enforces bounded version/serialized sizes.
+- Final verified PDFs use `/api/resume/download-pdf`, validating base64 size, `%PDF` bytes, and safe attachment filenames.
+- Playwright filters final downloads by the attachment endpoint because headless Chromium may emit download events for PDF preview blob URLs.
+- Browser E2E runs single-worker to avoid React-PDF/Next dev-server contention; the E2E harness is unavailable in production.
+- Jest excludes `/e2e/`; current result is 36/36 suites and 157/157 tests.
+- Sanitized fixture intake, generated-PDF regression, six template families at 100% measurable fidelity, 10/10 adversarial PDF cases, TypeScript, zero lint errors, and the Next.js 16.2.9 production build all pass.
+
 ## 24. Recursive Implementation Loop
 
 After every implementation cycle:
@@ -1320,7 +1352,7 @@ After every implementation cycle:
 
 ## 25. Current Priority Decision
 
-**Code-side resume/PDF reliability and end-to-end production UX hardening are complete through Phase 26.**
+**Code-side resume/PDF reliability, production resilience, draft/version workflows, browser E2E, and CI hardening are complete through Phase 28.**
 
 The only open roadmap item is **Phase 23B - Populate the Sanitized Real-World Fixture Corpus**, which is an external fixture dependency rather than another implementation phase.
 

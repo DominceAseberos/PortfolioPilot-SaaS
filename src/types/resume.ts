@@ -38,7 +38,7 @@ export interface DynamicSection {
     fieldEvidence?: Partial<Record<ResumeEntryEvidenceField, EvidenceRef[]>>;
     bulletEvidence?: EvidenceRef[];
   }[];
-  acceptsAIImprovements: boolean; // Safe-lock to allow GitHub data injection
+  acceptsAIImprovements?: boolean; // Safe-lock to allow GitHub data injection
 }
 
 export interface ImprovedResumeData {

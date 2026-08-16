@@ -18,6 +18,8 @@ import { createClient } from '@/lib/supabase/client'
  */
 export function GuestSessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' && process.env.NODE_ENV !== 'production') return
+
     const supabase = createClient()
 
     const bootstrap = async () => {
