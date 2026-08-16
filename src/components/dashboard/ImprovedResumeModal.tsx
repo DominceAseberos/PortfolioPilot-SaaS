@@ -34,6 +34,7 @@ import { Badge } from '@/components/common/Badge'
 import type { DynamicSection, ResumeSemanticSectionType } from '@/types/resume'
 import type { ResumeEntryEvidenceField, ResumeIdentityEvidenceField } from '@/types/resume-provenance'
 import { clearResumeDraft, createResumeDraftVersion, deleteResumeDraftVersion, duplicateResumeDraftVersion, loadResumeDraft, saveResumeDraft, type ResumeDraftRecord, type ResumeDraftVersion } from '@/features/resume/services/resume-draft-storage.service'
+import { startResumeWorkflowMeasure } from '@/features/resume/utils/resume-performance'
 
 export interface ImprovedResumeModalProps {
   initialData: ImprovedResumeData
@@ -435,6 +436,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
     setOptimizing(true)
     setOptimizationError(null)
     setOptimizationProposal(null)
+    const finishPerformanceMeasure = startResumeWorkflowMeasure('optimization')
 
     try {
       const response = await fetch('/api/resume/optimize', {
@@ -475,6 +477,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
         setOptimizationError(error instanceof Error ? error.message : 'Could not optimize resume content')
       }
     } finally {
+      finishPerformanceMeasure()
       if (optimizationAbortRef.current === controller) {
         optimizationAbortRef.current = null
         if (mountedRef.current) setOptimizing(false)
@@ -505,6 +508,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
     setVerifyingPdf(true)
     setPdfVerificationError(null)
     setPdfVerification(null)
+    const finishPerformanceMeasure = startResumeWorkflowMeasure('verification')
 
     try {
       const form = new FormData()
@@ -571,6 +575,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
         setPdfVerificationError(error instanceof Error ? error.message : 'Could not verify the final PDF')
       }
     } finally {
+      finishPerformanceMeasure()
       if (verificationAbortRef.current === controller) {
         verificationAbortRef.current = null
         if (mountedRef.current) setVerifyingPdf(false)

@@ -16,6 +16,7 @@ import dynamic from 'next/dynamic'
 import { AuthScreen } from '@/components/auth/AuthScreen'
 import type { ImprovedResumeData } from '@/types/resume'
 import { buildImprovedResume } from '@/features/resume/resume-builder'
+import { startResumeWorkflowMeasure } from '@/features/resume/utils/resume-performance'
 import { formatResumeUploadError, getResumeUploadErrorPresentation } from '@/features/resume/utils/resume-upload-error'
 
 const ImprovedResumeModal = dynamic(() => import('./ImprovedResumeModal'), { ssr: false })
@@ -365,6 +366,7 @@ function StreamingChatBox({
     const controller = new AbortController()
     resumeGenerationAbortRef.current = controller
     setIsGeneratingResume(true)
+    const finishPerformanceMeasure = startResumeWorkflowMeasure('generation')
 
     try {
       const initialData = await buildImprovedResume({
@@ -385,6 +387,7 @@ function StreamingChatBox({
       console.error('Failed to generate improved resume', err)
       toast.error('Could not generate the improved resume. Please try again.')
     } finally {
+      finishPerformanceMeasure()
       if (resumeGenerationAbortRef.current === controller) {
         resumeGenerationAbortRef.current = null
         setIsGeneratingResume(false)
