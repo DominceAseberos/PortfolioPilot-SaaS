@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate, Columns } from 'lucide-react'
+import { X, Download, Eye, FileText, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, AlertTriangle, LayoutTemplate, Columns, History, Copy, Save } from 'lucide-react'
 import { BlobProvider } from '@react-pdf/renderer'
 import { ImprovedResumeData, type ResumeTemplateChoiceId, ResumeTemplateChoiceRenderer } from '@/components/pdf/ImprovedResumeTemplate'
 import { ResumeTemplatePicker } from '@/components/dashboard/ResumeTemplatePicker'
@@ -33,11 +33,13 @@ import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import type { DynamicSection, ResumeSemanticSectionType } from '@/types/resume'
 import type { ResumeEntryEvidenceField, ResumeIdentityEvidenceField } from '@/types/resume-provenance'
+import { clearResumeDraft, createResumeDraftVersion, deleteResumeDraftVersion, duplicateResumeDraftVersion, loadResumeDraft, saveResumeDraft, type ResumeDraftRecord, type ResumeDraftVersion } from '@/features/resume/services/resume-draft-storage.service'
 
 export interface ImprovedResumeModalProps {
   initialData: ImprovedResumeData
   resumeFile: File | null
   onClose: () => void
+  draftKey?: string
 }
 
 type JsonRecord = Record<string, unknown>
@@ -62,13 +64,14 @@ interface ResumeOptimizationProposal {
   after: ResumePreflightResult
 }
 
-export default function ImprovedResumeModal({ initialData, resumeFile, onClose }: ImprovedResumeModalProps) {
-  const [data, setData] = useState<ImprovedResumeData>(initialData)
+export default function ImprovedResumeModal({ initialData, resumeFile, onClose, draftKey }: ImprovedResumeModalProps) {
+  const [initialDraft] = useState(() => draftKey ? loadResumeDraft(draftKey) : null)
+  const [data, setData] = useState<ImprovedResumeData>(() => initialDraft?.data ?? initialData)
   const [activeTab, setActiveTab] = useState<'original' | 'edit' | 'preview'>('edit')
   const [step, setStep] = useState<'pick-template' | 'edit'>('pick-template')
-  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateChoiceId>(() => recommendResumeTemplate(initialData).templateId)
+  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateChoiceId>(() => initialDraft?.templateId ?? recommendResumeTemplate(initialData).templateId)
   const [compareMode, setCompareMode] = useState(false)
-  const [previewData, setPreviewData] = useState<ImprovedResumeData>(initialData)
+  const [previewData, setPreviewData] = useState<ImprovedResumeData>(() => initialDraft?.data ?? initialData)
   const [optimizationProposal, setOptimizationProposal] = useState<ResumeOptimizationProposal | null>(null)
   const [optimizing, setOptimizing] = useState(false)
   const [optimizationError, setOptimizationError] = useState<string | null>(null)
@@ -76,10 +79,14 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   const [verifyingPdf, setVerifyingPdf] = useState(false)
   const [pdfVerificationError, setPdfVerificationError] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
+  const [draftRecord, setDraftRecord] = useState<ResumeDraftRecord | null>(initialDraft)
+  const [draftStatus, setDraftStatus] = useState<string | null>(draftKey ? (initialDraft ? 'Draft restored.' : 'Autosave ready.') : null)
+  const [showVersions, setShowVersions] = useState(false)
   const optimizationAbortRef = useRef<AbortController | null>(null)
   const verificationAbortRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
   const requestRevisionRef = useRef(0)
+  const dialogRef = useRef<HTMLDivElement | null>(null)
   const busy = optimizing || verifyingPdf
   const editingLocked = busy
   const preflight = selectedTemplate === 'uploaded' && data.templateContract?.source === 'uploaded'
@@ -117,23 +124,136 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
     }
   }, [cancelPendingWork])
 
+  const handleCloseRef = useRef(handleClose)
+  useEffect(() => {
+    handleCloseRef.current = handleClose
+  }, [handleClose])
+
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     document.body.style.overflow = 'hidden'
+
+    const getFocusable = () => dialogRef.current
+      ? Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+      )).filter(element => element.offsetParent !== null)
+      : []
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      getFocusable()[0]?.focus()
+    })
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') handleClose()
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        handleCloseRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const focusable = getFocusable()
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialogRef.current?.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
+
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      window.cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
     }
-  }, [handleClose])
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setPreviewData(data), 250)
     return () => window.clearTimeout(timer)
   }, [data])
+
+  useEffect(() => {
+    if (!draftKey) return
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = saveResumeDraft(draftKey, data, selectedTemplate)
+        if (saved) {
+          setDraftRecord(saved)
+          setDraftStatus(`Saved ${new Date(saved.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
+        }
+      } catch (error) {
+        setDraftStatus(error instanceof Error ? error.message : 'Draft save failed.')
+      }
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [data, draftKey, selectedTemplate])
+
+  const createVersion = useCallback(() => {
+    if (!draftKey || busy) return
+    try {
+      const saved = createResumeDraftVersion(draftKey, data, selectedTemplate)
+      if (saved) {
+        setDraftRecord(saved)
+        setDraftStatus('Version saved.')
+      }
+    } catch (error) {
+      setDraftStatus(error instanceof Error ? error.message : 'Version save failed.')
+    }
+  }, [busy, data, draftKey, selectedTemplate])
+
+  const restoreVersion = useCallback((version: ResumeDraftVersion) => {
+    if (busy) return
+    requestRevisionRef.current += 1
+    optimizationAbortRef.current?.abort()
+    verificationAbortRef.current?.abort()
+    setData(version.data)
+    setPreviewData(version.data)
+    setSelectedTemplate(version.templateId)
+    setOptimizationProposal(null)
+    setOptimizationError(null)
+    setPdfVerification(null)
+    setPdfVerificationError(null)
+    setIsDirty(true)
+    setDraftStatus(`Restored ${version.label}.`)
+    setShowVersions(false)
+  }, [busy])
+
+  const duplicateVersion = useCallback((versionId: string) => {
+    if (!draftKey || busy) return
+    const saved = duplicateResumeDraftVersion(draftKey, versionId)
+    if (saved) {
+      setDraftRecord(saved)
+      setDraftStatus('Version duplicated.')
+    }
+  }, [busy, draftKey])
+
+  const removeVersion = useCallback((versionId: string) => {
+    if (!draftKey || busy) return
+    const saved = deleteResumeDraftVersion(draftKey, versionId)
+    if (saved) {
+      setDraftRecord(saved)
+      setDraftStatus('Version deleted.')
+    }
+  }, [busy, draftKey])
+
+  const clearDraftHistory = useCallback(() => {
+    if (!draftKey || busy || !window.confirm('Clear autosave and all local resume versions for this analysis?')) return
+    clearResumeDraft(draftKey)
+    setDraftRecord(null)
+    setDraftStatus('Local history cleared.')
+    setShowVersions(false)
+  }, [busy, draftKey])
   
   // Create object URL for original resume
   const [originalUrl, setOriginalUrl] = useState<string | null>(null)
@@ -438,6 +558,13 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
       anchor.click()
       anchor.remove()
       setIsDirty(false)
+      if (draftKey) {
+        const saved = createResumeDraftVersion(draftKey, data, templateAtRequest, 'Verified download')
+        if (saved) {
+          setDraftRecord(saved)
+          setDraftStatus('Verified download saved.')
+        }
+      }
     } catch (error) {
       if (isAbortError(error) || controller.signal.aborted) return
       if (mountedRef.current && requestRevision === requestRevisionRef.current) {
@@ -773,13 +900,13 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   // Template picker step
   if (step === 'pick-template') {
     return createPortal(
-      <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in slide-in-from-bottom-8 duration-300">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="resume-generator-title" tabIndex={-1} className="fixed inset-0 z-[100] bg-background flex flex-col animate-in slide-in-from-bottom-8 duration-300">
         <div className="h-16 border-b border-border/50 flex items-center justify-between px-4 sm:px-6 shrink-0 bg-card">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
               <LayoutTemplate className="h-4 w-4 text-primary" />
             </div>
-            <h2 className="text-lg font-bold">Improved Resume Generator</h2>
+            <h2 id="resume-generator-title" className="text-lg font-bold">Improved Resume Generator</h2>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={handleClose} className="rounded-full" aria-label="Close resume generator" title="Close">
             <X className="h-5 w-5" />
@@ -799,7 +926,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in slide-in-from-bottom-8 duration-300">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="resume-generator-title" tabIndex={-1} className="fixed inset-0 z-[100] bg-background flex flex-col animate-in slide-in-from-bottom-8 duration-300">
       
       {/* Header */}
       <div className="h-16 border-b border-border/50 flex items-center justify-between px-4 sm:px-6 shrink-0 bg-card">
@@ -808,11 +935,16 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-bold">Improved Resume Generator</h2>
+            <h2 id="resume-generator-title" className="text-lg font-bold">Improved Resume Generator</h2>
             <p className="text-xs text-muted-foreground hidden sm:block">Edit your AI-enhanced content and download as an ATS-friendly PDF.</p>
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+          {draftKey && (
+            <Button type="button" variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setShowVersions(value => !value)} disabled={busy} aria-expanded={showVersions} aria-controls="resume-version-panel">
+              <History className="h-3.5 w-3.5" /> Versions ({draftRecord?.versions.length ?? 0})
+            </Button>
+          )}
           <Button type="button" variant="outline" size="sm" className="hidden sm:flex gap-2 text-xs" onClick={() => setCompareMode(!compareMode)} disabled={busy}>
             <Columns className="h-3.5 w-3.5" />
             {compareMode ? 'Exit Compare' : 'Compare PDFs'}
@@ -841,11 +973,37 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose }
         </div>
       </div>
 
+      {draftKey && showVersions && (
+        <aside id="resume-version-panel" aria-label="Saved resume versions" className="absolute right-4 top-20 z-[120] w-[min(92vw,380px)] max-h-[70vh] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border/60 p-4">
+            <div><h3 className="text-sm font-bold">Resume Versions</h3><p className="text-[11px] text-muted-foreground">{draftStatus ?? 'Autosave ready.'}</p></div>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowVersions(false)} aria-label="Close version history"><X className="h-4 w-4" /></Button>
+          </div>
+          <div className="max-h-[50vh] overflow-y-auto p-3 space-y-2">
+            {(draftRecord?.versions.length ?? 0) === 0 ? <p className="rounded-xl border border-dashed p-5 text-center text-xs text-muted-foreground">No saved versions yet.</p> : draftRecord?.versions.map(version => (
+              <div key={version.id} className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                <p className="text-xs font-bold">{version.label}</p>
+                <p className="my-1 text-[10px] text-muted-foreground">{new Date(version.createdAt).toLocaleString()} · {version.templateId}</p>
+                <div className="flex gap-1">
+                  <Button type="button" size="sm" variant="outline" onClick={() => restoreVersion(version)} disabled={busy}>Restore</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => duplicateVersion(version.id)} disabled={busy} aria-label={`Duplicate ${version.label}`}><Copy className="h-3.5 w-3.5" /></Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => removeVersion(version.id)} disabled={busy} aria-label={`Delete ${version.label}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between border-t border-border/60 p-3">
+            <Button type="button" size="sm" onClick={createVersion} disabled={busy}><Save className="mr-1 h-3.5 w-3.5" />Save Current</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={clearDraftHistory} disabled={busy || !draftRecord} className="text-red-600">Clear History</Button>
+          </div>
+        </aside>
+      )}
+
       {/* Mobile Tabs */}
       <div className="sm:hidden flex border-b border-border/50 shrink-0 overflow-x-auto">
-         <button className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'original' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('original')}>Original</button>
-         <button className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'edit' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('edit')}>Edit Form</button>
-         <button className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'preview' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('preview')}>Live Preview</button>
+         <button type="button" role="tab" aria-selected={activeTab === 'original'} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'original' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('original')}>Original</button>
+         <button type="button" role="tab" aria-selected={activeTab === 'edit'} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'edit' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('edit')}>Edit Form</button>
+         <button type="button" role="tab" aria-selected={activeTab === 'preview'} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'preview' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('preview')}>Live Preview</button>
       </div>
 
       {/* Main Content Area */}

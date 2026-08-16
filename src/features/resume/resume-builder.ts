@@ -94,7 +94,10 @@ export async function buildImprovedResume({
       improvementOperations = Array.isArray(improved.operations) ? improved.operations as ResumeChangeOperation[] : []
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') throw e
-      generationWarning = 'AI enhancement was unavailable, so PortfolioPilot loaded your verified original resume content without applying generated changes.'
+      const reason = e instanceof Error && /too many requests|rate.?limit/i.test(e.message)
+        ? 'AI enhancement is temporarily rate-limited.'
+        : 'AI enhancement was unavailable.'
+      generationWarning = `${reason} PortfolioPilot loaded your verified original resume content without applying generated changes.`
       console.error('Failed to generate improved resume sections', e)
     }
   }

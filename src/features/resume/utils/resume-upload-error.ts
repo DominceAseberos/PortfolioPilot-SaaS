@@ -6,6 +6,7 @@ export type ResumeUploadErrorCode =
   | 'PDF_TOO_MANY_PAGES'
   | 'UNREADABLE_PDF'
   | 'NOT_A_RESUME'
+  | 'RATE_LIMITED'
 
 export interface ResumeUploadErrorPayload {
   code?: unknown
@@ -62,6 +63,11 @@ const definitions: Record<ResumeUploadErrorCode, ResumeUploadErrorDefinition> = 
     explanation: 'The uploaded PDF does not contain enough resume/CV structure for PortfolioPilot to analyze it safely.',
     action: 'Upload a resume or CV PDF that includes your identity plus experience, education, skills, projects, or similar career information.',
   },
+  RATE_LIMITED: {
+    title: 'Resume processing is cooling down',
+    explanation: 'Too many expensive resume requests were started in a short period.',
+    action: 'Wait for the retry window shown below, then submit the same verified file again.',
+  },
 }
 
 function normalizeCode(value: unknown): ResumeUploadErrorCode | undefined {
@@ -90,7 +96,7 @@ export function getResumeUploadErrorPresentation(
     return {
       code,
       title: definition.title,
-      explanation: definition.explanation,
+      explanation: code === 'RATE_LIMITED' && serverMessage ? serverMessage : definition.explanation,
       action: definition.action,
       creditNotice,
     }

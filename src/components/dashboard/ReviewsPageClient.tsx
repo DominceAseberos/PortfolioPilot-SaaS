@@ -19,6 +19,7 @@ import { buildImprovedResume } from '@/features/resume/resume-builder'
 import { formatResumeUploadError, getResumeUploadErrorPresentation } from '@/features/resume/utils/resume-upload-error'
 
 const ImprovedResumeModal = dynamic(() => import('./ImprovedResumeModal'), { ssr: false })
+import { ResumeWorkflowErrorBoundary } from './ResumeWorkflowErrorBoundary'
 import type {
   PortfolioAnalysis,
   GitHubAnalysis,
@@ -312,6 +313,7 @@ function StreamingChatBox({
   isGuestFallback = false,
   setShowAuthModal,
   createdAt,
+  draftKey,
 }: {
   result: AISummaryResult
   mismatches?: AIMismatch[]
@@ -327,6 +329,7 @@ function StreamingChatBox({
   isGuestFallback?: boolean
   setShowAuthModal?: (mode: 'login' | 'register') => void
   createdAt?: string
+  draftKey?: string
 }) {
   const [isThinking, setIsThinking] = useState(!isHistory)
   const [isGeneratingResume, setIsGeneratingResume] = useState(false)
@@ -1051,11 +1054,14 @@ function StreamingChatBox({
       )}
 
       {showResumeModal && resumeData && (
-        <ImprovedResumeModal
-          initialData={resumeData}
-          resumeFile={resumeFile ?? null}
-          onClose={() => setShowResumeModal(false)}
-        />
+        <ResumeWorkflowErrorBoundary onClose={() => setShowResumeModal(false)}>
+          <ImprovedResumeModal
+            initialData={resumeData}
+            resumeFile={resumeFile ?? null}
+            draftKey={draftKey}
+            onClose={() => setShowResumeModal(false)}
+          />
+        </ResumeWorkflowErrorBoundary>
       )}
     </div>
   )
@@ -2330,6 +2336,7 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
                                isGuestFallback={isGuestFallback}
                                setShowAuthModal={setShowAuthModal}
                                createdAt={typeof initialReviewData?.created_at === 'string' ? initialReviewData.created_at : undefined}
+                               draftKey={analysisId ? `analysis:${analysisId}` : undefined}
                              />
                          ) : null
                        }
