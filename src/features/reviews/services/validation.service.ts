@@ -1,6 +1,21 @@
 import { logger } from '@/lib/logger'
 import { normalizePortfolioUrl } from '@/utils/source-normalizers'
 
+export interface PortfolioPreviewMetadata {
+  embedAllowed: boolean
+  blockedBy?: string
+  finalUrl: string
+  title?: string
+  description?: string
+}
+
+export interface PortfolioValidationResult {
+  isValid: boolean
+  message?: string
+  isClientRendered?: boolean
+  preview?: PortfolioPreviewMetadata
+}
+
 /**
  * URLValidationService
  * 
@@ -29,7 +44,7 @@ export class URLValidationService {
    * Main validation entry point. 
    * Returns an object indicating success or failure with a user-friendly message.
    */
-  public async validatePortfolioUrl(url: string): Promise<{ isValid: boolean; message?: string; isClientRendered?: boolean }> {
+  public async validatePortfolioUrl(url: string): Promise<PortfolioValidationResult> {
     try {
       const normalizedUrl = normalizePortfolioUrl(url)
       // 1. Blacklist Check
@@ -48,19 +63,19 @@ export class URLValidationService {
 
       const html = await response.text();
 
-      // 4. Content Scanning (Keywords & Frameworks)
+      // 4. Content Scanning (informational only)
+      // Layer 1 must not reject valid creative, minimalist, non-English, or uncommon
+      // portfolios just because they do not contain our vocabulary. Semantic
+      // classification belongs to the deeper analysis layer.
       const hasKeywords = this.hasPortfolioKeywords(html);
       const isClientRendered = this.hasClientFrameworkFootprint(html);
+      const preview = this.buildPreviewMetadata(response, html, normalizedUrl);
 
-      // Benefit of the doubt: If it has modern JS frameworks (loading screens), we let it pass Layer 1.
       if (!hasKeywords && !isClientRendered) {
-        return { 
-          isValid: false, 
-          message: 'The provided URL does not appear to be a personal portfolio or resume website. No relevant keywords found.' 
-        };
+        logger.info('Reachable HTML accepted without hardcoded portfolio keywords', { url: normalizedUrl });
       }
 
-      return { isValid: true, isClientRendered };
+      return { isValid: true, isClientRendered, preview };
 
     } catch (error: unknown) {
       logger.error('Fast URL validation failed', { error: String(error), url });
@@ -68,6 +83,42 @@ export class URLValidationService {
         isValid: false, 
         message: 'Could not reach the provided URL. Ensure it is publicly accessible and online.' 
       };
+    }
+  }
+
+  private buildPreviewMetadata(response: Response, html: string, requestedUrl: string): PortfolioPreviewMetadata {
+    const xFrameOptions = response.headers.get('x-frame-options')?.toLowerCase() ?? ''
+    const contentSecurityPolicy = response.headers.get('content-security-policy')?.toLowerCase() ?? ''
+    const frameAncestors = contentSecurityPolicy.match(/(?:^|;)\s*frame-ancestors\s+([^;]+)/i)?.[1]?.trim()
+
+    let embedAllowed = true
+    let blockedBy: string | undefined
+
+    if (xFrameOptions.includes('deny') || xFrameOptions.includes('sameorigin')) {
+      embedAllowed = false
+      blockedBy = 'This site blocks embedded previews with X-Frame-Options.'
+    } else if (frameAncestors) {
+      const sources = frameAncestors.split(/\s+/).filter(Boolean)
+      const permitsExternalFrames = sources.some((source) => source === '*' || /^https?:/i.test(source))
+      if (sources.includes("'none'") || !permitsExternalFrames) {
+        embedAllowed = false
+        blockedBy = 'This site blocks embedded previews with Content-Security-Policy.'
+      }
+    }
+
+    const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]
+      ?.replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const description = html.match(/<meta\s+[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)?.[1]
+      ?? html.match(/<meta\s+[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i)?.[1]
+
+    return {
+      embedAllowed,
+      blockedBy,
+      finalUrl: response.url || requestedUrl,
+      title: title || undefined,
+      description: description?.trim() || undefined,
     }
   }
 

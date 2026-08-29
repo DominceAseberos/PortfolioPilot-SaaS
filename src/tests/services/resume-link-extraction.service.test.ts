@@ -41,6 +41,14 @@ describe('ResumeLinkExtractionService', () => {
     ])
   })
 
+  it('treats hosted portfolio platforms such as Notion as portfolio candidates', () => {
+    const result = service.extract('Portfolio: https://designer.notion.site/selected-work-123456')
+
+    expect(result.portfolioCandidates).toEqual([
+      expect.objectContaining({ normalized: 'https://designer.notion.site/selected-work-123456' }),
+    ])
+  })
+
   it('does not treat library names like Chart.js as portfolio links', () => {
     const result = service.extract('Skills: React, TypeScript, Chart.js, Node.js')
 

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { urlValidationService } from '@/features/reviews/services/validation.service'
 
 /**
@@ -11,9 +10,7 @@ import { urlValidationService } from '@/features/reviews/services/validation.ser
  */
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    // Validation is allowed for guests, so we don't return 401 if !session
+    // Validation is intentionally available to guests.
     const { portfolioUrl } = await req.json()
 
     if (!portfolioUrl) {
@@ -37,11 +34,12 @@ export async function POST(req: Request) {
       success: true,
       data: { 
         valid: true, 
-        isClientRendered: validationResult.isClientRendered 
+        isClientRendered: validationResult.isClientRendered,
+        preview: validationResult.preview,
       }
     })
 
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       { success: false, message: 'An unexpected server error occurred during validation.' },
       { status: 500 }

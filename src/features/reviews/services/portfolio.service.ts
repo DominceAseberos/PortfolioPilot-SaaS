@@ -7,6 +7,7 @@ interface ExtractedContent {
   headings: string[]
   paragraphs: string[]
   links: string[]
+  internalLinks: string[]
   images: number
   brokenLinks: string[]
   imagesNoAlt: number
@@ -35,12 +36,15 @@ function extractContent(html: string): ExtractedContent {
   }
 
   const links: string[] = []
+  const internalLinks: string[] = []
   const brokenLinks: string[] = []
   const linkRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>/gi
   while ((m = linkRegex.exec(html)) !== null) {
     const href = m[1]
     if (href.startsWith('http://') || href.startsWith('https://')) {
       links.push(href)
+    } else if (href.startsWith('/') && !href.startsWith('//')) {
+      internalLinks.push(href)
     }
     if (!href || href === '#' || href === '') {
       brokenLinks.push(href)
@@ -82,7 +86,7 @@ function extractContent(html: string): ExtractedContent {
     logger.warn('Turndown conversion failed', { error: String(e) })
   }
 
-  return { headings, paragraphs, links, images, brokenLinks, imagesNoAlt, socialLinks, projectLinks, authorName, markdown }
+  return { headings, paragraphs, links, internalLinks, images, brokenLinks, imagesNoAlt, socialLinks, projectLinks, authorName, markdown }
 }
 
 function countTags(html: string, tag: string): number {
@@ -106,19 +110,8 @@ function check(
 export class PortfolioService {
   async analyze(portfolioUrl: string): Promise<PortfolioAnalysis> {
     try {
-      let fetchUrl = portfolioUrl
-      const headers: Record<string, string> = {}
-      
-      if (process.env.SCRAPINGANT_API_KEY) {
-        fetchUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(portfolioUrl)}&browser=true`
-        headers['x-api-key'] = process.env.SCRAPINGANT_API_KEY
-      }
-
-      const response = await fetch(fetchUrl, {
-        headers,
-        signal: AbortSignal.timeout(25000), // Increased timeout for browser rendering
-      })
-      const html = await response.text()
+      const primaryFetch = await this.fetchPortfolioHtml(portfolioUrl, 25000)
+      const html = primaryFetch.html
       
       if (!this.isLikelyPortfolio(html)) {
         throw new Error('NOT_A_PORTFOLIO')
@@ -129,21 +122,18 @@ export class PortfolioService {
 
       // LAYER 2 DEEP CRAWLER
       // Collect up to 3 internal sub-pages (e.g. /about, /projects)
-      const internalLinks = content.links.filter(href => {
-         if (href === '/' || href === '#' || href.startsWith('mailto:')) return false
-         return href.startsWith('/') || href.startsWith(portfolioUrl)
-      })
-      const uniqueInternal = Array.from(new Set(internalLinks)).slice(0, 3)
+      const absoluteInternalLinks = content.links.filter((href) => href.startsWith(portfolioUrl))
+      const uniqueInternal = Array.from(new Set([...content.internalLinks, ...absoluteInternalLinks]))
+        .filter((href) => href !== '/' && href !== '#')
+        .slice(0, 3)
 
-      if (uniqueInternal.length > 0 && process.env.SCRAPINGANT_API_KEY) {
-        logger.info(`Spidering internal pages for ${portfolioUrl}`, { pages: uniqueInternal })
+      if (uniqueInternal.length > 0) {
+        logger.info(`Spidering internal pages for ${portfolioUrl}`, { pages: uniqueInternal, provider: primaryFetch.provider })
         const promises = uniqueInternal.map(async (link) => {
-          const absoluteUrl = link.startsWith('/') ? portfolioUrl.replace(/\/$/, '') + link : link
-          const subUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(absoluteUrl)}&browser=true`
+          const absoluteUrl = link.startsWith('/') ? new URL(link, portfolioUrl).toString() : link
           try {
-            const subRes = await fetch(subUrl, { headers, signal: AbortSignal.timeout(15000) })
-            const subHtml = await subRes.text()
-            const subContent = extractContent(subHtml)
+            const subFetch = await this.fetchPortfolioHtml(absoluteUrl, 15000, primaryFetch.provider === 'scrapingant')
+            const subContent = extractContent(subFetch.html)
             if (subContent.markdown) {
                return `\n\n### Page: ${absoluteUrl}\n\n${subContent.markdown}`
             }
@@ -431,6 +421,58 @@ export class PortfolioService {
         details: { url: portfolioUrl, checks: [] },
       }
     }
+  }
+
+  private async fetchPortfolioHtml(
+    url: string,
+    timeoutMs: number,
+    preferScrapingAnt = true
+  ): Promise<{ html: string; provider: 'scrapingant' | 'direct' }> {
+    const scrapingAntKey = process.env.SCRAPINGANT_API_KEY
+
+    if (scrapingAntKey && preferScrapingAnt) {
+      const scrapingAntUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&browser=true`
+      try {
+        const response = await fetch(scrapingAntUrl, {
+          headers: { 'x-api-key': scrapingAntKey },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+
+        if (!response.ok) {
+          const label = response.status === 429 ? 'rate limited' : `returned ${response.status}`
+          throw new Error(`ScrapingAnt ${label}`)
+        }
+
+        const html = await response.text()
+        if (!html.trim()) throw new Error('ScrapingAnt returned an empty document')
+        return { html, provider: 'scrapingant' }
+      } catch (error) {
+        logger.warn('ScrapingAnt unavailable; falling back to direct portfolio fetch', {
+          url,
+          error: String(error),
+        })
+      }
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+
+    if (!response.ok) throw new Error(`Direct portfolio fetch returned ${response.status}`)
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType && !contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
+      throw new Error(`Direct portfolio fetch returned unsupported content type: ${contentType}`)
+    }
+
+    const html = await response.text()
+    if (!html.trim()) throw new Error('Direct portfolio fetch returned an empty document')
+    return { html, provider: 'direct' }
   }
 
   private isLikelyPortfolio(_html: string): boolean {

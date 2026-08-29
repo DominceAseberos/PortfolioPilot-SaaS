@@ -43,6 +43,14 @@ interface ResumeValidatedLinks {
   portfolioCandidates: ValidatedDetectedLink[]
 }
 
+interface PortfolioPreviewMetadata {
+  embedAllowed: boolean
+  blockedBy?: string
+  finalUrl: string
+  title?: string
+  description?: string
+}
+
 const DynamicProceedContext = React.createContext<{
   portfolioUrl: string
   githubUsername: string
@@ -55,12 +63,53 @@ const DynamicProceedContext = React.createContext<{
   isScanning: false
 })
 
-function SmartPortfolioPreview({ url, originalInput }: { url: string, originalInput: string }) {
+function SmartPortfolioPreview({
+  url,
+  originalInput,
+  preview,
+}: {
+  url: string
+  originalInput: string
+  preview?: PortfolioPreviewMetadata
+}) {
   const { portfolioUrl, isScanning } = React.useContext(DynamicProceedContext)
   const isSelected = originalInput === portfolioUrl
   const isDismissed = portfolioUrl && !isSelected
   if (isDismissed) return <div className="mt-4 p-4 text-center text-sm text-muted-foreground italic border border-dashed border-border/50 rounded-xl bg-muted/10 flex items-center justify-center gap-2"><Globe className="h-4 w-4 opacity-50"/>Previous Preview Dismissed</div>
-  const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
+  const normalizedUrl = preview?.finalUrl || (url.startsWith('http') ? url : `https://${url}`)
+  const hostname = (() => {
+    try { return new URL(normalizedUrl).hostname.replace(/^www\./, '') } catch { return normalizedUrl }
+  })()
+
+  if (preview?.embedAllowed === false) {
+    return (
+      <div data-testid="portfolio-preview-fallback" className="mt-4 flex min-h-[300px] w-full flex-col justify-between overflow-hidden rounded-2xl bg-muted/55 p-6 shadow-sm sm:min-h-[400px] sm:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background shadow-sm">
+            <Globe className="h-5 w-5" />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Verified public site</span>
+        </div>
+        <div className="max-w-2xl py-8">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{hostname}</p>
+          <h4 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{preview.title || 'Live preview protected by the site'}</h4>
+          <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-muted-foreground">
+            {preview.description || 'The site is reachable and can still be analyzed, but its security headers prevent other websites from displaying it inside an embedded frame.'}
+          </p>
+          <p className="mt-3 text-xs font-semibold text-muted-foreground/75">{preview.blockedBy}</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-muted-foreground">
+            {isScanning && isSelected ? 'Layer 2 analysis is still running server-side.' : 'PortfolioPilot will use the validated page content instead of the iframe.'}
+          </span>
+          <a href={normalizedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-bold text-background transition-opacity hover:opacity-85">
+            Open live portfolio <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mt-4 relative w-full h-[300px] sm:h-[400px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
       <style dangerouslySetInnerHTML={{ __html: `
@@ -633,6 +682,7 @@ export function NeuralChatLanding({
          const normalizedUrl = value.trim().match(/^https?:\/\//i) ? value.trim() : `https://${value.trim()}`
          
          const stepId = Date.now().toString() + `-sys-portfolio`
+         let portfolioPreview: PortfolioPreviewMetadata | undefined
          setChatLog(prev => [...prev, { 
            id: stepId, 
            role: 'system', 
@@ -652,6 +702,7 @@ export function NeuralChatLanding({
              signal: lifecycleAbortRef.current?.signal
            })
            const valData = await valRes.json()
+           portfolioPreview = valData.data?.preview as PortfolioPreviewMetadata | undefined
 
            if (!valData.success) {
               setChatLog(prev => prev.map(msg => msg.id === stepId ? {
@@ -734,7 +785,7 @@ export function NeuralChatLanding({
                      <Globe className="h-4 w-4 shrink-0" /> Preview ready
                    </p>
                 </div>
-                <SmartPortfolioPreview url={normalizedUrl} originalInput={autoDetected ? normalizedUrl : value} />
+                <SmartPortfolioPreview url={normalizedUrl} originalInput={autoDetected ? normalizedUrl : value} preview={portfolioPreview} />
                 {autoDetected && (
                   <PortfolioApprovalRow
                     initialUrl={normalizedUrl}

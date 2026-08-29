@@ -61,7 +61,6 @@ const IGNORED_DOMAINS = new Set([
   'stackoverflow.com',
   'medium.com',
   'dev.to',
-  'notion.so',
 ])
 
 function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
