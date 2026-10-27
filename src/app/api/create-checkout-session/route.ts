@@ -14,14 +14,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { priceId, credits = 20 } = body
 
-    const polarToken = process.env.POLAR_ACCESS_TOKEN
+    const polarToken =
+      process.env.POLAR_ACCESS_TOKEN ||
+      'polar_oat_Z3cL4r170aBfrnlfHVWWO5IeoK5o3rrSBarcC03s3Gz'
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
     // 1. If Polar is configured, use Polar.sh Merchant of Record Checkout
     if (polarToken) {
       if (!priceId) {
         return errorResponse(
-          'Polar Product ID is not set. Please configure NEXT_PUBLIC_POLAR_PRO_PRODUCT_ID or NEXT_PUBLIC_POLAR_STARTER_PRODUCT_ID in Vercel.',
+          'Product ID is required for checkout.',
           400
         )
       }
@@ -32,11 +34,12 @@ export async function POST(request: NextRequest) {
           ? `https://${process.env.VERCEL_URL}`
           : 'https://devcompile.zeist.org')
 
-      const res = await fetch('https://api.polar.sh/v1/checkouts', {
+      const res = await fetch('https://api.polar.sh/v1/checkouts/', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${polarToken}`,
           'Content-Type': 'application/json',
+          'User-Agent': 'PortfolioPilot/1.0',
         },
         body: JSON.stringify({
           product_id: priceId,
@@ -53,20 +56,17 @@ export async function POST(request: NextRequest) {
       if (!res.ok) {
         console.error('Polar checkout error:', data)
         const errMsg =
-          data.detail || data.message || 'Failed to create Polar checkout session'
+          data.detail || data.message || 'Failed to create checkout session'
         return errorResponse(errMsg, res.status || 400)
       }
 
-      return successResponse({ url: data.url }, 'Polar checkout created')
+      return successResponse({ url: data.url }, 'Checkout created')
     }
 
     // 2. Otherwise fallback to Stripe if STRIPE_SECRET_KEY is configured
     if (stripeSecretKey) {
       if (!priceId) {
-        return errorResponse(
-          'Stripe Price ID is not set. Please configure NEXT_PUBLIC_STRIPE_PRO_PRICE_ID in Vercel.',
-          400
-        )
+        return errorResponse('Stripe Price ID is required.', 400)
       }
 
       const session = await paymentService.createCheckoutSession(
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Neither configured
     return errorResponse(
-      'Payment gateway is in setup mode. Please configure POLAR_ACCESS_TOKEN or STRIPE_SECRET_KEY in Vercel.',
+      'Payment gateway is in setup mode. Please configure POLAR_ACCESS_TOKEN in Vercel.',
       400
     )
   } catch (error) {

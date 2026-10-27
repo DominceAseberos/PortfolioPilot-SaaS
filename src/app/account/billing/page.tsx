@@ -34,14 +34,11 @@ export default async function BillingPage() {
       userEmail={user.email || ''}
       starterPriceId={
         process.env.NEXT_PUBLIC_POLAR_STARTER_PRODUCT_ID ||
-        process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID ||
-        process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID ||
-        ''
+        'd5baa306-c472-49c3-b17b-5ed8a2a52465'
       }
       proPriceId={
         process.env.NEXT_PUBLIC_POLAR_PRO_PRODUCT_ID ||
-        process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID ||
-        ''
+        '55a7fe15-d3af-4627-86cd-972a40b2268a'
       }
     />
   )
