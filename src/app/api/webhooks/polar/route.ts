@@ -6,7 +6,9 @@ import crypto from 'crypto'
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text()
-    const webhookSecret = process.env.POLAR_WEBHOOK_SECRET
+    const webhookSecret =
+      process.env.POLAR_WEBHOOK_SECRET ||
+      'whsec_7ZTyC8YzfCW2pu7DS5E5ky4jIFEO3kJpkUWUaFKuq1Y='
 
     // Optional webhook signature verification
     if (webhookSecret) {
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('Received Polar webhook', { type: eventType })
 
-    // Polar triggers order.created upon completed one-time or subscription checkout
+    // Polar triggers order.created upon completed checkout
     if (eventType === 'order.created' || eventType === 'checkout.updated') {
       const data = payload.data || {}
       const status = data.status
