@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { loginSchema, registerSchema, type LoginInput, type RegisterInput } from '@/validations/auth'
@@ -293,6 +294,9 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
         )}>
           <div className="w-full max-w-sm mx-auto">
             <div className="text-center md:text-left mb-8">
+              <div className="flex justify-center md:justify-start mb-3">
+                <Image src="/brand/portfoliopilot_logo_120.png" alt="PortfolioPilot" width={38} height={38} className="rounded-xl shadow-xs" priority />
+              </div>
               <h2 className="text-3xl font-bold text-foreground mb-2">Sign in to PortfolioPilot</h2>
               <p className="text-muted-foreground">Welcome back! Please enter your details.</p>
             </div>
@@ -365,6 +369,9 @@ export function AuthScreen({ initialMode, isModal, onSuccess, onClose }: AuthScr
         )}>
           <div className="w-full max-w-sm mx-auto">
             <div className="text-center md:text-left mb-6">
+              <div className="flex justify-center md:justify-start mb-3">
+                <Image src="/brand/portfoliopilot_logo_120.png" alt="PortfolioPilot" width={38} height={38} className="rounded-xl shadow-xs" priority />
+              </div>
               <h2 className="text-3xl font-bold text-foreground mb-2">Create Account</h2>
               <p className="text-muted-foreground">Join PortfolioPilot today.</p>
             </div>

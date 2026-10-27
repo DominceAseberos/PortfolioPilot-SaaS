@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
 import { useCredits } from '@/hooks/useCredits'
 import { authService } from '@/features/auth/services/auth.service'
@@ -62,7 +63,8 @@ export function DashboardHeader() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-6 sm:px-8">
-      <Link href="/" className="font-bold text-xl tracking-tight hover:text-primary transition-colors flex items-center gap-2">
+      <Link href="/" className="font-bold text-xl tracking-tight hover:text-primary transition-colors flex items-center gap-2.5">
+        <Image src="/brand/portfoliopilot_logo_120.png" alt="PortfolioPilot" width={28} height={28} className="rounded-lg shadow-xs" priority />
         PortfolioPilot
       </Link>
 

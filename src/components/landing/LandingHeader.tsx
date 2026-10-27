@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/common/Button'
 import { ROUTES } from '@/constants'
@@ -64,7 +65,8 @@ export function LandingHeader() {
     <header className="sticky top-0 z-50 flex h-16 items-center border-b border-border/40 bg-background/60 backdrop-blur-md px-6 w-full">
       <div className="container mx-auto flex items-center justify-between max-w-6xl">
         <div className="flex items-center gap-8">
-          <Link href="/" className="font-black text-xl tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <Link href="/" className="font-black text-xl tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent flex items-center gap-2.5">
+            <Image src="/brand/portfoliopilot_logo_120.png" alt="PortfolioPilot" width={28} height={28} className="rounded-lg shadow-xs" priority />
             PortfolioPilot
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
