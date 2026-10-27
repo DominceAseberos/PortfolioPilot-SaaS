@@ -30,6 +30,7 @@ export default async function BillingPage() {
       credits={credits}
       hasClaimed={hasClaimed}
       userEmail={user.email || ''}
+      starterPriceId={process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || ''}
       proPriceId={process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || ''}
     />
   )

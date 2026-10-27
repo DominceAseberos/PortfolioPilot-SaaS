@@ -1,114 +1,126 @@
 import Link from 'next/link'
 import { Button } from '@/components/common/Button'
 import { CREDIT_PACKS } from '@/constants'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Zap, Sparkles } from 'lucide-react'
 import { ScrollReveal } from '@/components/common/ScrollReveal'
 
 export function LandingPricing() {
   return (
-    <section id="pricing" className="relative py-32 overflow-hidden border-t">
+    <section id="pricing" className="relative py-28 overflow-hidden border-t">
       {/* Ambient background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       <div className="container mx-auto px-4 relative z-10">
         <ScrollReveal animation="fade-up" delay={100}>
           <div className="mx-auto max-w-3xl text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">Pay As You Go Flexibility</h2>
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">Simple, Transparent Pricing</h2>
             <p className="text-foreground/80 text-lg">
-              Start with a free review, then simply top up credits as you need them. Zero subscriptions. Zero commitments.
+              Start with free credits, then top up anytime. Zero subscriptions. Zero expiration dates.
             </p>
           </div>
         </ScrollReveal>
 
-        <div className="mx-auto max-w-5xl grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
+        <div className="mx-auto max-w-6xl grid md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
           
           {/* Free Tier */}
-          <ScrollReveal animation="fade-up" delay={200} className="h-full">
-            <div className="relative rounded-3xl bg-card border border-border/50 shadow-sm p-8 md:p-12 flex flex-col h-full hover:border-foreground/20 hover:shadow-xl hover:-translate-y-2 transition-all duration-500 group">
-              <div className="mb-10">
-                <h3 className="text-xl font-bold text-foreground mb-3">{CREDIT_PACKS.free.name}</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-5xl md:text-6xl font-black tracking-tight">${CREDIT_PACKS.free.price}</span>
-                  <span className="text-muted-foreground font-medium text-lg">/free</span>
+          <ScrollReveal animation="fade-up" delay={150} className="h-full">
+            <div className="relative rounded-3xl bg-card border border-border/60 shadow-xs p-6 md:p-8 flex flex-col h-full hover:border-foreground/20 hover:shadow-lg transition-all duration-300 group">
+              <div className="mb-6">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Entry</span>
+                <h3 className="text-2xl font-bold text-foreground mt-1 mb-2">{CREDIT_PACKS.free.name}</h3>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl md:text-5xl font-black tracking-tight">${CREDIT_PACKS.free.price}</span>
+                  <span className="text-muted-foreground font-medium text-sm">/ 5 credits</span>
                 </div>
               </div>
               
-              <ul className="space-y-5 mb-12 flex-1">
+              <ul className="space-y-4 mb-8 flex-1">
                 {CREDIT_PACKS.free.features.map((f) => (
-                  <li key={f} className="flex items-start gap-3">
-                    <div className="mt-0.5 bg-slate-100 dark:bg-slate-800 rounded-full p-1 shrink-0 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
-                      <CheckCircle2 className="h-4 w-4 text-slate-500" />
+                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                    <div className="mt-0.5 rounded-full p-1 bg-muted shrink-0">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
-                    <span className="text-foreground/80 font-medium leading-snug">{f}</span>
+                    <span className="text-foreground/80 leading-snug">{f}</span>
                   </li>
                 ))}
               </ul>
 
               <Link href="/dashboard/reviews" className="w-full mt-auto">
-                <Button variant="outline" size="lg" className="w-full rounded-xl border-border/50 hover:bg-slate-50 dark:hover:bg-slate-900 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 font-bold h-14 text-base group-hover:border-foreground/30">
-                  Get Started Free
+                <Button variant="outline" size="lg" className="w-full rounded-xl border-border/70 hover:bg-muted font-bold h-12 text-sm">
+                  Try Free
                 </Button>
               </Link>
             </div>
           </ScrollReveal>
 
-          {/* Cyberpunk Clip-Path Pro Tier */}
-          <ScrollReveal animation="scale-up" delay={400} className="h-full relative z-10 group/reveal">
-            <div className="relative flex flex-col h-full lg:scale-105 transform hover:-translate-y-3 lg:hover:scale-[1.07] transition-all duration-500 z-10 group will-change-transform">
-              
-              {/* High-Performance Glow (Replaces expensive drop-shadow filter) */}
-              <div className="absolute inset-4 bg-cyan-500/20 blur-2xl group-hover:bg-purple-500/30 transition-colors duration-500 rounded-3xl pointer-events-none" />
-              
-              {/* Outer Wrapper (Forms the glowing border via clip-path margin) */}
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 via-blue-600 to-purple-600 opacity-80 group-hover:opacity-100 transition-opacity duration-500 will-change-opacity"
-                   style={{ clipPath: "polygon(0 0, calc(100% - 40px) 0, 100% 40px, 100% 100%, 40px 100%, 0 calc(100% - 40px))" }} />
-                   
-              {/* Inner Content Card (Removed backdrop-blur for performance) */}
-              <div className="relative m-[2px] bg-background dark:bg-[#0f172a] p-8 md:p-12 flex flex-col h-full z-10"
-                   style={{ clipPath: "polygon(0 0, calc(100% - 39px) 0, 100% 39px, 100% 100%, 39px 100%, 0 calc(100% - 39px))" }}>
-                
-                {/* Mesh Gradient Accents inside */}
-                <div className="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500/10 blur-[40px] rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 will-change-opacity" />
-                <div className="absolute bottom-10 -left-10 w-48 h-48 bg-purple-500/10 blur-[40px] rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 will-change-opacity" />
-
-                {/* Futuristic Cyber Badge */}
-                <div className="absolute top-0 right-0">
-                  <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-8 py-2 shadow-lg"
-                       style={{ clipPath: "polygon(15px 0, 100% 0, 100% 100%, 0 100%)" }}>
-                    Most Popular
-                  </div>
+          {/* Starter Pack ($5) */}
+          <ScrollReveal animation="fade-up" delay={250} className="h-full">
+            <div className="relative rounded-3xl bg-card border border-primary/30 shadow-xs p-6 md:p-8 flex flex-col h-full hover:border-primary/60 hover:shadow-lg transition-all duration-300 group">
+              <div className="mb-6">
+                <span className="text-xs font-semibold text-primary uppercase tracking-wider">Practical Value</span>
+                <h3 className="text-2xl font-bold text-foreground mt-1 mb-2">{CREDIT_PACKS.starter.name}</h3>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl md:text-5xl font-black tracking-tight text-foreground">${CREDIT_PACKS.starter.price}</span>
+                  <span className="text-muted-foreground font-medium text-sm">/ 20 credits</span>
                 </div>
-
-                <div className="mb-10 relative pt-4">
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-3 uppercase tracking-wider">{CREDIT_PACKS.starter.name}</h3>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl md:text-6xl font-black tracking-tight text-foreground drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]">${CREDIT_PACKS.starter.price}</span>
-                    <span className="text-muted-foreground font-medium text-lg">/100 credits</span>
-                  </div>
-                </div>
-                
-                <ul className="space-y-5 mb-12 flex-1 relative">
-                  {CREDIT_PACKS.starter.features.map((f) => (
-                    <li key={f} className="flex items-start gap-3 group/item">
-                      <div className="mt-0.5 shrink-0 group-hover/item:scale-125 transition-transform duration-300">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400 drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      </div>
-                      <span className="text-foreground/90 font-medium leading-snug group-hover/item:text-cyan-400 transition-colors">{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href="/dashboard/reviews" className="w-full mt-auto relative group/btn">
-                  <Button size="lg" className="w-full h-14 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-black uppercase tracking-widest text-base shadow-none border-none relative overflow-hidden rounded-none hover:scale-[1.03] active:scale-[0.98] transition-all duration-300"
-                          style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%)" }}>
-                    {/* Cyber Sweep Shine Effect */}
-                    <div className="absolute inset-0 -translate-x-[150%] group-hover/btn:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12" />
-                    <span className="relative z-10 drop-shadow-md">Get Started Now ↗</span>
-                  </Button>
-                </Link>
               </div>
+              
+              <ul className="space-y-4 mb-8 flex-1">
+                {CREDIT_PACKS.starter.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                    <div className="mt-0.5 rounded-full p-1 bg-primary/10 shrink-0">
+                      <Zap className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <span className="text-foreground/90 font-medium leading-snug">{f}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link href="/account/billing" className="w-full mt-auto">
+                <Button variant="outline" size="lg" className="w-full rounded-xl border-primary/40 hover:bg-primary/5 text-primary font-bold h-12 text-sm">
+                  Buy Starter Pack ($5)
+                </Button>
+              </Link>
+            </div>
+          </ScrollReveal>
+
+          {/* Pro Pack ($12 - Most Popular) */}
+          <ScrollReveal animation="scale-up" delay={350} className="h-full relative">
+            <div className="relative rounded-3xl border-2 border-primary bg-gradient-to-b from-primary/5 via-card to-card p-6 md:p-8 flex flex-col h-full shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden">
+              {/* Badge */}
+              <div className="absolute top-0 right-0">
+                <div className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl shadow-xs">
+                  Most Popular
+                </div>
+              </div>
+
+              <div className="mb-6 pt-2">
+                <span className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Best Deal
+                </span>
+                <h3 className="text-2xl font-bold text-foreground mt-1 mb-2">{CREDIT_PACKS.pro.name}</h3>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl md:text-5xl font-black tracking-tight text-primary">${CREDIT_PACKS.pro.price}</span>
+                  <span className="text-muted-foreground font-medium text-sm">/ 60 credits</span>
+                </div>
+              </div>
+              
+              <ul className="space-y-4 mb-8 flex-1">
+                {CREDIT_PACKS.pro.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                    <div className="mt-0.5 rounded-full p-1 bg-primary text-primary-foreground shrink-0">
+                      <Zap className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-foreground font-semibold leading-snug">{f}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link href="/account/billing" className="w-full mt-auto">
+                <Button size="lg" className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-sm shadow-md shadow-primary/25">
+                  Get Pro Pack ($12)
+                </Button>
+              </Link>
             </div>
           </ScrollReveal>
 

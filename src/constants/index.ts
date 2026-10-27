@@ -1,24 +1,37 @@
 export const CREDIT_PACKS = {
   free: {
-    name: 'Guest Pass',
+    name: 'Free Trial',
     price: 0,
-    credits: 0,
+    credits: 5,
     features: [
-      '1 Free Review (No Sign-Up)',
-      'Basic Portfolio Feedback',
-      'Preview Mode Only',
+      '5 Free Analysis Credits',
+      'Instant Resume & Portfolio Scan',
+      'Basic Recruiter Insights',
+      'No Credit Card Required',
     ],
   },
   starter: {
     name: 'Starter Pack',
-    price: 10,
-    credits: 100,
+    price: 5,
+    credits: 20,
     features: [
-      '100 AI Analysis Credits',
-      'Portfolio & Resume Analysis',
-      'GitHub Deep Scans',
-      'Historical Comparisons',
+      '20 Analysis Credits (Never Expire)',
+      'AI Resume Builder & ATS PDF Export',
+      'Live Portfolio Technical Crawl',
+      'GitHub Repo & Activity Scoring',
       'Pay-As-You-Go Flexibility',
+    ],
+  },
+  pro: {
+    name: 'Pro Career Pack',
+    price: 12,
+    credits: 60,
+    features: [
+      '60 Analysis Credits (Best Value)',
+      'Multi-Template ATS Resume Generator',
+      'Deep Competency & Mismatch Matrix',
+      'Unlimited Re-scans & Versioning',
+      'Priority AI Processing',
     ],
   },
 } as const

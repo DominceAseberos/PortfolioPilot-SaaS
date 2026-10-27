@@ -12,13 +12,15 @@ interface BillingPageClientProps {
   credits: number
   hasClaimed?: boolean
   userEmail: string
-  proPriceId: string // We will repurpose this as the "Credit Pack" price ID
+  starterPriceId?: string
+  proPriceId: string
 }
 
 export function BillingPageClient({
   credits,
   hasClaimed = false,
   userEmail,
+  starterPriceId = '',
   proPriceId,
 }: BillingPageClientProps) {
   const router = useRouter()
@@ -45,23 +47,23 @@ export function BillingPageClient({
     }
   }
 
-  const handleTopUp = async (priceId: string) => {
+  const handleTopUp = async (priceId: string, creditCount = 20) => {
     setIsLoading('checkout')
     setError(null)
     try {
       const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceId, email: userEmail }),
+        body: JSON.stringify({ priceId, email: userEmail, credits: creditCount }),
       })
       const json = await res.json()
       if (json.success && json.data?.url) {
         window.location.href = json.data.url
       } else {
-        setError(json.message || 'Failed to start checkout')
+        setError(json.message || 'Payment gateway is currently being configured. Please contact support or check back soon.')
       }
     } catch {
-      setError('Failed to connect to payment provider')
+      setError('Unable to reach the payment service. Please try again later.')
     } finally {
       setIsLoading(null)
     }
@@ -127,51 +129,108 @@ export function BillingPageClient({
 
       <div className="grid gap-8 md:grid-cols-2">
         {/* Top Up Section */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-primary" /> Top Up Credits
-          </h2>
-          <div className="rounded-3xl border border-border/50 bg-card p-1 shadow-sm hover:shadow-md transition-all duration-300 relative group overflow-hidden">
-             {/* Animated border glow */}
-             <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
-             
-             <div className="bg-card rounded-[1.4rem] p-6 sm:p-8 h-full relative z-10 border border-transparent">
-                <div className="flex items-start justify-between mb-6">
+        <section className="space-y-4 md:col-span-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" /> Choose a Practical Credit Pack
+            </h2>
+            <span className="text-xs text-muted-foreground">Zero subscriptions • Pay as you go</span>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Starter Pack ($5) */}
+            <div className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8 flex flex-col justify-between shadow-xs hover:border-primary/40 hover:shadow-md transition-all">
+              <div>
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-2xl font-bold">Standard Pack</h3>
-                    <p className="text-muted-foreground mt-1 text-sm">Perfect for active developers.</p>
+                    <h3 className="text-2xl font-bold text-foreground">Starter Pack</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Perfect for job hunting & fast reviews</p>
                   </div>
-                  <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/20">Most Popular</Badge>
+                  <Badge variant="outline" className="border-border text-muted-foreground text-xs font-semibold">Entry</Badge>
                 </div>
-                
-                <div className="mb-8">
-                  <span className="text-4xl font-black text-foreground">$10</span>
-                  <span className="text-muted-foreground font-medium ml-1">/ one-time</span>
+
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-foreground">$5</span>
+                    <span className="text-xs text-muted-foreground font-medium">/ one-time</span>
+                  </div>
+                  <p className="text-xs text-primary font-semibold mt-1">20 Credits Total (Never Expire)</p>
                 </div>
-                
-                <ul className="space-y-4 mb-8">
-                  <li className="flex items-center gap-3 text-sm">
-                    <div className="p-1.5 rounded-full bg-primary/10 shrink-0"><Coins className="h-4 w-4 text-primary" /></div>
-                    <span className="font-semibold text-foreground">100 Credits Total</span>
+
+                <ul className="space-y-3 mb-8 text-xs sm:text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2.5">
+                    <Coins className="h-4 w-4 text-primary shrink-0" />
+                    <span>~7 Complete multi-source scans</span>
                   </li>
-                  <li className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <div className="p-1.5 rounded-full bg-muted shrink-0"><Zap className="h-4 w-4 text-muted-foreground" /></div>
-                    <span>50 Deep UI Analyses (2 credits each)</span>
+                  <li className="flex items-center gap-2.5">
+                    <Zap className="h-4 w-4 text-primary shrink-0" />
+                    <span>AI Resume Builder & ATS PDF exports</span>
                   </li>
-                  <li className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <div className="p-1.5 rounded-full bg-muted shrink-0"><Activity className="h-4 w-4 text-muted-foreground" /></div>
-                    <span>100 GitHub Analyses (1 credit each)</span>
+                  <li className="flex items-center gap-2.5">
+                    <Activity className="h-4 w-4 text-primary shrink-0" />
+                    <span>GitHub profile & code metrics</span>
                   </li>
                 </ul>
-                
-                <Button
-                  className="w-full rounded-xl h-12 text-md font-bold shadow-sm"
-                  onClick={() => handleTopUp(proPriceId)}
-                  isLoading={isLoading === 'checkout'}
-                >
-                  Purchase 100 Credits
-                </Button>
-             </div>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full rounded-xl h-11 font-bold border-border/80 hover:bg-muted"
+                onClick={() => handleTopUp(starterPriceId || proPriceId, 20)}
+                isLoading={isLoading === 'checkout'}
+              >
+                Purchase 20 Credits ($5)
+              </Button>
+            </div>
+
+            {/* Pro Pack ($12) */}
+            <div className="rounded-3xl border-2 border-primary/50 bg-gradient-to-b from-primary/5 via-card to-card p-6 sm:p-8 flex flex-col justify-between shadow-md relative group overflow-hidden">
+              <div className="absolute top-0 right-0">
+                <span className="bg-primary text-primary-foreground text-[10px] font-extrabold uppercase tracking-widest px-4 py-1 rounded-bl-xl shadow-xs">
+                  Most Popular
+                </span>
+              </div>
+
+              <div>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-2xl font-bold text-foreground">Pro Career Pack</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Full career prep & unlimited resume edits</p>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-foreground">$12</span>
+                    <span className="text-xs text-muted-foreground font-medium">/ one-time</span>
+                  </div>
+                  <p className="text-xs text-primary font-semibold mt-1">60 Credits Total (Save 20%)</p>
+                </div>
+
+                <ul className="space-y-3 mb-8 text-xs sm:text-sm text-foreground/80">
+                  <li className="flex items-center gap-2.5 font-medium">
+                    <Coins className="h-4 w-4 text-primary shrink-0" />
+                    <span>~20 Complete multi-source scans</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <Zap className="h-4 w-4 text-primary shrink-0" />
+                    <span>All ATS resume templates & live PDF preview</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <Activity className="h-4 w-4 text-primary shrink-0" />
+                    <span>Deep competency & mismatch audits</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Button
+                className="w-full rounded-xl h-11 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/25"
+                onClick={() => handleTopUp(proPriceId, 60)}
+                isLoading={isLoading === 'checkout'}
+              >
+                Purchase 60 Credits ($12)
+              </Button>
+            </div>
           </div>
         </section>
 

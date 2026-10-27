@@ -12,17 +12,22 @@ export async function POST(request: NextRequest) {
     if (!user) return unauthorizedResponse()
 
     const body = await request.json()
-    const { priceId } = body
+    const { priceId, credits = 20 } = body
 
-    if (!priceId) {
-      return errorResponse('Price ID is required', 400)
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return errorResponse('Stripe payments are currently in setup mode. Please configure STRIPE_SECRET_KEY in Vercel.', 400)
     }
 
-    const session = await paymentService.createCheckoutSession(user.id, priceId, user.email!)
+    if (!priceId) {
+      return errorResponse('Stripe Price ID is not set. Please configure NEXT_PUBLIC_STRIPE_PRO_PRICE_ID in Vercel.', 400)
+    }
+
+    const session = await paymentService.createCheckoutSession(user.id, priceId, user.email!, Number(credits) || 20)
 
     return successResponse({ url: session.url }, 'Checkout session created')
   } catch (error) {
     console.error('Checkout Session Error:', error)
-    return errorResponse('Failed to create checkout session', 500)
+    const msg = error instanceof Error ? error.message : 'Failed to create checkout session'
+    return errorResponse(msg, 500)
   }
 }
