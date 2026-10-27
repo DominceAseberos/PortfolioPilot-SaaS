@@ -558,7 +558,7 @@ export function NeuralChatLanding({
     )
   }
 
-  const handleChatSubmit = (e: React.FormEvent) => {
+  const handleChatSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (isChatProcessing || isLoading || submitLock.current) return
     
