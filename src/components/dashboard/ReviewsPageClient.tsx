@@ -767,7 +767,7 @@ function StreamingChatBox({
                <div className="flex items-center gap-2">
                  <span className="font-bold text-sm">Strengths Identified</span>
                </div>
-               <div className="rounded-2xl rounded-tl-none border border-green-500/20 bg-green-500/5 p-5 shadow-sm">
+               <div className="rounded-xl rounded-tl-none border border-green-500/20 bg-green-500/5 p-4 shadow-xs">
                  <TypingList 
                    items={result.normalFeedback?.topStrengths ?? result.topStrengths} 
                    onComplete={advanceStep} 
@@ -791,7 +791,7 @@ function StreamingChatBox({
                    <div className="flex items-center gap-2">
                      <span className="font-bold text-sm">Areas for Improvement</span>
                    </div>
-                   <div className="rounded-2xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-5 shadow-sm">
+                   <div className="rounded-xl rounded-tl-none border border-red-500/20 bg-red-500/5 p-4 shadow-xs">
                      <TypingList 
                        items={result.deepFeedback?.topWeaknesses ?? result.topWeaknesses} 
                        onComplete={advanceStep} 
@@ -883,7 +883,7 @@ function StreamingChatBox({
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm">Comparative Analysis</span>
                     </div>
-                    <div className="rounded-2xl rounded-tl-none border border-orange-500/20 bg-orange-500/5 p-5 shadow-sm space-y-5">
+                    <div className="rounded-xl rounded-tl-none border border-orange-500/20 bg-orange-500/5 p-4 shadow-xs space-y-3">
 
                       {notAligned.length > 0 && (
                         <div className="space-y-2">
@@ -1008,7 +1008,7 @@ function StreamingChatBox({
                    <div className="flex items-center gap-2">
                      <span className="font-bold text-sm">Final Evaluation</span>
                    </div>
-                   <div className="rounded-2xl rounded-tl-none border border-primary/20 bg-card p-5 shadow-sm flex items-center justify-between">
+                   <div className="rounded-xl rounded-tl-none border border-primary/20 bg-card p-4 shadow-xs flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-bold text-primary">Analysis Complete</h3>
                         <p className="text-xs text-muted-foreground mt-0.5">The Pilot Review agent has finalized the report.</p>
@@ -1071,47 +1071,56 @@ function StreamingChatBox({
 }
 
 function AgentProgressDropdown({ phase, steps }: { phase: string; steps: CollectingStep[] }) {
+  const [isOpen, setIsOpen] = useState(true)
   const isDone = phase === 'finalizing'
   const hasError = steps.some(s => s.status === 'error')
+  const completedCount = steps.filter(s => s.status === 'success').length
+  const activeStep = steps.find(s => s.status === 'loading')
 
   return (
-    <div className={`rounded-xl border overflow-hidden shadow-sm transition-all duration-300 ${hasError ? 'bg-red-500/5 border-red-500/20' : 'bg-card'}`}>
-      <div className="flex w-full items-center gap-3 px-5 py-4 bg-muted/30 border-b border-border/50 text-left">
-        <div className="shrink-0">
-          {isDone ? (
-             <CheckCircle2 className="h-5 w-5 text-green-500" />
-          ) : hasError ? (
-             <AlertTriangle className="h-5 w-5 text-red-500" />
-          ) : (
-             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-          )}
-        </div>
-        <div className="flex-1">
-          <p className={`text-sm font-medium ${hasError ? 'text-red-500' : 'text-foreground'}`}>
-             {isDone ? 'AI Review Complete' : hasError ? 'AI Agent encountered an error' : 'AI Agent thinking...'}
+    <div className={`rounded-xl border overflow-hidden shadow-xs transition-all duration-300 ${hasError ? 'bg-red-500/5 border-red-500/20' : 'bg-card'}`}>
+      <button 
+        type="button"
+        onClick={() => setIsOpen(prev => !prev)}
+        className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 bg-muted/30 hover:bg-muted/50 border-b border-border/40 text-left transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="shrink-0">
+            {isDone ? (
+               <CheckCircle2 className="h-4 w-4 text-green-500" />
+            ) : hasError ? (
+               <AlertTriangle className="h-4 w-4 text-red-500" />
+            ) : (
+               <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+            )}
+          </div>
+          <p className={`text-xs font-semibold truncate ${hasError ? 'text-red-500' : 'text-foreground'}`}>
+             {isDone ? 'AI Review Complete' : hasError ? 'Agent encountered an issue' : activeStep ? `Thinking: ${activeStep.label}...` : 'AI Agent analyzing...'}
           </p>
         </div>
-      </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-mono text-muted-foreground">{completedCount}/{steps.length}</span>
+          <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
 
-      <div className={`px-5 pb-5 pt-4 text-sm ${hasError ? 'bg-red-500/5' : 'bg-card'}`}>
-          <div className="space-y-4">
+      {isOpen && (
+        <div className={`px-4 py-2.5 text-xs ${hasError ? 'bg-red-500/5' : 'bg-card'}`}>
+          <div className="space-y-1.5">
             {steps.map(step => (
-              <div key={step.id} className="flex items-start gap-3">
-                 <div className="mt-0.5 shrink-0">
-                   {step.status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : 
-                    step.status === 'success' ? <CheckCircle2 className="h-4 w-4 text-muted-foreground" /> :
-                    step.status === 'error' ? <XCircle className="h-4 w-4 text-red-500" /> :
-                    <div className="h-4 w-4 rounded-full border-2 border-dashed border-muted-foreground/30" />}
+              <div key={step.id} className="flex items-center gap-2.5 py-0.5">
+                 <div className="shrink-0">
+                   {step.status === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /> : 
+                    step.status === 'success' ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> :
+                    step.status === 'error' ? <XCircle className="h-3.5 w-3.5 text-red-500" /> :
+                    <div className="h-3.5 w-3.5 rounded-full border border-dashed border-muted-foreground/30" />}
                  </div>
-                 <div className="flex flex-col">
-                   <span className={step.status === 'loading' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
-                      {step.status === 'loading' ? `Executing ${step.label.toLowerCase()}...` : 
-                       step.status === 'success' ? `Completed ${step.label.toLowerCase()}` :
-                       step.status === 'error' ? `Failed ${step.label.toLowerCase()}` : 
-                       `Waiting for ${step.label.toLowerCase()}`}
+                 <div className="flex items-center gap-2 min-w-0 flex-1">
+                   <span className={`truncate text-xs ${step.status === 'loading' ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
+                      {step.label}
                    </span>
                    {step.status === 'success' && step.source && (
-                     <span className="text-xs text-muted-foreground/70 truncate max-w-[250px]">
+                     <span className="text-[10px] text-muted-foreground/60 truncate ml-auto">
                        {step.source}
                      </span>
                    )}
@@ -1120,26 +1129,16 @@ function AgentProgressDropdown({ phase, steps }: { phase: string; steps: Collect
             ))}
             
             {phase === 'analyzing' && (
-              <div className="flex items-start gap-3">
-                 <div className="mt-0.5 shrink-0">
-                   <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
-                 </div>
-                 <span className="text-foreground font-medium">
-                   {steps.length > 2 ? 'Cross-referencing data and generating AI insights...' : 'Generating AI insights from source data...'}
+              <div className="flex items-center gap-2 pt-1 border-t border-border/30 text-xs">
+                 <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse shrink-0" />
+                 <span className="text-foreground font-medium truncate">
+                   Cross-referencing insights...
                  </span>
-              </div>
-            )}
-            
-            {phase === 'finalizing' && (
-              <div className="flex items-start gap-3">
-                 <div className="mt-0.5 shrink-0">
-                   <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                 </div>
-                 <span className="text-muted-foreground">Analysis successfully compiled</span>
               </div>
             )}
           </div>
         </div>
+      )}
     </div>
   )
 }
@@ -2216,11 +2215,11 @@ export function ReviewsPageClient({ isGuest = false, credits = 0, reviews = [], 
         </div>
       )}
 
-    <div className="w-full flex h-[calc(100vh-64px)] overflow-hidden relative bg-background">
+    <div data-lenis-prevent className="w-full flex h-[calc(100vh-64px)] overflow-hidden relative bg-background">
       
       {/* The Desktop History Sidebar has been removed in favor of the ChatGPT-style top-left dropdown */}
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col relative h-full overflow-hidden w-full">
+      <div data-lenis-prevent className="flex-1 flex flex-col relative h-full overflow-hidden w-full">
         
         {/* ChatGPT-style History Dropdown Button (Always visible) */}
         <div className="absolute top-4 left-4 z-[60]">

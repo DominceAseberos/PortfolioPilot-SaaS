@@ -83,27 +83,26 @@ function SmartPortfolioPreview({
 
   if (preview?.embedAllowed === false) {
     return (
-      <div data-testid="portfolio-preview-fallback" className="mt-4 flex min-h-[300px] w-full flex-col justify-between overflow-hidden rounded-2xl bg-muted/55 p-6 shadow-sm sm:min-h-[400px] sm:p-8">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background shadow-sm">
-            <Globe className="h-5 w-5" />
+      <div data-testid="portfolio-preview-fallback" className="mt-2 flex min-h-[140px] w-full flex-col justify-between overflow-hidden rounded-xl bg-muted/40 p-4 shadow-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-blue-500" />
+            <span className="text-xs font-bold">{hostname}</span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Verified public site</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Verified public site</span>
         </div>
-        <div className="max-w-2xl py-8">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{hostname}</p>
-          <h4 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{preview.title || 'Live preview protected by the site'}</h4>
-          <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-muted-foreground">
-            {preview.description || 'The site is reachable and can still be analyzed, but its security headers prevent other websites from displaying it inside an embedded frame.'}
+        <div className="py-2">
+          <h4 className="text-sm font-bold tracking-tight text-foreground">{preview.title || 'Live Portfolio Verified'}</h4>
+          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+            {preview.description || 'Security headers protect iframe embedding, content will be extracted directly.'}
           </p>
-          <p className="mt-3 text-xs font-semibold text-muted-foreground/75">{preview.blockedBy}</p>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs font-semibold text-muted-foreground">
-            {isScanning && isSelected ? 'Layer 2 analysis is still running server-side.' : 'PortfolioPilot will use the validated page content instead of the iframe.'}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/30">
+          <span className="text-[11px] text-muted-foreground">
+            {isScanning && isSelected ? 'Layer 2 analysis running...' : 'Direct crawler analysis ready.'}
           </span>
-          <a href={normalizedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-bold text-background transition-opacity hover:opacity-85">
-            Open live portfolio <ExternalLink className="h-3.5 w-3.5" />
+          <a href={normalizedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background hover:opacity-85">
+            Open site <ExternalLink className="h-3 w-3" />
           </a>
         </div>
       </div>
@@ -111,7 +110,7 @@ function SmartPortfolioPreview({
   }
 
   return (
-    <div className="mt-4 relative w-full h-[300px] sm:h-[400px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
+    <div className="mt-4 relative w-full h-[180px] sm:h-[220px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted/50 flex items-center justify-center group/preview">
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes inline-scan-line {
           0% { top: -30%; opacity: 0; }
@@ -209,7 +208,7 @@ function SmartResumePreview({ fileObj, fileName }: { fileObj: File | null, fileN
         </div>
       </div>
       {pdfUrl && (
-        <div className="relative w-full h-[300px] sm:h-[400px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted flex items-center justify-center">
+        <div className="relative w-full h-[180px] sm:h-[220px] rounded-xl overflow-hidden border border-border/50 shadow-sm bg-muted flex items-center justify-center">
            <iframe src={`${pdfUrl}#toolbar=0&navpanes=0`} className="w-full h-full border-0 bg-background" title="Resume Live Preview" />
         </div>
       )}
@@ -774,7 +773,7 @@ export function NeuralChatLanding({
                 <p className="text-sm font-bold text-muted-foreground flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin shrink-0" /> Connecting to live website...
                 </p>
-                <div className="relative w-full h-[300px] sm:h-[400px] rounded-xl border border-border/50 shadow-sm bg-muted animate-pulse"></div>
+                <div className="relative w-full h-[180px] sm:h-[220px] rounded-xl border border-border/50 shadow-sm bg-muted animate-pulse"></div>
              </div>
            )
          } : msg))
@@ -1085,19 +1084,24 @@ export function NeuralChatLanding({
       {/* Messages */}
       <div 
         ref={chatScrollRef}
-        className="flex-1 overflow-y-auto w-full pb-48 pt-8 custom-scrollbar px-2 sm:px-6 scroll-smooth"
+        data-lenis-prevent className="flex-1 overflow-y-auto w-full pb-28 pt-2 custom-scrollbar px-2 sm:px-6 scroll-smooth"
         style={{ WebkitMaskImage: 'linear-gradient(to top, transparent 0%, black 15%, black 100%)', maskImage: 'linear-gradient(to top, transparent 0%, black 15%, black 100%)' }}
       >
-        <div className="w-full max-w-5xl mx-auto flex flex-col space-y-8">
-          <div className="flex flex-col items-center justify-center mb-16 pt-8">
-            <div className="relative w-28 h-28 sm:w-36 sm:h-36 mb-8 animate-float z-10">
-               <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full mix-blend-multiply dark:mix-blend-overlay animate-pulse" />
-               <Image src="/ai-review-bot.png" alt="AI Pilot Agent" width={144} height={144} loading="eager" className="relative z-10 w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]" />
+        <div className="w-full max-w-4xl mx-auto flex flex-col space-y-4">
+          {chatLog.length === 0 && !isScanning && !resultNode && (
+            <div className="flex flex-col items-center justify-center mb-8 pt-4">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-3 animate-float z-10">
+                 <div className="absolute inset-0 bg-primary/20 blur-[25px] rounded-full" />
+                 <Image src="/brand/portfoliopilot_logo_512.png" alt="PortfolioPilot" width={80} height={80} loading="eager" className="relative z-10 w-full h-full object-contain rounded-2xl shadow-md" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent text-center">
+                PortfolioPilot Assistant
+              </h2>
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                Upload your resume, portfolio link, or GitHub username to begin.
+              </p>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent text-center">
-              Unleash the Pilot Review Agent.
-            </h2>
-          </div>
+          )}
 
           {chatLog.map((msg) => (
              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-4 duration-500 w-full`}>
