@@ -57,6 +57,7 @@ export interface ImprovedResumeData {
   improvementOperations?: ResumeChangeOperation[]
   templateContract?: ResumeTemplateContract
   generationWarning?: string
+  accentColor?: string
   
   // Legacy fields (kept optional for backward compatibility during transition)
   summary?: string

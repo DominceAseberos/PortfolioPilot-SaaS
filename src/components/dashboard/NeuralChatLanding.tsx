@@ -441,6 +441,7 @@ export function NeuralChatLanding({
   ])
 
   const [activeInputMode, setActiveInputMode] = useState<'portfolio' | 'github' | 'resume'>('resume')
+  const [isModeMenuOpen, setIsModeMenuOpen] = useState(false)
   const [chatInputValue, setChatInputValue] = useState('')
   const [isChatProcessing, setIsChatProcessing] = useState(false)
   const submitLock = useRef(false)
@@ -571,7 +572,11 @@ export function NeuralChatLanding({
     }, 1000)
 
     if (activeInputMode === 'resume') {
-       fileInputRef.current?.click()
+       if (resumeFile) {
+         onSubmitRef.current(e)
+       } else {
+         fileInputRef.current?.click()
+       }
     } else if (activeInputMode === 'portfolio' && chatInputValue.trim()) {
        const val = chatInputValue.trim()
        
@@ -607,7 +612,7 @@ export function NeuralChatLanding({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file && file.type === 'application/pdf') {
+    if (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
        if (file.size > FILE_UPLOAD.maxFileSize) {
          const maxMb = FILE_UPLOAD.maxFileSize / (1024 * 1024)
          setChatLog(prev => [...prev, { id: Date.now().toString(), role: 'user', content: file.name }])
@@ -1189,23 +1194,23 @@ export function NeuralChatLanding({
                
                {/* Tab Selector inside input left */}
                <div className="relative group/tabs flex items-center shrink-0">
-                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full hover:bg-muted flex items-center justify-center cursor-pointer text-muted-foreground transition-colors shrink-0">
+                  <div onClick={() => setIsModeMenuOpen(prev => !prev)} className="h-10 w-10 sm:h-12 sm:w-12 rounded-full hover:bg-muted flex items-center justify-center cursor-pointer text-muted-foreground transition-colors shrink-0">
                      {activeInputMode === 'portfolio' ? <Globe className="h-5 w-5 text-blue-500" /> : activeInputMode === 'github' ? <GitBranch className="h-5 w-5 text-purple-500" /> : <FileText className="h-5 w-5 text-emerald-500" />}
                   </div>
                   {/* Dropdown for tabs */}
-                  <div className="absolute bottom-full left-0 mb-3 w-56 bg-card border border-border/50 shadow-2xl rounded-2xl p-2 opacity-0 invisible group-hover/tabs:opacity-100 group-hover/tabs:visible transition-all -translate-y-2 group-hover/tabs:translate-y-0">
+                  <div className={`absolute bottom-full left-0 mb-3 w-56 bg-card border border-border/50 shadow-2xl rounded-2xl p-2 transition-all ${isModeMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 group-hover/tabs:opacity-100 group-hover/tabs:visible group-hover/tabs:translate-y-0'}`}>
                      <div className="text-xs font-bold text-muted-foreground px-3 mb-2 uppercase tracking-wider">Analysis Mode</div>
-                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('portfolio') }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors ${activeInputMode === 'portfolio' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
+                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('portfolio'); setIsModeMenuOpen(false) }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors ${activeInputMode === 'portfolio' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                        <Globe className="h-4 w-4 text-blue-500" /> 
                        <span className="flex-1">Live Portfolio URL</span>
                        <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">{getAnalysisCost('portfolio')} <span className="text-[10px]">Token</span></span>
                      </button>
-                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('github') }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'github' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
+                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('github'); setIsModeMenuOpen(false) }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'github' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                        <GitBranch className="h-4 w-4 text-purple-500" /> 
                        <span className="flex-1">GitHub Username</span>
                        <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">{getAnalysisCost('github')} <span className="text-[10px]">Token</span></span>
                      </button>
-                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('resume') }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'resume' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
+                     <button type="button" onClick={() => { if (!isChatProcessing && !isLoading && !isScanning) setActiveInputMode('resume'); setIsModeMenuOpen(false) }} className={`w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-3 transition-colors mt-1 ${activeInputMode === 'resume' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                        <FileText className="h-4 w-4 text-emerald-500" /> 
                        <span className="flex-1">Resume/CV (PDF)</span>
                        <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">{getAnalysisCost('resume')} <span className="text-[10px]">Token</span></span>
@@ -1216,9 +1221,20 @@ export function NeuralChatLanding({
                {activeInputMode === 'resume' ? (
                   <div className="flex-1 px-3 h-10 sm:h-12 flex items-center bg-transparent border-none focus:outline-none">
                      <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileChange} disabled={isChatProcessing || isLoading || isScanning} />
-                     <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatProcessing || isLoading || isScanning} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors h-full w-full justify-start text-left disabled:cursor-not-allowed disabled:opacity-50">
-                       <Upload className="h-4 w-4" /> Upload your Resume/CV PDF first... (Max {FILE_UPLOAD.maxFileSize / (1024 * 1024)}MB)
-                     </button>
+                     {resumeFile ? (
+                       <div className="flex items-center justify-between w-full">
+                         <span className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400 truncate">
+                           <FileText className="h-4 w-4 shrink-0" /> {resumeFile.name}
+                         </span>
+                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatProcessing || isLoading || isScanning} className="text-xs text-muted-foreground hover:text-foreground underline shrink-0 ml-2">
+                           Change
+                         </button>
+                       </div>
+                     ) : (
+                       <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatProcessing || isLoading || isScanning} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors h-full w-full justify-start text-left disabled:cursor-not-allowed disabled:opacity-50">
+                         <Upload className="h-4 w-4 shrink-0" /> Upload your Resume/CV (PDF)...
+                       </button>
+                     )}
                   </div>
                ) : (
                  <input 

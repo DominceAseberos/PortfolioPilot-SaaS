@@ -36,9 +36,22 @@ export interface AIAnalysisResult {
 }
 
 function createClient(): OpenAI | null {
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) return null
-  return new OpenAI({ apiKey, baseURL: GROQ_BASE_URL })
+  const groqKey = process.env.GROQ_API_KEY
+  if (groqKey) {
+    return new OpenAI({ apiKey: groqKey, baseURL: GROQ_BASE_URL })
+  }
+  const openAiKey = process.env.OPENAI_API_KEY
+  if (openAiKey) {
+    return new OpenAI({ apiKey: openAiKey })
+  }
+  return null
+}
+
+function resolveAiModel(client: OpenAI, defaultModel = 'llama-3.3-70b-versatile'): string {
+  if (client.baseURL && !client.baseURL.includes('groq')) {
+    return 'gpt-4o-mini'
+  }
+  return defaultModel
 }
 
 export async function analyzeResumeWithAI(text: string, scrapedContext?: string): Promise<AIAnalysisResult | null> {
@@ -48,7 +61,7 @@ export async function analyzeResumeWithAI(text: string, scrapedContext?: string)
   try {
     // LAYER 1: STRICT EXTRACTION & STANDARDIZATION
     const extractResponse = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: resolveAiModel(client, 'llama-3.3-70b-versatile'),
       messages: [
         {
           role: 'system',
@@ -116,7 +129,7 @@ Use null for missing identity fields. Preserve all meaningful source sections, i
 
     // LAYER 2: DEEP ANALYSIS & SCORING
     const analyzeResponse = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: resolveAiModel(client, 'llama-3.3-70b-versatile'),
       messages: [
         {
           role: 'system',
@@ -174,7 +187,7 @@ async function extractAndMergeSkills(client: OpenAI, currentSections: DynamicSec
     if (githubRepos.length === 0) return existingSkillsSection ?? null
 
     const response = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: resolveAiModel(client, 'llama-3.1-8b-instant'),
       messages: [
         {
           role: 'system',
@@ -223,7 +236,7 @@ async function weaveProjects(client: OpenAI, currentSections: DynamicSection[], 
     if (githubRepos.length === 0) return existingProjectsSection ?? null
 
     const response = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: resolveAiModel(client, 'llama-3.3-70b-versatile'),
       messages: [
         {
           role: 'system',
@@ -276,7 +289,7 @@ CRITICAL RULES:
 async function generateProfessionalSummary(client: OpenAI, skillsSection: DynamicSection | null, projectsSection: DynamicSection | null, githubRepos: GitHubRepo[]): Promise<DynamicSection | null> {
   try {
     const response = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: resolveAiModel(client, 'llama-3.3-70b-versatile'),
       messages: [
         {
           role: 'system',
@@ -316,7 +329,7 @@ CRITICAL RULES:
 async function extractExperienceFromPortfolio(client: OpenAI, portfolioMarkdown: string): Promise<DynamicSection | null> {
   try {
     const response = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: resolveAiModel(client, 'llama-3.3-70b-versatile'),
       messages: [
         {
           role: 'system',
@@ -464,7 +477,7 @@ export async function optimizeResumeContentForLayout(
 
   try {
     const response = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: resolveAiModel(client, 'llama-3.3-70b-versatile'),
       temperature: 0.2,
       response_format: { type: 'json_object' },
       messages: [
@@ -495,7 +508,7 @@ export async function analyzePortfolioWithAI(markdown: string): Promise<Partial<
 
   try {
     const response = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: resolveAiModel(client, 'llama-3.1-8b-instant'),
       messages: [
         {
           role: 'system',
@@ -567,7 +580,7 @@ Return ONLY a JSON object with a 'summaries' array containing objects with this 
 }`
 
     const response = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: resolveAiModel(client, 'llama-3.1-8b-instant'),
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 1000,
@@ -711,7 +724,7 @@ export async function generateOverallSummary(
     }
 
     const response = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: resolveAiModel(client, 'llama-3.1-8b-instant'),
       messages: [
         {
           role: 'system',
@@ -951,7 +964,7 @@ export async function detectMismatches(
 
   try {
     const response = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: resolveAiModel(client, 'llama-3.1-8b-instant'),
       messages: [
         {
           role: 'system',

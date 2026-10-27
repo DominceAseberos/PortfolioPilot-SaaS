@@ -424,10 +424,11 @@ export class PortfolioService {
   }
 
   private async fetchPortfolioHtml(
-    url: string,
+    rawUrl: string,
     timeoutMs: number,
     preferScrapingAnt = true
   ): Promise<{ html: string; provider: 'scrapingant' | 'direct' }> {
+    const url = rawUrl.startsWith('http://') || rawUrl.startsWith('https://') ? rawUrl : \https://\
     const scrapingAntKey = process.env.SCRAPINGANT_API_KEY
 
     if (scrapingAntKey && preferScrapingAnt) {

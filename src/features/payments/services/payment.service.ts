@@ -14,12 +14,13 @@ function getStripe(): Stripe {
 export class PaymentService {
   async createCheckoutSession(userId: string, priceId: string, email: string) {
     const stripe = getStripe()
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://devcompile.zeist.org')
     const session = await stripe.checkout.sessions.create({
       customer_email: email,
       mode: 'payment', // Changed from subscription to payment for credit packs
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/account/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/account/billing?canceled=true`,
+      success_url: `${baseUrl}/account/billing?success=true`,
+      cancel_url: `${baseUrl}/account/billing?canceled=true`,
       metadata: { user_id: userId },
     })
 

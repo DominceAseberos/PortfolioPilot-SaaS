@@ -64,7 +64,7 @@ export function ClassicTemplate({ data }: { data: ImprovedResumeData }) {
               )}
               
               {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                <View key={i} style={{ marginBottom: 10 }}>
+                <View key={i} style={{ marginBottom: 10 }} wrap={false}>
                   <View style={styles.entryHeader} minPresenceAhead={24}>
                     {entry.link && /^https?:\/\//.test(entry.link)
                       ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: '#2563eb' }}>{entry.title}</Link>

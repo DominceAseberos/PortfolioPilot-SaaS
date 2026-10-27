@@ -25,8 +25,8 @@ const styles = StyleSheet.create({
   // Main
   main: { width: '65%', padding: '36 28 36 24', backgroundColor: '#ffffff' },
   section: { marginBottom: 18 },
-  sectionTitle: { fontSize: 11, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  sectionDivider: { borderBottomWidth: 1.5, borderBottomColor: ACCENT, marginBottom: 10 },
+  sectionTitle: { fontSize: 11, fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  sectionDivider: { borderBottomWidth: 1.5, borderBottomColor: accent, marginBottom: 10 },
   entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 },
   entryTitle: { fontWeight: 700, fontSize: 11, color: '#000000' },
   entrySubtitle: { color: '#000000', fontSize: 10, marginBottom: 3, fontWeight: 600 },
@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
 })
 
 export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
+  const accent = data.accentColor || ACCENT
   const hasSections = data.sections && data.sections.length > 0
   const allocation = allocateResumeSections(data, 'modern')
   const role = getPrimaryResumeRole(data)
@@ -138,10 +139,10 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                 )}
                 
                 {section.type === 'entries' && section.entries && section.entries.map((entry, i) => (
-                  <View key={i} style={{ marginBottom: 10 }}>
+                  <View key={i} style={{ marginBottom: 10 }} wrap={false}>
                     <View style={styles.entryHeader} minPresenceAhead={24}>
                       {entry.link && /^https?:\/\//.test(entry.link)
-                        ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{entry.title}</Link>
+                        ? <Link src={entry.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: accent }}>{entry.title}</Link>
                         : <Text style={styles.entryTitle}>{entry.title}</Text>}
                       {entry.dates && <Text style={styles.entryDates}>{entry.dates}</Text>}
                     </View>
@@ -199,7 +200,7 @@ export function ModernTemplate({ data }: { data: ImprovedResumeData }) {
                     <View key={i} style={{ marginBottom: 8 }}>
                       <View style={styles.entryHeader} minPresenceAhead={24}>
                         {proj.link && /^https?:\/\//.test(proj.link)
-                          ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: ACCENT }}>{proj.name}</Link>
+                          ? <Link src={proj.link} style={{ ...styles.entryTitle, textDecoration: 'none', color: accent }}>{proj.name}</Link>
                           : <Text style={styles.entryTitle}>{proj.name}</Text>}
                       </View>
                       {proj.description && (

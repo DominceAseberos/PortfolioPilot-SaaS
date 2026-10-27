@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ROUTES } from '@/constants'
 import { GitBranch, Globe, ShieldAlert, Link2 } from 'lucide-react'
 import { ConnectProviderButton } from '@/components/account/ConnectProviderButton'
 import { DisconnectProviderButton } from '@/components/account/DisconnectProviderButton'
@@ -7,7 +9,9 @@ export default async function AccountsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
-  if (!user) return null
+  if (!user) {
+    redirect(ROUTES.login)
+  }
 
   // Check providers and identities
   const identities = user.identities || []

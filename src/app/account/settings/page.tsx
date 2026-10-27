@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ROUTES } from '@/constants'
 import { User, Shield } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { UpdateProfileForm } from '@/components/account/UpdateProfileForm'
@@ -9,7 +11,9 @@ export default async function SettingsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
-  if (!user) return null
+  if (!user) {
+    redirect(ROUTES.login)
+  }
 
   const fullName = user.user_metadata?.full_name || 'Not set'
   const email = user.email
