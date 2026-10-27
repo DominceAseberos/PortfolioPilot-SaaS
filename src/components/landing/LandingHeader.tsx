@@ -10,10 +10,9 @@ import { useCredits } from '@/hooks/useCredits'
 import { authService } from '@/features/auth/services/auth.service'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { LogOut, Settings, CreditCard, LayoutDashboard, User as UserIcon, Coins } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { INITIAL_FREE_TOKENS, CLAIM_BONUS_CREDITS } from '@/config/pricing'
-import { cn } from '@/lib/utils'
 
 export function LandingHeader() {
   const { user, isAuthenticated } = useAuth()
@@ -70,8 +69,8 @@ export function LandingHeader() {
             PortfolioPilot
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+            <Link href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link>
+            <Link href="/#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
           </nav>
         </div>
         
