@@ -18,9 +18,14 @@ export class PaymentService {
   async createCheckoutSession(userId: string, priceId: string, email: string, credits: number = 20) {
     const stripe = getStripe()
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://devcompile.zeist.org')
-    const session = await stripe.checkout.sessions.create({
+
+    // Automatically inspect the price to support both one-time packs and recurring prices seamlessly
+    const price = await stripe.prices.retrieve(priceId)
+    const isRecurring = price.type === 'recurring'
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer_email: email,
-      mode: 'payment', // One-time payment for credit packs
+      mode: isRecurring ? 'subscription' : 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/account/billing?success=true`,
       cancel_url: `${baseUrl}/account/billing?canceled=true`,
@@ -28,8 +33,18 @@ export class PaymentService {
         user_id: userId,
         credits: String(credits),
       },
-    })
+    }
 
+    if (isRecurring) {
+      sessionParams.subscription_data = {
+        metadata: {
+          user_id: userId,
+          credits: String(credits),
+        },
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams)
     return session
   }
 
