@@ -107,15 +107,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
   }, [])
 
   const handleClose = useCallback(() => {
-    if (typeof window !== 'undefined' && (isDirty || busy)) {
-      const message = busy
-        ? 'Close the resume generator and cancel the operation currently in progress?'
-        : 'Close the resume generator and discard your unsaved edits?'
-      if (!window.confirm(message)) return
-    }
     cancelPendingWork()
     onClose()
-  }, [busy, cancelPendingWork, isDirty, onClose])
+  }, [cancelPendingWork, onClose])
 
   useEffect(() => {
     mountedRef.current = true
@@ -663,14 +657,14 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
           <h3 className="text-sm font-bold flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" /> Layout Preflight
           </h3>
-          <span className="text-xs font-semibold">{preflight.score}/100 Â· ~{preflight.estimatedPages} page{preflight.estimatedPages === 1 ? '' : 's'}</span>
+          <span className="text-xs font-semibold">{preflight.score}/100 • ~{preflight.estimatedPages} page{preflight.estimatedPages === 1 ? '' : 's'}</span>
         </div>
         <p className="text-xs text-muted-foreground">
           {preflight.fit === 'comfortable' ? 'This template should fit comfortably with the current content.' : preflight.fit === 'tight' ? 'This template is getting dense. Review long sections before export.' : 'This template has overflow risk. Prefer another page, a better-fitting template, or content optimization instead of tiny text.'}
         </p>
         {pdfVerification && (
           <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-700">
-            <p className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Render verified Â· {pdfVerification.actualPages} page{pdfVerification.actualPages === 1 ? '' : 's'} Â· {Math.round(pdfVerification.contentCoverage * 100)}% expected content present</p>
+            <p className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Render verified • {pdfVerification.actualPages} page{pdfVerification.actualPages === 1 ? '' : 's'} • {Math.round(pdfVerification.contentCoverage * 100)}% expected content present</p>
             {pdfVerification.templateFidelity && <p className="mt-1">Uploaded template fidelity: {pdfVerification.templateFidelity.score}%.</p>}
             {pdfVerification.pageDelta !== 0 && <p className="mt-1 text-amber-700">The real render differs from the heuristic estimate by {Math.abs(pdfVerification.pageDelta)} page{Math.abs(pdfVerification.pageDelta) === 1 ? '' : 's'}; the rendered count is authoritative.</p>}
           </div>
@@ -703,7 +697,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                {capabilityReport.counts.preserved} preserved Â· {capabilityReport.counts.approximated} approximated Â· {capabilityReport.counts.unsupported} unsupported Â· {capabilityReport.counts.blocking} blocking
+                {capabilityReport.counts.preserved} preserved • {capabilityReport.counts.approximated} approximated • {capabilityReport.counts.unsupported} unsupported • {capabilityReport.counts.blocking} blocking
               </p>
               <div className="space-y-1.5">
                 {capabilityReport.items.map((item) => (
@@ -731,7 +725,7 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
                 <p className="text-[10px] text-muted-foreground">Review every rewrite before applying it.</p>
               </div>
               <span className="text-[10px] font-semibold text-muted-foreground">
-                {optimizationProposal.before.score}/100 â†’ {optimizationProposal.after.score}/100 Â· ~{optimizationProposal.before.estimatedPages}p â†’ ~{optimizationProposal.after.estimatedPages}p
+                {optimizationProposal.before.score}/100 → {optimizationProposal.after.score}/100 • ~{optimizationProposal.before.estimatedPages}p → ~{optimizationProposal.after.estimatedPages}p
               </span>
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -1035,7 +1029,9 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
 
       {/* Mobile Tabs */}
       <div className="sm:hidden flex border-b border-border/50 shrink-0 overflow-x-auto">
-         <button type="button" role="tab" aria-selected={activeTab === 'original'} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'original' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('original')}>Original</button>
+         {originalUrl && (
+           <button type="button" role="tab" aria-selected={activeTab === 'original'} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'original' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('original')}>Original</button>
+         )}
          <button type="button" role="tab" aria-selected={activeTab === 'edit'} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'edit' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('edit')}>Edit Form</button>
          <button type="button" role="tab" aria-selected={activeTab === 'preview'} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 ${activeTab === 'preview' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`} onClick={() => setActiveTab('preview')}>Live Preview</button>
       </div>
@@ -1043,25 +1039,20 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden flex flex-col sm:flex-row">
         
-        {/* Panel 1: Original Resume (Hidden on mobile unless activeTab) */}
-        <div className={`w-full ${compareMode ? 'sm:w-1/2' : 'sm:w-1/4'} h-full border-r border-border/50 bg-muted/20 flex-col ${activeTab === 'original' ? 'flex' : 'hidden sm:flex'}`}>
-           <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
-             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><FileText className="h-4 w-4"/> Original Resume</span>
-           </div>
-           <div className="flex-1 p-4 overflow-hidden relative">
-             {originalUrl ? (
+        {/* Panel 1: Original Resume (Only shown if originalUrl exists) */}
+        {originalUrl && (
+          <div className={`w-full ${compareMode ? 'sm:w-1/2' : 'sm:w-1/4'} h-full border-r border-border/50 bg-muted/20 flex-col ${activeTab === 'original' ? 'flex' : 'hidden sm:flex'}`}>
+             <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
+               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><FileText className="h-4 w-4"/> Original Resume</span>
+             </div>
+             <div className="flex-1 p-4 overflow-hidden relative">
                <iframe src={`${originalUrl}#toolbar=0&navpanes=0`} className="w-full h-full rounded-lg border border-border/50 shadow-sm bg-background" title="Original PDF" />
-             ) : (
-               <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
-                 <FileText className="h-8 w-8 opacity-20" />
-                 <span className="text-xs">No original PDF provided</span>
-               </div>
-             )}
-           </div>
-        </div>
+             </div>
+          </div>
+        )}
 
-        {/* Panel 2: Edit Form */}
-        <div className={`w-full sm:w-2/4 h-full border-r border-border/50 bg-background flex-col ${compareMode ? 'hidden' : (activeTab === 'edit' ? 'flex' : 'hidden sm:flex')}`}>
+        {/* Panel 2: Edit Form (Expands to 60% if no originalUrl) */}
+        <div className={`w-full ${originalUrl ? (compareMode ? 'hidden' : 'sm:w-2/4') : (compareMode ? 'hidden' : 'sm:w-3/5')} h-full border-r border-border/50 bg-background flex-col ${compareMode ? 'hidden' : (activeTab === 'edit' ? 'flex' : 'hidden sm:flex')}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Sparkles className="h-4 w-4"/> Edit Content</span>
            </div>
@@ -1070,11 +1061,11 @@ export default function ImprovedResumeModal({ initialData, resumeFile, onClose, 
            </div>
         </div>
 
-        {/* Panel 3: Live Preview */}
-         <div className={`w-full ${compareMode ? 'sm:w-1/2' : 'sm:w-1/4'} h-full bg-muted/20 flex-col ${activeTab === 'preview' ? 'flex' : 'hidden sm:flex'}`}>
+        {/* Panel 3: Live Preview (Expands to 40% if no originalUrl) */}
+         <div className={`w-full ${originalUrl ? (compareMode ? 'sm:w-1/2' : 'sm:w-1/4') : (compareMode ? 'sm:w-full' : 'sm:w-2/5')} h-full bg-muted/20 flex-col ${activeTab === 'preview' ? 'flex' : 'hidden sm:flex'}`}>
            <div className="p-3 border-b border-border/50 bg-card flex items-center justify-between shrink-0">
              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Eye className="h-4 w-4"/> Live PDF Preview</span>
-             <Badge variant="secondary" className={`text-[10px] gap-1 ${preflight.fit === 'overflow-risk' ? 'bg-red-500/10 text-red-600 border-red-500/20' : preflight.fit === 'tight' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-green-500/10 text-green-600 border-green-500/20'}`}><CheckCircle2 className="h-3 w-3"/> {preflight.fit === 'comfortable' ? 'Fits comfortably' : preflight.fit === 'tight' ? 'Tight layout' : 'Overflow risk'} Â· ~{preflight.estimatedPages}p</Badge>
+             <Badge variant="secondary" className={`text-[10px] gap-1 ${preflight.fit === 'overflow-risk' ? 'bg-red-500/10 text-red-600 border-red-500/20' : preflight.fit === 'tight' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-green-500/10 text-green-600 border-green-500/20'}`}><CheckCircle2 className="h-3 w-3"/> {preflight.fit === 'comfortable' ? 'Fits comfortably' : preflight.fit === 'tight' ? 'Tight layout' : 'Overflow risk'} • ~{preflight.estimatedPages}p</Badge>
            </div>
            <div className="flex-1 p-4 overflow-hidden relative flex flex-col items-center justify-center">
              <BlobProvider document={<ResumeTemplateChoiceRenderer data={previewData} templateId={selectedTemplate} />}>

@@ -3,11 +3,14 @@
 import Link from 'next/link'
 import { Button } from '@/components/common/Button'
 import { ROUTES } from '@/constants'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Settings } from 'lucide-react'
 import { HeroAnimation } from './HeroAnimation'
 import { ScrollReveal } from '@/components/common/ScrollReveal'
+import { useAuth } from '@/hooks/useAuth'
 
 export function LandingHero() {
+  const { isAuthenticated } = useAuth()
+
   return (
     <section className="relative overflow-hidden py-20 sm:py-32">
       
@@ -60,21 +63,29 @@ export function LandingHero() {
                 <Link href="/dashboard/reviews">
                   <Button size="lg" className="group relative w-full sm:w-auto overflow-hidden bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.6)]">
                     <span className="relative z-10 flex items-center">
-                      Analyze Now
+                      {isAuthenticated ? 'Go to Dashboard' : 'Analyze Now'}
                       <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1.5" />
                     </span>
                     {/* Subtle shine sweep */}
                     <div className="absolute inset-0 z-0 h-full w-full -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-full" />
                   </Button>
                 </Link>
-                <Link href={ROUTES.login}>
-                  <Button variant="outline" size="lg" className="group w-full sm:w-auto transition-all duration-300 hover:scale-105 hover:bg-muted/50 hover:shadow-lg font-bold">
-                    Sign In
-                  </Button>
-                </Link>
+                {!isAuthenticated ? (
+                  <Link href={ROUTES.login}>
+                    <Button variant="outline" size="lg" className="group w-full sm:w-auto transition-all duration-300 hover:scale-105 hover:bg-muted/50 hover:shadow-lg font-bold">
+                      Sign In
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/account/settings">
+                    <Button variant="outline" size="lg" className="group w-full sm:w-auto transition-all duration-300 hover:scale-105 hover:bg-muted/50 hover:shadow-lg font-bold flex items-center gap-2">
+                      <Settings className="h-4 w-4" /> Account Settings
+                    </Button>
+                  </Link>
+                )}
               </div>
               <p className="text-muted-foreground mt-4 text-sm text-left font-medium">
-                No credit card required. Start with a free guest pass.
+                {isAuthenticated ? 'Logged in and ready to analyze your developer profiles.' : 'No credit card required. Start with a free guest pass.'}
               </p>
             </ScrollReveal>
           </div>
