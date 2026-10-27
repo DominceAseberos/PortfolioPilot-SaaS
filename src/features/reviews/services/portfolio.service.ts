@@ -428,7 +428,7 @@ export class PortfolioService {
     timeoutMs: number,
     preferScrapingAnt = true
   ): Promise<{ html: string; provider: 'scrapingant' | 'direct' }> {
-    const url = rawUrl.startsWith('http://') || rawUrl.startsWith('https://') ? rawUrl : \https://\
+    const url = rawUrl.startsWith('http://') || rawUrl.startsWith('https://') ? rawUrl : `https://${rawUrl}`
     const scrapingAntKey = process.env.SCRAPINGANT_API_KEY
 
     if (scrapingAntKey && preferScrapingAnt) {
